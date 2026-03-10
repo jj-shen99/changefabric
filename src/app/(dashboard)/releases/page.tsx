@@ -5,7 +5,7 @@ import {
   Rocket, Calendar, User, GitPullRequest, AlertTriangle, CheckCircle2, Clock,
   RotateCcw, ChevronDown, ChevronUp, ChevronRight, XCircle, Loader2, Filter,
   TestTube2, ShieldCheck, Eye, Gauge, Code2, FlaskConical, Search, History,
-  TrendingUp,
+  TrendingUp, LayoutDashboard,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis,
@@ -34,7 +34,7 @@ const typeIcons: Record<ValidationType, React.ElementType> = {
   smoke_test: Rocket, regression_test: RotateCcw, canary_deploy: Rocket, rollback_test: RotateCcw,
 };
 
-type PageTab = "releases" | "validations" | "historical";
+type PageTab = "overview" | "releases" | "historical";
 type ViewMode = "all" | "by-release" | "by-team";
 
 /* ─── Tab Button Component ─── */
@@ -56,7 +56,7 @@ function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; on
 
 export default function ReleasesPage() {
   const { releases, changeRequests, validationTrendData, loading, error } = useData();
-  const [activeTab, setActiveTab] = useState<PageTab>("releases");
+  const [activeTab, setActiveTab] = useState<PageTab>("overview");
   const [expandedRelease, setExpandedRelease] = useState<string | null>(null);
 
   // Validation state (hooks before early returns)
@@ -83,22 +83,6 @@ export default function ReleasesPage() {
       total: s.total,
     })).sort((a, b) => b.passRate - a.passRate);
   }, [changeRequests]);
-
-  const releaseReadiness = useMemo(() => {
-    return releases.map((rel) => {
-      const relChanges = changeRequests.filter((cr) => cr.releaseId === rel.id);
-      const relValidations = relChanges.flatMap((cr) => cr.validations);
-      const relPassed = relValidations.filter((v) => v.status === "passed").length;
-      const relFailed = relValidations.filter((v) => v.status === "failed").length;
-      const relTotal = relValidations.length;
-      const relPassRate = relTotal > 0 ? Math.round((relPassed / relTotal) * 100) : 0;
-      const hasBlockers = relValidations.some((v) => v.status === "failed" && v.blockers && v.blockers.length > 0);
-      return { id: rel.id, name: rel.name, version: rel.version, status: rel.status, changeCount: relChanges.length,
-        totalValidations: relTotal, passed: relPassed, failed: relFailed, passRate: relPassRate, hasBlockers,
-        changes: relChanges.map((cr) => ({ id: cr.id, title: cr.title, team: cr.team, validations: cr.validations })),
-      };
-    });
-  }, [releases, changeRequests]);
 
   // Historical: per-release summary stats
   const releaseHistory = useMemo(() => {
@@ -174,129 +158,13 @@ export default function ReleasesPage() {
 
       {/* Top-Level Tabs */}
       <div className="flex gap-1 border-b border-gray-200 pb-0.5 dark:border-gray-800">
+        <TabButton active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon={LayoutDashboard} label="Overview" />
         <TabButton active={activeTab === "releases"} onClick={() => setActiveTab("releases")} icon={Rocket} label="Releases" />
-        <TabButton active={activeTab === "validations"} onClick={() => setActiveTab("validations")} icon={TestTube2} label="Current Sprint" />
         <TabButton active={activeTab === "historical"} onClick={() => setActiveTab("historical")} icon={History} label="Historical" />
       </div>
 
-      {/* ═══ TAB: RELEASES ═══ */}
-      {activeTab === "releases" && (
-        <div className="space-y-6">
-          {releases.map((release) => {
-            const config = statusConfig[release.status];
-            const StatusIcon = config.icon;
-            const relatedChanges = changeRequests.filter((cr) => release.changeRequests.includes(cr.id));
-            const totalVals = relatedChanges.flatMap((cr) => cr.validations);
-            const passedVals = totalVals.filter((v) => v.status === "passed").length;
-            const failedVals = totalVals.filter((v) => v.status === "failed").length;
-            const pendingVals = totalVals.filter((v) => v.status === "pending" || v.status === "running").length;
-            const valPassRate = totalVals.length > 0 ? Math.round((passedVals / totalVals.length) * 100) : 0;
-            return (
-              <Card key={release.id} className="overflow-hidden">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`rounded-xl p-3 ${release.status === "completed" ? "bg-green-100 dark:bg-green-900" : release.status === "staging" ? "bg-amber-100 dark:bg-amber-900" : "bg-blue-100 dark:bg-blue-900"}`}>
-                      <Rocket className={`h-6 w-6 ${release.status === "completed" ? "text-green-600 dark:text-green-400" : release.status === "staging" ? "text-amber-600 dark:text-amber-400" : "text-blue-600 dark:text-blue-400"}`} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{release.name}</h2>
-                        <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-mono text-gray-500 dark:bg-gray-800 dark:text-gray-400">v{release.version}</span>
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${config.className}`}><StatusIcon className="h-3 w-3" />{config.label}</span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                        <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Scheduled: {formatDate(release.scheduledDate)}</span>
-                        {release.actualDate && (<span className="flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-green-500" />Deployed: {formatDate(release.actualDate)}</span>)}
-                        <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{release.releaseManager}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <RiskBadge score={release.overallRisk} size="lg" />
-                </div>
-                {release.notes && (<p className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">{release.notes}</p>)}
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-medium text-gray-700 dark:text-gray-300">Deployment Readiness</span>
-                    <span className="text-gray-500 dark:text-gray-400">{passedVals}/{totalVals.length} validations passed ({valPassRate}%)</span>
-                  </div>
-                  <div className="flex h-2 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800">
-                    {totalVals.length > 0 && (<>
-                      <div className="bg-green-400 transition-all" style={{ width: `${(passedVals / totalVals.length) * 100}%` }} />
-                      <div className="bg-red-400 transition-all" style={{ width: `${(failedVals / totalVals.length) * 100}%` }} />
-                      <div className="bg-blue-300 animate-pulse transition-all" style={{ width: `${(pendingVals / totalVals.length) * 100}%` }} />
-                    </>)}
-                  </div>
-                  <div className="mt-1 flex gap-4 text-[10px] text-gray-400">
-                    <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-green-400" /> {passedVals} Passed</span>
-                    <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-400" /> {failedVals} Failed</span>
-                    <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-300" /> {pendingVals} Pending/Running</span>
-                  </div>
-                </div>
-                {relatedChanges.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-xs font-semibold uppercase text-gray-400 mb-2">Bundled Changes ({relatedChanges.length})</h4>
-                    <div className="space-y-2">
-                      {relatedChanges.map((cr) => (
-                        <div key={cr.id} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <GitPullRequest className="h-3.5 w-3.5 text-gray-400" />
-                              <span className="font-mono text-xs text-gray-400">{cr.id}</span>
-                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{cr.title}</span>
-                            </div>
-                            <div className="mt-1 flex items-center gap-3 text-xs text-gray-400">
-                              <span>{cr.team}</span><span>·</span><span>{cr.author}</span><span>·</span><span className="capitalize">{cr.category.replace(/_/g, " ")}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <ChangeStatusBadge status={cr.status} />
-                            <RiskBadge score={cr.impact.overallRisk} size="sm" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {relatedChanges.length === 0 && (<p className="mt-4 text-sm text-gray-400 text-center py-2">No change requests bundled in this release</p>)}
-                {totalVals.length > 0 && (
-                  <div className="mt-4">
-                    <button onClick={() => setExpandedRelease(expandedRelease === release.id ? null : release.id)}
-                      className="flex w-full items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-xs font-semibold uppercase text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800">
-                      <span>All Validations ({totalVals.length})</span>
-                      {expandedRelease === release.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </button>
-                    {expandedRelease === release.id && (
-                      <div className="mt-2 space-y-2">
-                        {relatedChanges.map((cr) => (
-                          <div key={cr.id}>
-                            <p className="mb-1 text-[10px] font-semibold uppercase text-gray-400 dark:text-gray-500">{cr.id} — {cr.title}</p>
-                            <div className="space-y-1">
-                              {cr.validations.map((v) => (
-                                <div key={v.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-2 dark:border-gray-800">
-                                  <div>
-                                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{v.name}</p>
-                                    <p className="text-[10px] text-gray-400">{v.type.replace(/_/g, " ")}</p>
-                                    {v.duration && <p className="text-[10px] text-gray-400">{v.duration}</p>}
-                                    {v.details && <p className="mt-0.5 text-[10px] text-gray-500 dark:text-gray-400">{v.details}</p>}
-                                  </div>
-                                  <ValidationStatusBadge status={v.status} />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ═══ TAB: CURRENT SPRINT (VALIDATIONS) ═══ */}
-      {activeTab === "validations" && (
+      {/* ═══ TAB: OVERVIEW ═══ */}
+      {activeTab === "overview" && (
         <div className="space-y-6">
           {/* Summary Cards */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
@@ -366,60 +234,6 @@ export default function ReleasesPage() {
               </div>
             </Card>
           </div>
-
-          {/* Release Readiness */}
-          <Card>
-            <CardHeader><CardTitle>Release Validation Readiness</CardTitle></CardHeader>
-            <div className="space-y-4">
-              {releaseReadiness.map((rel) => (
-                <div key={rel.id} className="rounded-lg border border-gray-100 p-4 dark:border-gray-800">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{rel.name}</span>
-                        <span className="text-xs text-gray-400">v{rel.version}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${rel.status === "completed" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : rel.status === "staging" ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"}`}>{rel.status}</span>
-                        {rel.hasBlockers && (<span className="flex items-center gap-0.5 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-900 dark:text-red-300"><AlertTriangle className="h-3 w-3" /> Blockers</span>)}
-                      </div>
-                      <p className="mt-0.5 text-xs text-gray-400">{rel.changeCount} changes · {rel.totalValidations} validations</p>
-                    </div>
-                    <div className="text-right">
-                      <span className={`text-lg font-bold ${rel.passRate >= 80 ? "text-green-600 dark:text-green-400" : rel.passRate >= 60 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{rel.passRate}%</span>
-                      <p className="text-[10px] text-gray-400">{rel.passed}/{rel.totalValidations} passed</p>
-                    </div>
-                  </div>
-                  <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                    {rel.totalValidations > 0 && (<><div className="bg-green-500" style={{ width: `${(rel.passed / rel.totalValidations) * 100}%` }} /><div className="bg-red-500" style={{ width: `${(rel.failed / rel.totalValidations) * 100}%` }} /></>)}
-                  </div>
-                  <button onClick={() => toggleSection(rel.id)} className="mt-2 flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300">
-                    {expandedSections.has(rel.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                    {expandedSections.has(rel.id) ? "Hide" : "Show"} validations per change
-                  </button>
-                  {expandedSections.has(rel.id) && (
-                    <div className="mt-3 space-y-3">
-                      {rel.changes.map((cr) => {
-                        const crPassed = cr.validations.filter((v) => v.status === "passed").length;
-                        return (
-                          <div key={cr.id} className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/50">
-                            <div className="flex items-center justify-between">
-                              <div><span className="font-mono text-[10px] text-gray-400">{cr.id}</span><span className="ml-2 text-xs font-medium text-gray-700 dark:text-gray-300">{cr.title}</span><span className="ml-2 text-[10px] text-gray-400">{cr.team}</span></div>
-                              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{crPassed}/{cr.validations.length}</span>
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                              {cr.validations.map((v) => {
-                                const Icon = typeIcons[v.type as ValidationType] || TestTube2;
-                                return (<div key={v.id} className="flex items-center gap-1 rounded border border-gray-200 bg-white px-2 py-1 dark:border-gray-700 dark:bg-gray-800" title={`${v.name} — ${v.status}`}><Icon className="h-3 w-3 text-gray-400" /><span className="text-[10px] text-gray-600 dark:text-gray-400">{v.name}</span><ValidationStatusBadge status={v.status as ValidationStatus} /></div>);
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </Card>
 
           {/* Blockers */}
           {blockers.length > 0 && (
@@ -551,6 +365,122 @@ export default function ReleasesPage() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ═══ TAB: RELEASES ═══ */}
+      {activeTab === "releases" && (
+        <div className="space-y-6">
+          {releases.map((release) => {
+            const config = statusConfig[release.status];
+            const StatusIcon = config.icon;
+            const relatedChanges = changeRequests.filter((cr) => release.changeRequests.includes(cr.id));
+            const totalVals = relatedChanges.flatMap((cr) => cr.validations);
+            const passedVals = totalVals.filter((v) => v.status === "passed").length;
+            const failedVals = totalVals.filter((v) => v.status === "failed").length;
+            const pendingVals = totalVals.filter((v) => v.status === "pending" || v.status === "running").length;
+            const valPassRate = totalVals.length > 0 ? Math.round((passedVals / totalVals.length) * 100) : 0;
+            return (
+              <Card key={release.id} className="overflow-hidden">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`rounded-xl p-3 ${release.status === "completed" ? "bg-green-100 dark:bg-green-900" : release.status === "staging" ? "bg-amber-100 dark:bg-amber-900" : "bg-blue-100 dark:bg-blue-900"}`}>
+                      <Rocket className={`h-6 w-6 ${release.status === "completed" ? "text-green-600 dark:text-green-400" : release.status === "staging" ? "text-amber-600 dark:text-amber-400" : "text-blue-600 dark:text-blue-400"}`} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">{release.name}</h2>
+                        <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-mono text-gray-500 dark:bg-gray-800 dark:text-gray-400">v{release.version}</span>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${config.className}`}><StatusIcon className="h-3 w-3" />{config.label}</span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                        <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Scheduled: {formatDate(release.scheduledDate)}</span>
+                        {release.actualDate && (<span className="flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5 text-green-500" />Deployed: {formatDate(release.actualDate)}</span>)}
+                        <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{release.releaseManager}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <RiskBadge score={release.overallRisk} size="lg" />
+                </div>
+                {release.notes && (<p className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">{release.notes}</p>)}
+                <div className="mt-4">
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Deployment Readiness</span>
+                    <span className="text-gray-500 dark:text-gray-400">{passedVals}/{totalVals.length} validations passed ({valPassRate}%)</span>
+                  </div>
+                  <div className="flex h-2 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800">
+                    {totalVals.length > 0 && (<>
+                      <div className="bg-green-400 transition-all" style={{ width: `${(passedVals / totalVals.length) * 100}%` }} />
+                      <div className="bg-red-400 transition-all" style={{ width: `${(failedVals / totalVals.length) * 100}%` }} />
+                      <div className="bg-blue-300 animate-pulse transition-all" style={{ width: `${(pendingVals / totalVals.length) * 100}%` }} />
+                    </>)}
+                  </div>
+                  <div className="mt-1 flex gap-4 text-[10px] text-gray-400">
+                    <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-green-400" /> {passedVals} Passed</span>
+                    <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-400" /> {failedVals} Failed</span>
+                    <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-blue-300" /> {pendingVals} Pending/Running</span>
+                  </div>
+                </div>
+                {relatedChanges.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-xs font-semibold uppercase text-gray-400 mb-2">Bundled Changes ({relatedChanges.length})</h4>
+                    <div className="space-y-2">
+                      {relatedChanges.map((cr) => (
+                        <div key={cr.id} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <GitPullRequest className="h-3.5 w-3.5 text-gray-400" />
+                              <span className="font-mono text-xs text-gray-400">{cr.id}</span>
+                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{cr.title}</span>
+                            </div>
+                            <div className="mt-1 flex items-center gap-3 text-xs text-gray-400">
+                              <span>{cr.team}</span><span>·</span><span>{cr.author}</span><span>·</span><span className="capitalize">{cr.category.replace(/_/g, " ")}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <ChangeStatusBadge status={cr.status} />
+                            <RiskBadge score={cr.impact.overallRisk} size="sm" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {relatedChanges.length === 0 && (<p className="mt-4 text-sm text-gray-400 text-center py-2">No change requests bundled in this release</p>)}
+                {totalVals.length > 0 && (
+                  <div className="mt-4">
+                    <button onClick={() => setExpandedRelease(expandedRelease === release.id ? null : release.id)}
+                      className="flex w-full items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-xs font-semibold uppercase text-gray-500 hover:bg-gray-100 dark:bg-gray-800/50 dark:text-gray-400 dark:hover:bg-gray-800">
+                      <span>All Validations ({totalVals.length})</span>
+                      {expandedRelease === release.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                    {expandedRelease === release.id && (
+                      <div className="mt-2 space-y-2">
+                        {relatedChanges.map((cr) => (
+                          <div key={cr.id}>
+                            <p className="mb-1 text-[10px] font-semibold uppercase text-gray-400 dark:text-gray-500">{cr.id} — {cr.title}</p>
+                            <div className="space-y-1">
+                              {cr.validations.map((v) => (
+                                <div key={v.id} className="flex items-center justify-between rounded-lg border border-gray-100 p-2 dark:border-gray-800">
+                                  <div>
+                                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{v.name}</p>
+                                    <p className="text-[10px] text-gray-400">{v.type.replace(/_/g, " ")}</p>
+                                    {v.duration && <p className="text-[10px] text-gray-400">{v.duration}</p>}
+                                    {v.details && <p className="mt-0.5 text-[10px] text-gray-500 dark:text-gray-400">{v.details}</p>}
+                                  </div>
+                                  <ValidationStatusBadge status={v.status} />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
         </div>
       )}
 

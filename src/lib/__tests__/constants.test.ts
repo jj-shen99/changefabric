@@ -35,9 +35,9 @@ describe("NAV_SECTIONS", () => {
     expect(sectionNames).toContain("Releases");
   });
 
-  it("has Failure Analysis under Changes", () => {
+  it("has Analytics under Changes", () => {
     const changes = NAV_SECTIONS.find((s) => s.section === "Changes");
-    expect(changes?.items.some((i) => i.label === "Failure Analysis")).toBe(true);
+    expect(changes?.items.some((i) => i.label === "Analytics")).toBe(true);
   });
 
   it("has Release Overview at top of Releases section", () => {
@@ -58,7 +58,7 @@ describe("NAV_SECTIONS", () => {
 
 describe("NAV_ITEMS", () => {
   it("has the correct number of items", () => {
-    expect(NAV_ITEMS.length).toBe(9);
+    expect(NAV_ITEMS.length).toBe(7);
   });
 
   it("starts with Overview", () => {

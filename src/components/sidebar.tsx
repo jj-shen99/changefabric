@@ -13,8 +13,6 @@ import {
   LogOut,
   Users,
   Radar,
-  AlertTriangle,
-  Zap,
   Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,11 +24,9 @@ const iconMap: Record<string, React.ElementType> = {
   "/": LayoutDashboard,
   "/changes": GitPullRequest,
   "/impact": ShieldAlert,
+  "/analytics": BarChart3,
   "/releases": Rocket,
-  "/metrics": BarChart3,
   "/risk-radar": Radar,
-  "/failure-analysis": AlertTriangle,
-  "/velocity": Zap,
   "/executive": Crown,
 };
 

@@ -87,9 +87,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/", label: "Overview", segment: null },
       { href: "/changes", label: "Change Requests", segment: "changes" },
       { href: "/impact", label: "Impact Analysis", segment: "impact" },
-      { href: "/failure-analysis", label: "Failure Analysis", segment: "failure-analysis" },
-      { href: "/velocity", label: "Velocity", segment: "velocity" },
-      { href: "/metrics", label: "Metrics & Trends", segment: "metrics" },
+      { href: "/analytics", label: "Analytics", segment: "analytics" },
     ],
   },
   {
