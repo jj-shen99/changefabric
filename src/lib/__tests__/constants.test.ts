@@ -1,4 +1,4 @@
-import { RISK_THRESHOLDS, RISK_LABELS, NAV_ITEMS, PAGINATION, APP_CONFIG } from "../constants";
+import { RISK_THRESHOLDS, RISK_LABELS, NAV_ITEMS, NAV_SECTIONS, PAGINATION, APP_CONFIG } from "../constants";
 
 describe("RISK_THRESHOLDS", () => {
   it("has correct threshold values", () => {
@@ -24,6 +24,28 @@ describe("RISK_LABELS", () => {
   });
 });
 
+describe("NAV_SECTIONS", () => {
+  it("has 3 sections", () => {
+    expect(NAV_SECTIONS.length).toBe(3);
+  });
+
+  it("has Changes and Releases sections", () => {
+    const sectionNames = NAV_SECTIONS.map((s) => s.section);
+    expect(sectionNames).toContain("Changes");
+    expect(sectionNames).toContain("Releases");
+  });
+
+  it("has Failure Analysis under Changes", () => {
+    const changes = NAV_SECTIONS.find((s) => s.section === "Changes");
+    expect(changes?.items.some((i) => i.label === "Failure Analysis")).toBe(true);
+  });
+
+  it("has Release Overview at top of Releases section", () => {
+    const releases = NAV_SECTIONS.find((s) => s.section === "Releases");
+    expect(releases?.items[0].label).toBe("Release Overview");
+  });
+});
+
 describe("NAV_ITEMS", () => {
   it("has the correct number of items", () => {
     expect(NAV_ITEMS.length).toBe(11);
@@ -32,12 +54,6 @@ describe("NAV_ITEMS", () => {
   it("starts with Overview", () => {
     expect(NAV_ITEMS[0].label).toBe("Overview");
     expect(NAV_ITEMS[0].href).toBe("/");
-  });
-
-  it("has Releases before Validations", () => {
-    const releasesIdx = NAV_ITEMS.findIndex((item) => item.label === "Releases");
-    const validationsIdx = NAV_ITEMS.findIndex((item) => item.label === "Validations");
-    expect(releasesIdx).toBeLessThan(validationsIdx);
   });
 
   it("all items have href and label", () => {

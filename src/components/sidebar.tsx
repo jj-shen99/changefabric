@@ -20,7 +20,7 @@ import {
   Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NAV_ITEMS } from "@/lib/constants";
+import { NAV_SECTIONS } from "@/lib/constants";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ROLE_PERMISSIONS, type UserRole } from "@/lib/auth-types";
 
@@ -71,31 +71,42 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3 py-4" aria-label="Primary">
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href;
-          const Icon = iconMap[item.href] || LayoutDashboard;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onNavigate}
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-              )}
-            >
-              <Icon
-                className={cn("h-4 w-4", isActive ? "text-blue-700 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")}
-                aria-hidden="true"
-              />
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Primary">
+        {NAV_SECTIONS.map((section, sIdx) => (
+          <div key={sIdx} className={sIdx > 0 ? "mt-4" : ""}>
+            {section.section && (
+              <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                {section.section}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const isActive = pathname === item.href;
+                const Icon = iconMap[item.href] || LayoutDashboard;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onNavigate}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
+                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                    )}
+                  >
+                    <Icon
+                      className={cn("h-4 w-4", isActive ? "text-blue-700 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")}
+                      aria-hidden="true"
+                    />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       <div className="border-t border-gray-200 p-3 space-y-1 dark:border-gray-800">

@@ -52,7 +52,7 @@ export default function ExecutivePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Executive Release Health</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Release Overview</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Organization-wide software delivery health summary
           </p>

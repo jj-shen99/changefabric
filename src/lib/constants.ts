@@ -77,16 +77,37 @@ export const APP_CONFIG = {
 } as const;
 
 // Navigation items (single source of truth for sidebar + breadcrumbs)
-export const NAV_ITEMS = [
-  { href: "/", label: "Overview", segment: null },
-  { href: "/changes", label: "Change Requests", segment: "changes" },
-  { href: "/impact", label: "Impact Analysis", segment: "impact" },
-  { href: "/releases", label: "Releases", segment: "releases" },
-  { href: "/validations", label: "Validations", segment: "validations" },
-  { href: "/metrics", label: "Metrics & Trends", segment: "metrics" },
-  { href: "/risk-radar", label: "Risk Radar", segment: "risk-radar" },
-  { href: "/confidence", label: "Confidence", segment: "confidence" },
-  { href: "/failure-analysis", label: "Failure Analysis", segment: "failure-analysis" },
-  { href: "/velocity", label: "Velocity", segment: "velocity" },
-  { href: "/executive", label: "Executive", segment: "executive" },
-] as const;
+export type NavItem = { href: string; label: string; segment: string | null };
+export type NavSection = { section: string | null; items: NavItem[] };
+
+export const NAV_SECTIONS: NavSection[] = [
+  {
+    section: null,
+    items: [
+      { href: "/", label: "Overview", segment: null },
+      { href: "/metrics", label: "Metrics & Trends", segment: "metrics" },
+    ],
+  },
+  {
+    section: "Changes",
+    items: [
+      { href: "/changes", label: "Change Requests", segment: "changes" },
+      { href: "/impact", label: "Impact Analysis", segment: "impact" },
+      { href: "/failure-analysis", label: "Failure Analysis", segment: "failure-analysis" },
+      { href: "/velocity", label: "Velocity", segment: "velocity" },
+    ],
+  },
+  {
+    section: "Releases",
+    items: [
+      { href: "/executive", label: "Release Overview", segment: "executive" },
+      { href: "/releases", label: "Releases", segment: "releases" },
+      { href: "/validations", label: "Validations", segment: "validations" },
+      { href: "/risk-radar", label: "Risk Radar", segment: "risk-radar" },
+      { href: "/confidence", label: "Confidence", segment: "confidence" },
+    ],
+  },
+];
+
+// Flat list for backward compatibility (command palette, tests, etc.)
+export const NAV_ITEMS = NAV_SECTIONS.flatMap((s) => s.items);
