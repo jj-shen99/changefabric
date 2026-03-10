@@ -1,16 +1,18 @@
 export type RiskLevel = "critical" | "high" | "medium" | "low";
-export type ChangeStatus = "draft" | "pending_review" | "approved" | "in_progress" | "deployed" | "rolled_back" | "failed";
-export type ValidationType = "unit_test" | "integration_test" | "performance_test" | "security_scan" | "code_review" | "uat" | "smoke_test" | "regression_test" | "canary_deploy" | "rollback_test";
-export type ValidationStatus = "passed" | "failed" | "running" | "pending" | "skipped";
-export type ChangeCategory = "feature" | "bugfix" | "hotfix" | "infrastructure" | "security_patch" | "database_migration" | "config_change" | "dependency_update";
+
+// Legacy type aliases kept for backward compatibility with existing pages
+export type ChangeStatus = string;
+export type ChangeCategory = string;
+export type ValidationType = string;
+export type ValidationStatus = string;
 
 export interface ImpactAnalysis {
-  outageRisk: number;        // 0-100
-  performanceRisk: number;   // 0-100
-  functionalityRisk: number; // 0-100
-  securityRisk: number;      // 0-100
-  dataIntegrityRisk: number; // 0-100
-  overallRisk: number;       // 0-100
+  outageRisk: number;
+  performanceRisk: number;
+  functionalityRisk: number;
+  securityRisk: number;
+  dataIntegrityRisk: number;
+  overallRisk: number;
   affectedServices: string[];
   affectedUsers: number;
   estimatedDowntime: string;
@@ -20,38 +22,84 @@ export interface ImpactAnalysis {
 
 export interface Validation {
   id: string;
-  type: ValidationType;
+  type: string;
   name: string;
-  status: ValidationStatus;
+  status: string;
   startedAt?: string;
   completedAt?: string;
   duration?: string;
   coverage?: number;
   details?: string;
   blockers?: string[];
+  changeId?: string;
+  changeTitle?: string;
+  team?: string;
+  releaseId?: string | null;
 }
 
 export interface ChangeRequest {
+  number: string;
+  sys_id: string;
+  short_description: string;
+  description: string;
+  category: string;
+  state: string;
+  type: string;
+  priority: string;
+  risk: string;
+  sn_impact: string;
+  urgency: string;
+  scope: string;
+  approval: string;
+  assigned_to: string;
+  assignment_group: string;
+  opened_by: string;
+  opened_at: string;
+  closed_at: string;
+  closed_by: string;
+  close_code: string;
+  close_notes: string;
+  start_date: string;
+  end_date: string;
+  work_start: string;
+  work_end: string;
+  expected_start: string;
+  implementation_plan: string;
+  backout_plan: string;
+  test_plan: string;
+  change_plan: string;
+  risk_impact_analysis: string;
+  justification: string;
+  cmdb_ci: string;
+  business_service: string;
+  service_offering: string;
+  company: string;
+  contact_type: string;
+  location: string;
+  requested_by: string;
+  requested_by_date: string;
+  parent: string;
+  reason: string;
+  validations: Validation[];
+  // Legacy backward-compat fields mapped from SN fields in API response
   id: string;
   title: string;
-  description: string;
-  category: ChangeCategory;
-  status: ChangeStatus;
+  status: string;
   author: string;
   team: string;
   createdAt: string;
-  scheduledAt?: string;
-  deployedAt?: string;
-  impact: ImpactAnalysis;
-  validations: Validation[];
-  releaseId?: string;
-  jiraTicket?: string;
-  prUrl?: string;
   linesAdded: number;
   linesRemoved: number;
   filesChanged: number;
   approvers: string[];
   tags: string[];
+  impact: ImpactAnalysis;
+  jiraTicket?: string;
+  prUrl?: string;
+  releaseId?: string;
+  scheduledAt?: string;
+  deployedAt?: string;
+  [key: string]: unknown;
 }
 
 export interface Release {

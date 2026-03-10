@@ -3,14 +3,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-function parseJson(str: string): unknown {
-  try {
-    return JSON.parse(str);
-  } catch {
-    return str;
-  }
-}
-
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -19,8 +11,8 @@ export async function GET() {
 
   const [changeRequests, releases, metrics] = await Promise.all([
     prisma.changeRequest.findMany({
-      include: { impact: true, validations: true },
-      orderBy: { createdAt: "desc" },
+      include: { validations: true },
+      orderBy: { opened_at: "desc" },
     }),
     prisma.release.findMany({
       orderBy: { scheduledDate: "desc" },
@@ -30,51 +22,40 @@ export async function GET() {
     }),
   ]);
 
+  // Return SN fields as-is, plus backward-compat aliases for old pages
   const formattedChanges = changeRequests.map((cr) => ({
-    id: cr.id,
-    title: cr.title,
-    description: cr.description,
-    category: cr.category,
-    status: cr.status,
-    author: cr.author,
-    team: cr.team,
-    createdAt: cr.createdAt.toISOString(),
-    scheduledAt: cr.scheduledAt?.toISOString(),
-    deployedAt: cr.deployedAt?.toISOString(),
-    releaseId: cr.releaseId,
-    jiraTicket: cr.jiraTicket,
-    prUrl: cr.prUrl,
-    linesAdded: cr.linesAdded,
-    linesRemoved: cr.linesRemoved,
-    filesChanged: cr.filesChanged,
-    approvers: parseJson(cr.approvers) as string[],
-    tags: parseJson(cr.tags) as string[],
-    impact: cr.impact
-      ? {
-          outageRisk: cr.impact.outageRisk,
-          performanceRisk: cr.impact.performanceRisk,
-          functionalityRisk: cr.impact.functionalityRisk,
-          securityRisk: cr.impact.securityRisk,
-          dataIntegrityRisk: cr.impact.dataIntegrityRisk,
-          overallRisk: cr.impact.overallRisk,
-          affectedServices: parseJson(cr.impact.affectedServices) as string[],
-          affectedUsers: cr.impact.affectedUsers,
-          estimatedDowntime: cr.impact.estimatedDowntime,
-          rollbackComplexity: cr.impact.rollbackComplexity,
-          blastRadius: cr.impact.blastRadius,
-        }
-      : null,
+    ...cr,
+    // Legacy aliases so existing dashboard pages still work
+    id: cr.number,
+    title: cr.short_description,
+    author: cr.opened_by,
+    team: cr.assignment_group,
+    status: cr.state,
+    createdAt: cr.opened_at,
+    sn_impact: cr.impact,
+    linesAdded: 0,
+    linesRemoved: 0,
+    filesChanged: 0,
+    approvers: [] as string[],
+    tags: [] as string[],
+    impact: {
+      outageRisk: 0,
+      performanceRisk: 0,
+      functionalityRisk: 0,
+      securityRisk: 0,
+      dataIntegrityRisk: 0,
+      overallRisk: 0,
+      affectedServices: [] as string[],
+      affectedUsers: 0,
+      estimatedDowntime: "0 min",
+      rollbackComplexity: "low",
+      blastRadius: "low",
+    },
     validations: cr.validations.map((v) => ({
       id: v.id,
       type: v.type,
       name: v.name,
       status: v.status,
-      startedAt: v.startedAt?.toISOString(),
-      completedAt: v.completedAt?.toISOString(),
-      duration: v.duration,
-      coverage: v.coverage,
-      details: v.details,
-      blockers: parseJson(v.blockers) as string[],
     })),
   }));
 
@@ -85,9 +66,7 @@ export async function GET() {
     status: r.status,
     scheduledDate: r.scheduledDate.toISOString(),
     actualDate: r.actualDate?.toISOString(),
-    changeRequests: changeRequests
-      .filter((cr) => cr.releaseId === r.id)
-      .map((cr) => cr.id),
+    changeRequests: [] as string[],
     overallRisk: r.overallRisk,
     releaseManager: r.releaseManager,
     notes: r.notes,

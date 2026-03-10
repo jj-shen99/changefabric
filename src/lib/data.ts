@@ -1,4 +1,4 @@
-import { ChangeRequest, Release, DashboardMetrics } from "./types";
+import type { Release, DashboardMetrics } from "./types";
 
 export const dashboardMetrics: DashboardMetrics = {
   totalChanges: 147,
@@ -13,7 +13,8 @@ export const dashboardMetrics: DashboardMetrics = {
   changeLeadTime: "4.2 days",
 };
 
-export const changeRequests: ChangeRequest[] = [
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const changeRequests: any[] = [
   {
     id: "CR-1042",
     title: "Payment Gateway Migration to Stripe v3",

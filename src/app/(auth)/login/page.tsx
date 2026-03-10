@@ -133,14 +133,6 @@ function LoginForm() {
         </Link>
       </p>
 
-      <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800">
-        <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">Demo accounts:</p>
-        <div className="space-y-1 text-xs text-gray-500 dark:text-gray-400">
-          <p><span className="font-mono">admin@company.com</span> / admin123!</p>
-          <p><span className="font-mono">manager@company.com</span> / manager123!</p>
-          <p><span className="font-mono">viewer@company.com</span> / viewer123!</p>
-        </div>
-      </div>
     </div>
   );
 }
