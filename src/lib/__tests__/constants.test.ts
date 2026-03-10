@@ -44,11 +44,21 @@ describe("NAV_SECTIONS", () => {
     const releases = NAV_SECTIONS.find((s) => s.section === "Releases");
     expect(releases?.items[0].label).toBe("Release Overview");
   });
+
+  it("has combined Releases & Validations under Releases section", () => {
+    const releases = NAV_SECTIONS.find((s) => s.section === "Releases");
+    expect(releases?.items.some((i) => i.label === "Releases & Validations")).toBe(true);
+  });
+
+  it("has combined Risk & Confidence under Releases section", () => {
+    const releases = NAV_SECTIONS.find((s) => s.section === "Releases");
+    expect(releases?.items.some((i) => i.label === "Risk & Confidence")).toBe(true);
+  });
 });
 
 describe("NAV_ITEMS", () => {
   it("has the correct number of items", () => {
-    expect(NAV_ITEMS.length).toBe(11);
+    expect(NAV_ITEMS.length).toBe(9);
   });
 
   it("starts with Overview", () => {

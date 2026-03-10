@@ -96,10 +96,8 @@ export const NAV_SECTIONS: NavSection[] = [
     section: "Releases",
     items: [
       { href: "/executive", label: "Release Overview", segment: "executive" },
-      { href: "/releases", label: "Releases", segment: "releases" },
-      { href: "/validations", label: "Validations", segment: "validations" },
-      { href: "/risk-radar", label: "Risk Radar", segment: "risk-radar" },
-      { href: "/confidence", label: "Confidence", segment: "confidence" },
+      { href: "/releases", label: "Releases & Validations", segment: "releases" },
+      { href: "/risk-radar", label: "Risk & Confidence", segment: "risk-radar" },
     ],
   },
 ];
