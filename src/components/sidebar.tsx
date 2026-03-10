@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS } from "@/lib/constants";
-import { ThemeToggle } from "@/components/theme-toggle";
+
 import { ROLE_PERMISSIONS, type UserRole } from "@/lib/auth-types";
 
 const iconMap: Record<string, React.ElementType> = {
@@ -138,7 +138,6 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
             Settings
           </Link>
         )}
-        <ThemeToggle />
       </div>
 
       {session?.user && (
