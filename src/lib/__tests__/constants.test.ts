@@ -26,7 +26,7 @@ describe("RISK_LABELS", () => {
 
 describe("NAV_ITEMS", () => {
   it("has the correct number of items", () => {
-    expect(NAV_ITEMS.length).toBe(6);
+    expect(NAV_ITEMS.length).toBe(11);
   });
 
   it("starts with Overview", () => {

@@ -84,4 +84,9 @@ export const NAV_ITEMS = [
   { href: "/releases", label: "Releases", segment: "releases" },
   { href: "/validations", label: "Validations", segment: "validations" },
   { href: "/metrics", label: "Metrics & Trends", segment: "metrics" },
+  { href: "/risk-radar", label: "Risk Radar", segment: "risk-radar" },
+  { href: "/confidence", label: "Confidence", segment: "confidence" },
+  { href: "/failure-analysis", label: "Failure Analysis", segment: "failure-analysis" },
+  { href: "/velocity", label: "Velocity", segment: "velocity" },
+  { href: "/executive", label: "Executive", segment: "executive" },
 ] as const;

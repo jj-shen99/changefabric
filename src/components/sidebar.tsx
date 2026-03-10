@@ -13,6 +13,11 @@ import {
   Settings,
   LogOut,
   Users,
+  Radar,
+  ShieldCheck,
+  AlertTriangle,
+  Zap,
+  Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "@/lib/constants";
@@ -26,6 +31,11 @@ const iconMap: Record<string, React.ElementType> = {
   "/validations": CheckCircle2,
   "/releases": Rocket,
   "/metrics": BarChart3,
+  "/risk-radar": Radar,
+  "/confidence": ShieldCheck,
+  "/failure-analysis": AlertTriangle,
+  "/velocity": Zap,
+  "/executive": Crown,
 };
 
 const roleBadge: Record<string, { label: string; className: string }> = {

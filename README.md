@@ -94,11 +94,11 @@ Open [http://localhost:3600](http://localhost:3600) in your browser.
 
 ### Demo Accounts
 
-| Email | Password | Role |
+| Email || Role |
 |---|---|---|
-| `admin@company.com` | `admin123!` | Admin |
-| `manager@company.com` | `manager123!` | Manager |
-| `viewer@company.com` | `viewer123!` | Viewer |
+| `admin@company.com` | | Admin |
+| `manager@company.com` | | Manager |
+| `viewer@company.com` | | Viewer |
 
 ## Scripts
 
