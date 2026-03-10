@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ── Auth & Users ──────────────────────────────────────────────
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  name           String
+  hashedPassword String
+  role           String   @default("viewer") // admin | manager | viewer
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  resetToken       String?   @unique
+  resetTokenExpiry DateTime?
+}
+
+// ── Domain Models ─────────────────────────────────────────────
+
+model ChangeRequest {
+  id          String   @id
+  title       String
+  description String
+  category    String
+  status      String
+  author      String
+  team        String
+  createdAt   DateTime @default(now())
+  scheduledAt DateTime?
+  deployedAt  DateTime?
+  releaseId   String?
+  jiraTicket  String?
+  prUrl       String?
+  linesAdded  Int      @default(0)
+  linesRemoved Int     @default(0)
+  filesChanged Int     @default(0)
+  approvers   String   @default("[]") // JSON array
+  tags        String   @default("[]") // JSON array
+
+  impact      ImpactAnalysis?
+  validations Validation[]
+  release     Release?       @relation(fields: [releaseId], references: [id])
+}
+
+model ImpactAnalysis {
+  id                String @id @default(uuid())
+  changeRequestId   String @unique
+  outageRisk        Int    @default(0)
+  performanceRisk   Int    @default(0)
+  functionalityRisk Int    @default(0)
+  securityRisk      Int    @default(0)
+  dataIntegrityRisk Int    @default(0)
+  overallRisk       Int    @default(0)
+  affectedServices  String @default("[]") // JSON array
+  affectedUsers     Int    @default(0)
+  estimatedDowntime String @default("0 min")
+  rollbackComplexity String @default("low")
+  blastRadius       String @default("low")
+
+  changeRequest ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+}
+
+model Validation {
+  id              String   @id
+  changeRequestId String
+  type            String
+  name            String
+  status          String   @default("pending")
+  startedAt       DateTime?
+  completedAt     DateTime?
+  duration        String?
+  coverage        Float?
+  details         String?
+  blockers        String   @default("[]") // JSON array
+
+  changeRequest ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+}
+
+model Release {
+  id              String   @id
+  name            String
+  version         String
+  status          String   @default("planning")
+  scheduledDate   DateTime
+  actualDate      DateTime?
+  overallRisk     Int      @default(0)
+  releaseManager  String
+  notes           String?
+
+  changeRequests ChangeRequest[]
+}
+
+model DashboardMetric {
+  id                 String   @id @default(uuid())
+  totalChanges       Int      @default(0)
+  pendingChanges     Int      @default(0)
+  deployedToday      Int      @default(0)
+  failedDeployments  Int      @default(0)
+  avgRiskScore       Float    @default(0)
+  validationPassRate Float    @default(0)
+  avgDeployTime      String   @default("0m")
+  rollbackRate       Float    @default(0)
+  mttr               String   @default("0m")
+  changeLeadTime     String   @default("0 days")
+  recordedAt         DateTime @default(now())
+}
