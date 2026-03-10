@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
-import { ChangeStatus, ValidationStatus } from "@/lib/types";
+import { ValidationStatus } from "@/lib/types";
 
-const changeStatusConfig: Record<ChangeStatus, { label: string; className: string }> = {
+const changeStatusConfig: Record<string, { label: string; className: string }> = {
+  // Legacy statuses
   draft: { label: "Draft", className: "bg-gray-100 text-gray-700" },
   pending_review: { label: "Pending Review", className: "bg-amber-100 text-amber-800" },
   approved: { label: "Approved", className: "bg-blue-100 text-blue-800" },
@@ -9,7 +10,18 @@ const changeStatusConfig: Record<ChangeStatus, { label: string; className: strin
   deployed: { label: "Deployed", className: "bg-green-100 text-green-800" },
   rolled_back: { label: "Rolled Back", className: "bg-red-100 text-red-800" },
   failed: { label: "Failed", className: "bg-red-100 text-red-800" },
+  // ServiceNow statuses
+  New: { label: "New", className: "bg-gray-100 text-gray-700" },
+  Assess: { label: "Assess", className: "bg-amber-100 text-amber-800" },
+  Authorize: { label: "Authorize", className: "bg-blue-100 text-blue-800" },
+  Scheduled: { label: "Scheduled", className: "bg-indigo-100 text-indigo-800" },
+  Implement: { label: "Implement", className: "bg-purple-100 text-purple-800" },
+  Review: { label: "Review", className: "bg-cyan-100 text-cyan-800" },
+  Closed: { label: "Closed", className: "bg-green-100 text-green-800" },
+  Canceled: { label: "Canceled", className: "bg-red-100 text-red-800" },
 };
+
+const defaultStatusConfig = { label: "Unknown", className: "bg-gray-100 text-gray-600" };
 
 const validationStatusConfig: Record<ValidationStatus, { label: string; className: string }> = {
   passed: { label: "Passed", className: "bg-green-100 text-green-800" },
@@ -19,8 +31,8 @@ const validationStatusConfig: Record<ValidationStatus, { label: string; classNam
   skipped: { label: "Skipped", className: "bg-gray-100 text-gray-500" },
 };
 
-export function ChangeStatusBadge({ status }: { status: ChangeStatus }) {
-  const config = changeStatusConfig[status];
+export function ChangeStatusBadge({ status }: { status: string }) {
+  const config = changeStatusConfig[status] || { label: status, className: defaultStatusConfig.className };
   return (
     <span className={cn("inline-flex items-center rounded-full px-2 py-1 text-xs font-medium", config.className)}>
       {config.label}
