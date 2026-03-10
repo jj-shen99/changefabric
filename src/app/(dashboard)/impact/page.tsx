@@ -105,7 +105,9 @@ export default function ImpactPage() {
   const [gitRepo, setGitRepo] = useState("https://code.devsnc.com/dev/perf-testing-ai");
   const [gitDays, setGitDays] = useState(14);
   const [expandedCommit, setExpandedCommit] = useState<string | null>(null);
-  const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
+  const [planSearch, setPlanSearch] = useState("");
+  const [selectedPlanCR, setSelectedPlanCR] = useState<string | null>(null);
+  const [expandedPlanContent, setExpandedPlanContent] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Record<string, Partial<DimensionScores>>>({});
 
   const setWeight = useCallback((key: keyof Weights, val: number) => { setWeights((p) => ({ ...p, [key]: val })); }, []);
@@ -319,6 +321,9 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
 
       {/* ═══ PLAN ANALYSIS TAB ═══ */}
       {activeTab === "plans" && (() => {
+        const pq = planSearch.toLowerCase();
+        const filteredPlans = pq ? planResults.filter((p) => p.cr.number.toLowerCase().includes(pq) || p.cr.short_description.toLowerCase().includes(pq) || p.cr.assignment_group.toLowerCase().includes(pq)) : planResults;
+        const selectedPlan = selectedPlanCR ? planResults.find((p) => p.cr.number === selectedPlanCR) : null;
         const n = planResults.length;
         const avgScore = n>0?Math.round(planResults.reduce((a, p) => a+p.overallScore, 0)/n):0;
         const critCount = planResults.filter(p => p.riskLevel==="critical").length;
@@ -327,8 +332,200 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
         const missingBackout = planResults.filter(p => !p.backout.present).length;
         const missingImpl = planResults.filter(p => !p.implementation.present).length;
         const missingTest = planResults.filter(p => !p.testPlan.present).length;
+        const planRadarData = selectedPlan ? PLAN_DIMS.map((d) => ({ dimension: d.label.replace(" Plan","").replace(" Analysis",""), score: selectedPlan[d.key].quality, fullMark: 100 })) : [];
+
+        // Risk keywords to highlight in plan text
+        const HIGHLIGHT_WORDS = ["risk","rollback","revert","downtime","failure","outage","restore","backup","critical","emergency","security","vulnerability","impact","mitigation","contingency","fallback","test","verify","validate"];
+        function highlightRisks(text: string) {
+          if (!text) return null;
+          const regex = new RegExp(`\\b(${HIGHLIGHT_WORDS.join("|")})\\b`, "gi");
+          const parts = text.split(regex);
+          return parts.map((part, i) => HIGHLIGHT_WORDS.includes(part.toLowerCase()) ? <mark key={i} className="rounded bg-amber-200 px-0.5 dark:bg-amber-800 dark:text-amber-200">{part}</mark> : part);
+        }
+
         return (
           <div className="space-y-6">
+            {/* Search bar */}
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input type="text" placeholder="Search CR by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={planSearch} onChange={(e) => setPlanSearch(e.target.value)} />
+              </div>
+              {selectedPlanCR && (
+                <button onClick={() => { setSelectedPlanCR(null); setExpandedPlanContent(null); }} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">← Back to Overview</button>
+              )}
+            </div>
+
+            {/* ── Single CR Detail View ── */}
+            {selectedPlan ? (
+              <div className="space-y-6">
+                <Card className="border-teal-200 bg-teal-50/30 dark:border-teal-900 dark:bg-teal-950/20">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <ClipboardCheck className="h-5 w-5 text-teal-600" />
+                          {selectedPlan.cr.number} — Plan Assessment
+                        </CardTitle>
+                        <CardDescription className="mt-1">{selectedPlan.cr.short_description}</CardDescription>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-center">
+                          <span className={`inline-block rounded-full px-4 py-1.5 text-lg font-bold ${pBg(selectedPlan.overallScore)}`}>{selectedPlan.overallScore}</span>
+                          <p className={`text-xs font-semibold mt-1 ${pColor(selectedPlan.overallScore)}`}>{planRiskLabel(selectedPlan.overallScore)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <div className="grid grid-cols-4 gap-3 text-center">
+                    <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
+                      <p className="text-xs text-gray-500">Readiness</p>
+                      <p className={`text-xl font-bold ${pColor(selectedPlan.overallScore)}`}>{selectedPlan.overallScore}/100</p>
+                    </div>
+                    <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
+                      <p className="text-xs text-gray-500">Missing Plans</p>
+                      <p className={`text-xl font-bold ${selectedPlan.gapCount > 0 ? "text-red-600" : "text-green-600"}`}>{selectedPlan.gapCount}</p>
+                    </div>
+                    <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
+                      <p className="text-xs text-gray-500">State</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{selectedPlan.cr.state}</p>
+                    </div>
+                    <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
+                      <p className="text-xs text-gray-500">SN Risk</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{selectedPlan.cr.risk || "—"}</p>
+                    </div>
+                  </div>
+                </Card>
+
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                  {/* Radar chart */}
+                  <Card>
+                    <CardHeader><CardTitle className="text-sm">Plan Quality Radar</CardTitle></CardHeader>
+                    <div className="h-72">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={planRadarData}>
+                          <PolarGrid stroke="#e2e8f0" />
+                          <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 10 }} />
+                          <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
+                          <Radar name="Quality" dataKey="score" stroke="#0d9488" fill="#0d9488" fillOpacity={0.2} strokeWidth={2} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+
+                  {/* Dimension scores */}
+                  <Card className="lg:col-span-2">
+                    <CardHeader><CardTitle className="text-sm">Plan Dimension Scores</CardTitle><CardDescription>Quality assessment of each plan section</CardDescription></CardHeader>
+                    <div className="space-y-3">
+                      {PLAN_DIMS.map((d) => {
+                        const ps = selectedPlan[d.key];
+                        return (
+                          <div key={d.key} className="rounded-lg border border-gray-100 dark:border-gray-800 p-3">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-2">
+                                <d.icon className="h-4 w-4 text-teal-500" />
+                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{d.label}</span>
+                                <span className="text-[10px] text-gray-400">(weight: {d.weight})</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {ps.present ? (
+                                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${pBg(ps.quality)}`}>{ps.quality}</span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-xs text-red-500"><XCircle className="h-3.5 w-3.5" /> Missing</span>
+                                )}
+                              </div>
+                            </div>
+                            {ps.present && (
+                              <>
+                                <div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800 mb-1.5">
+                                  <div className="h-2 rounded-full transition-all" style={{ width: `${ps.quality}%`, backgroundColor: ps.quality>=75?"#22c55e":ps.quality>=50?"#eab308":ps.quality>=25?"#f97316":"#ef4444" }} />
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  {ps.factors.map((f, i) => <span key={i} className="rounded bg-teal-50 px-1.5 py-0.5 text-[10px] text-teal-700 dark:bg-teal-900 dark:text-teal-300">{f}</span>)}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Plan Content Reader */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4 text-teal-500" /> Plan Content &amp; Risk Assessment</CardTitle>
+                    <CardDescription>Click a plan section to expand and read its full content. Risk-related keywords are highlighted.</CardDescription>
+                  </CardHeader>
+                  <div className="space-y-3">
+                    {[
+                      { key: "implementation_plan", label: "Implementation Plan", score: selectedPlan.implementation, icon: FileText },
+                      { key: "backout_plan", label: "Backout Plan", score: selectedPlan.backout, icon: RotateCcw },
+                      { key: "test_plan", label: "Test Plan", score: selectedPlan.testPlan, icon: CheckCircle2 },
+                      { key: "change_plan", label: "Change Plan", score: selectedPlan.changePlan, icon: ClipboardCheck },
+                      { key: "risk_impact_analysis", label: "Risk/Impact Analysis", score: selectedPlan.riskAnalysis, icon: AlertTriangle },
+                      { key: "justification", label: "Justification", score: selectedPlan.justification, icon: Info },
+                    ].map((plan) => {
+                      const text = (selectedPlan.cr as Record<string, unknown>)[plan.key] as string || "";
+                      const isExpanded = expandedPlanContent === plan.key;
+                      return (
+                        <div key={plan.key} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                          <button
+                            onClick={() => setExpandedPlanContent(isExpanded ? null : plan.key)}
+                            className="w-full flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
+                          >
+                            <div className="flex items-center gap-2">
+                              <plan.icon className="h-4 w-4 text-teal-500" />
+                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{plan.label}</span>
+                              {plan.score.present ? (
+                                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${pBg(plan.score.quality)}`}>{plan.score.quality}</span>
+                              ) : (
+                                <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900 dark:text-red-300">Missing</span>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-400">{isExpanded ? "▲ Collapse" : "▼ Expand"}</span>
+                          </button>
+                          {isExpanded && (
+                            <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-800/50">
+                              {text.trim() ? (
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                                    <span>{text.split(/\s+/).length} words</span>
+                                    <span>·</span>
+                                    <span>{text.length.toLocaleString()} characters</span>
+                                    <span>·</span>
+                                    <span className={`font-semibold ${pColor(plan.score.quality)}`}>{pLabel(plan.score.quality)}</span>
+                                  </div>
+                                  <div className="rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-4 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto font-mono">
+                                    {highlightRisks(text)}
+                                  </div>
+                                  {plan.score.factors.length > 0 && (
+                                    <div>
+                                      <p className="text-xs font-semibold text-gray-500 mb-1">Assessment Factors</p>
+                                      <div className="flex flex-wrap gap-1">
+                                        {plan.score.factors.map((f, i) => <span key={i} className="rounded bg-teal-50 border border-teal-200 px-2 py-0.5 text-[11px] text-teal-700 dark:bg-teal-900 dark:border-teal-800 dark:text-teal-300">{f}</span>)}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 text-sm text-red-500 py-2">
+                                  <XCircle className="h-4 w-4" />
+                                  <span>No content provided. This is a <strong>risk gap</strong> — consider requiring this plan before approval.</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              </div>
+            ) : (
+            /* ── Overview Mode ── */
+            <div className="space-y-6">
             <Card className="border-teal-200 bg-teal-50/30 dark:border-teal-900 dark:bg-teal-950/20"><CardHeader><CardTitle className="text-base flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-teal-600" />Plan Quality &amp; Risk Evaluation</CardTitle><CardDescription className="text-sm">Evaluates each change request&apos;s plans for completeness, structure, and keyword coverage. A low readiness score indicates higher deployment risk.</CardDescription></CardHeader><div className="grid grid-cols-3 gap-3 md:grid-cols-6">{PLAN_DIMS.map((d) => (<div key={d.key} className="rounded-lg border border-teal-100 bg-white p-3 dark:border-teal-900 dark:bg-gray-900"><div className="flex items-center gap-1.5 mb-1"><d.icon className="h-3.5 w-3.5 text-teal-500" /><span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{d.label}</span></div><span className="text-xs text-gray-400">Weight: {d.weight}</span></div>))}</div></Card>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
               <Card className="p-4"><div className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-teal-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Avg Readiness</span></div><p className={`mt-1 text-2xl font-bold ${pColor(avgScore)}`}>{avgScore}</p><p className="text-[11px] text-gray-400">{pLabel(avgScore)}</p></Card>
@@ -341,7 +538,46 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
               <Card><CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-teal-500" /> Plan Readiness Distribution</CardTitle></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={[{ bucket: "Well Prepared (75-100)", count: planResults.filter(p => p.overallScore>=75).length, fill: "#22c55e" },{ bucket: "Adequate (50-74)", count: planResults.filter(p => p.overallScore>=50 && p.overallScore<75).length, fill: "#eab308" },{ bucket: "Gaps Found (25-49)", count: planResults.filter(p => p.overallScore>=25 && p.overallScore<50).length, fill: "#f97316" },{ bucket: "Critical Gaps (0-24)", count: planResults.filter(p => p.overallScore<25).length, fill: "#ef4444" }]}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis dataKey="bucket" tick={{ fontSize: 10 }} stroke="#94a3b8" /><YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" /><Tooltip /><Bar dataKey="count" name="Changes" radius={[4, 4, 0, 0]}>{["#22c55e","#eab308","#f97316","#ef4444"].map((fill, idx) => <Cell key={idx} fill={fill} />)}</Bar></BarChart></ResponsiveContainer></div></Card>
               <Card><CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4 text-teal-500" /> Plan Coverage Summary</CardTitle><CardDescription>Average quality score per plan dimension</CardDescription></CardHeader><div className="space-y-3">{PLAN_DIMS.map((d) => { const avg = n>0?Math.round(planResults.reduce((a, p) => a+p[d.key].quality, 0)/n):0; const presentCount = planResults.filter(p => p[d.key].present).length; return (<div key={d.key} className="space-y-1"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><d.icon className="h-3.5 w-3.5 text-teal-500" /><span className="text-xs font-medium text-gray-700 dark:text-gray-300">{d.label}</span></div><div className="flex items-center gap-2"><span className="text-[11px] text-gray-400">{presentCount}/{n} present</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(avg)}`}>{avg}</span></div></div><div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800"><div className="h-2 rounded-full transition-all" style={{ width: `${avg}%`, backgroundColor: avg>=75?"#22c55e":avg>=50?"#eab308":avg>=25?"#f97316":"#ef4444" }} /></div></div>); })}</div></Card>
             </div>
-            <Card><CardHeader><CardTitle>All Change Requests — Plan Risk Assessment ({planResults.length})</CardTitle><CardDescription>Sorted by readiness score (lowest first = highest risk). Click a row to see plan details.</CardDescription></CardHeader><div className="overflow-x-auto max-h-[520px] overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-white dark:bg-gray-900 z-10"><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Readiness</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Risk</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Gaps</th>{PLAN_DIMS.map((d) => (<th key={d.key} className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title={d.label}><d.icon className="h-3.5 w-3.5 inline text-gray-400" /></th>))}</tr></thead><tbody>{planResults.map((p) => (<><tr key={p.cr.number} className={`cursor-pointer border-b border-gray-50 dark:border-gray-800 hover:bg-teal-50 dark:hover:bg-teal-950/20 ${expandedPlan===p.cr.number?"bg-teal-50 dark:bg-teal-950/20":""}`} onClick={() => setExpandedPlan(expandedPlan===p.cr.number?null:p.cr.number)}><td className="py-2.5"><span className="font-mono text-[11px] text-gray-400">{p.cr.number}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{p.cr.short_description}</p><p className="text-[11px] text-gray-400">{p.cr.assignment_group || "Unassigned"}</p></td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${pBg(p.overallScore)}`}>{p.overallScore}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-semibold ${pColor(p.overallScore)}`}>{planRiskLabel(p.overallScore)}</span></td><td className="py-2.5 text-center">{p.gapCount>0?<span className="rounded bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-700 dark:bg-red-900 dark:text-red-300">{p.gapCount} missing</span>:<span className="text-xs text-green-600">None</span>}</td>{PLAN_DIMS.map((d) => (<td key={d.key} className="py-2.5 text-center">{p[d.key].present?<span className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-bold ${pBg(p[d.key].quality)}`}>{p[d.key].quality}</span>:<XCircle className="h-3.5 w-3.5 inline text-red-400" />}</td>))}</tr>{expandedPlan===p.cr.number && (<tr key={`${p.cr.number}-d`}><td colSpan={4+PLAN_DIMS.length} className="bg-gray-50 dark:bg-gray-800/50 px-4 py-4"><div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">{PLAN_DIMS.map((d) => { const ps = p[d.key]; return (<div key={d.key} className="rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 p-3"><div className="flex items-center justify-between mb-2"><div className="flex items-center gap-2"><d.icon className="h-4 w-4 text-teal-500" /><span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{d.label}</span></div><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${pBg(ps.quality)}`}>{ps.quality}</span></div>{ps.present?(<div className="space-y-1.5"><div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-800"><div className="h-1.5 rounded-full" style={{ width: `${ps.quality}%`, backgroundColor: ps.quality>=75?"#22c55e":ps.quality>=50?"#eab308":ps.quality>=25?"#f97316":"#ef4444" }} /></div><div className="flex flex-wrap gap-1">{ps.factors.map((f, i) => <span key={i} className="rounded bg-teal-50 px-1.5 py-0.5 text-[10px] text-teal-700 dark:bg-teal-900 dark:text-teal-300">{f}</span>)}</div><p className="text-[10px] text-gray-400">{ps.length.toLocaleString()} chars</p></div>):(<div className="flex items-center gap-1.5 text-xs text-red-500"><XCircle className="h-3.5 w-3.5" />Not provided</div>)}</div>); })}</div></td></tr>)}</>))}</tbody></table></div></Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Change Requests — Plan Risk Assessment ({filteredPlans.length}{pq ? ` of ${n}` : ""})</CardTitle>
+                <CardDescription>Click a row to view full plan details and content. {pq ? "Filtered by search." : "Sorted by readiness (lowest first = highest risk)."}</CardDescription>
+              </CardHeader>
+              <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
+                    <tr className="border-b border-gray-100 dark:border-gray-800">
+                      <th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Readiness</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Risk</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Gaps</th>
+                      {PLAN_DIMS.map((d) => (
+                        <th key={d.key} className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title={d.label}><d.icon className="h-3.5 w-3.5 inline text-gray-400" /></th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPlans.map((p) => (
+                      <tr key={p.cr.number} className="cursor-pointer border-b border-gray-50 dark:border-gray-800 hover:bg-teal-50 dark:hover:bg-teal-950/20" onClick={() => { setSelectedPlanCR(p.cr.number); setExpandedPlanContent(null); }}>
+                        <td className="py-2.5">
+                          <span className="font-mono text-[11px] text-gray-400">{p.cr.number}</span>
+                          <p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{p.cr.short_description}</p>
+                          <p className="text-[11px] text-gray-400">{p.cr.assignment_group || "Unassigned"}</p>
+                        </td>
+                        <td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${pBg(p.overallScore)}`}>{p.overallScore}</span></td>
+                        <td className="py-2.5 text-center"><span className={`text-xs font-semibold ${pColor(p.overallScore)}`}>{planRiskLabel(p.overallScore)}</span></td>
+                        <td className="py-2.5 text-center">{p.gapCount > 0 ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-700 dark:bg-red-900 dark:text-red-300">{p.gapCount} missing</span> : <span className="text-xs text-green-600">None</span>}</td>
+                        {PLAN_DIMS.map((d) => (
+                          <td key={d.key} className="py-2.5 text-center">{p[d.key].present ? <span className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-bold ${pBg(p[d.key].quality)}`}>{p[d.key].quality}</span> : <XCircle className="h-3.5 w-3.5 inline text-red-400" />}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+            </div>
+            )}
           </div>
         );
       })()}

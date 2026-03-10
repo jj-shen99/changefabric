@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Filter, Search, ExternalLink, FileCode2, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Filter, Search, FileCode2, RefreshCw, Trash2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useDebounce, useData, usePermissions } from "@/hooks";
 import { PAGINATION } from "@/lib/constants";
@@ -19,6 +19,7 @@ export default function ChangesPage() {
   const [categoryFilter, setCategoryFilter] = useState<ChangeCategory | "all">("all");
   const [selectedCR, setSelectedCR] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
@@ -67,15 +68,30 @@ export default function ChangesPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Change Requests</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">Track and manage all software change requests</p>
         </div>
-        {canManageChanges && (
-          <button
-            onClick={() => setShowCreate(!showCreate)}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            New Change Request
-          </button>
-        )}
+        <button
+          onClick={async () => {
+            setSyncing(true);
+            try {
+              const res = await fetch("/api/sync", { method: "POST" });
+              const data = await res.json();
+              if (res.ok) {
+                toast.success(`Synced ${data.upserted} change requests from ServiceNow`);
+                await refetch();
+              } else {
+                toast.error(data.error || "Sync failed");
+              }
+            } catch {
+              toast.error("Failed to connect to ServiceNow");
+            } finally {
+              setSyncing(false);
+            }
+          }}
+          disabled={syncing}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+        >
+          {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          {syncing ? "Syncing..." : "Refresh Data"}
+        </button>
       </div>
 
       {showCreate && canManageChanges && <CreateChangeForm onCreated={() => { setShowCreate(false); refetch(); }} onCancel={() => setShowCreate(false)} />}
@@ -103,13 +119,14 @@ export default function ChangesPage() {
               onChange={(e) => setStatusFilter(e.target.value as ChangeStatus | "all")}
             >
               <option value="all">All Statuses</option>
-              <option value="draft">Draft</option>
-              <option value="pending_review">Pending Review</option>
-              <option value="approved">Approved</option>
-              <option value="in_progress">In Progress</option>
-              <option value="deployed">Deployed</option>
-              <option value="rolled_back">Rolled Back</option>
-              <option value="failed">Failed</option>
+              <option value="New">New</option>
+              <option value="Assess">Assess</option>
+              <option value="Authorize">Authorize</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="Implement">Implement</option>
+              <option value="Review">Review</option>
+              <option value="Closed">Closed</option>
+              <option value="Canceled">Canceled</option>
             </select>
             <select
               aria-label="Filter by category"
@@ -118,14 +135,12 @@ export default function ChangesPage() {
               onChange={(e) => setCategoryFilter(e.target.value as ChangeCategory | "all")}
             >
               <option value="all">All Categories</option>
-              <option value="feature">Feature</option>
-              <option value="bugfix">Bugfix</option>
-              <option value="hotfix">Hotfix</option>
-              <option value="infrastructure">Infrastructure</option>
-              <option value="security_patch">Security Patch</option>
-              <option value="database_migration">Database Migration</option>
-              <option value="config_change">Config Change</option>
-              <option value="dependency_update">Dependency Update</option>
+              <option value="Software">Software</option>
+              <option value="Hardware">Hardware</option>
+              <option value="Network">Network</option>
+              <option value="Telecom">Telecom</option>
+              <option value="Server Reboot">Server Reboot</option>
+              <option value="Other">Other</option>
             </select>
           </div>
         </div>
@@ -156,7 +171,7 @@ export default function ChangesPage() {
                     <span>{cr.author} • {cr.team}</span>
                     <span className="flex items-center gap-1">
                       <FileCode2 className="h-3 w-3" />
-                      +{cr.linesAdded} / -{cr.linesRemoved} in {cr.filesChanged} files
+                      {cr.risk} risk • {cr.priority}
                     </span>
                     <span>Created {formatDate(cr.createdAt)}</span>
                   </div>
@@ -284,57 +299,54 @@ export default function ChangesPage() {
                   <span className="font-medium text-gray-700 dark:text-gray-300">{selected.team}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Blast Radius</span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300 capitalize">{selected.impact.blastRadius}</span>
+                  <span className="text-gray-500 dark:text-gray-400">Risk</span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{selected.risk}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Affected Users</span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{selected.impact.affectedUsers.toLocaleString()}</span>
+                  <span className="text-gray-500 dark:text-gray-400">Priority</span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{selected.priority}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Est. Downtime</span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{selected.impact.estimatedDowntime}</span>
+                  <span className="text-gray-500 dark:text-gray-400">Impact</span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{selected.sn_impact}</span>
                 </div>
-                {selected.jiraTicket && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500 dark:text-gray-400">Type</span>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{selected.type}</span>
+                </div>
+                {selected.business_service && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Jira Ticket</span>
-                    <span className="font-medium text-blue-600">{selected.jiraTicket}</span>
+                    <span className="text-gray-500 dark:text-gray-400">Business Service</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{selected.business_service}</span>
                   </div>
                 )}
-                {selected.prUrl && (
+                {selected.assigned_to && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Pull Request</span>
-                    <a href={selected.prUrl} className="flex items-center gap-1 text-blue-600 hover:underline">
-                      <ExternalLink className="h-3 w-3" />
-                      View PR
-                    </a>
+                    <span className="text-gray-500 dark:text-gray-400">Assigned To</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{selected.assigned_to}</span>
                   </div>
                 )}
               </div>
 
-              <div className="mt-4">
-                <h4 className="text-xs font-semibold uppercase text-gray-400 mb-2">Affected Services</h4>
-                <div className="flex flex-wrap gap-1">
-                  {selected.impact.affectedServices.map((s) => (
-                    <span key={s} className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
-                      {s}
-                    </span>
-                  ))}
+              {selected.impact.affectedServices.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-xs font-semibold uppercase text-gray-400 mb-2">Affected Services</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {selected.impact.affectedServices.map((s) => (
+                      <span key={s} className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                        {s}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="mt-4">
-                <h4 className="text-xs font-semibold uppercase text-gray-400 mb-2">Approvers</h4>
-                <div className="flex flex-wrap gap-1">
-                  {selected.approvers.length > 0 ? selected.approvers.map((a) => (
-                    <span key={a} className="rounded bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">
-                      {a}
-                    </span>
-                  )) : (
-                    <span className="text-xs text-gray-400">No approvers yet</span>
-                  )}
+              {selected.approval && (
+                <div className="mt-4">
+                  <h4 className="text-xs font-semibold uppercase text-gray-400 mb-2">Approval</h4>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">{selected.approval}</span>
                 </div>
-              </div>
+              )}
             </Card>
 
             <Card>

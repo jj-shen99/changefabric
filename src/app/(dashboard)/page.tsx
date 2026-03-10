@@ -8,7 +8,6 @@ import {
   GitPullRequest,
   Rocket,
   TrendingDown,
-  TrendingUp,
   XCircle,
 } from "lucide-react";
 import {
@@ -40,17 +39,17 @@ export default function OverviewPage() {
   if (!dashboardMetrics) return <div className="text-gray-500">No data available</div>;
 
   const kpiCards = [
-    { label: "Total Changes", value: dashboardMetrics.totalChanges, icon: GitPullRequest, color: "text-blue-600", bg: "bg-blue-50", trend: "+12%", trendUp: true },
-    { label: "Pending Review", value: dashboardMetrics.pendingChanges, icon: Clock, color: "text-amber-600", bg: "bg-amber-50", trend: "-3", trendUp: false },
-    { label: "Deployed Today", value: dashboardMetrics.deployedToday, icon: Rocket, color: "text-green-600", bg: "bg-green-50", trend: "+2", trendUp: true },
-    { label: "Failed Deployments", value: dashboardMetrics.failedDeployments, icon: XCircle, color: "text-red-600", bg: "bg-red-50", trend: "+1", trendUp: true },
-    { label: "Avg Risk Score", value: dashboardMetrics.avgRiskScore, icon: AlertTriangle, color: "text-yellow-600", bg: "bg-yellow-50", trend: "-5", trendUp: false },
-    { label: "Validation Pass Rate", value: `${dashboardMetrics.validationPassRate}%`, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", trend: "+1.2%", trendUp: true },
-    { label: "Avg Deploy Time", value: dashboardMetrics.avgDeployTime, icon: Activity, color: "text-purple-600", bg: "bg-purple-50", trend: "-2m", trendUp: false },
-    { label: "Rollback Rate", value: `${dashboardMetrics.rollbackRate}%`, icon: TrendingDown, color: "text-orange-600", bg: "bg-orange-50", trend: "-0.8%", trendUp: false },
+    { label: "Total Changes", value: dashboardMetrics.totalChanges, icon: GitPullRequest, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "Pending / In Progress", value: dashboardMetrics.pendingChanges, icon: Clock, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "Implemented", value: dashboardMetrics.deployedToday, icon: Rocket, color: "text-green-600", bg: "bg-green-50" },
+    { label: "Canceled", value: dashboardMetrics.failedDeployments, icon: XCircle, color: "text-red-600", bg: "bg-red-50" },
+    { label: "Avg Risk Score", value: dashboardMetrics.avgRiskScore, icon: AlertTriangle, color: "text-yellow-600", bg: "bg-yellow-50" },
+    { label: "Close Rate", value: `${dashboardMetrics.validationPassRate}%`, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: "Avg Lead Time", value: dashboardMetrics.avgDeployTime, icon: Activity, color: "text-purple-600", bg: "bg-purple-50" },
+    { label: "Cancel Rate", value: `${dashboardMetrics.rollbackRate}%`, icon: TrendingDown, color: "text-orange-600", bg: "bg-orange-50" },
   ];
 
-  const highRiskChanges = changeRequests.filter((cr) => cr.impact.overallRisk >= 60);
+  const highRiskChanges = changeRequests.filter((cr) => cr.impact?.overallRisk >= 60);
   const recentChanges = [...changeRequests].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   ).slice(0, 5);
@@ -83,24 +82,6 @@ export default function OverviewPage() {
               <div className={`rounded-lg p-2 ${kpi.bg}`}>
                 <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
               </div>
-              <span
-                className={`flex items-center gap-0.5 text-xs font-medium ${
-                  kpi.label === "Failed Deployments" || kpi.label === "Rollback Rate"
-                    ? kpi.trendUp
-                      ? "text-red-600"
-                      : "text-green-600"
-                    : kpi.trendUp
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}
-              >
-                {kpi.trendUp ? (
-                  <TrendingUp className="h-3 w-3" />
-                ) : (
-                  <TrendingDown className="h-3 w-3" />
-                )}
-                {kpi.trend}
-              </span>
             </div>
             <div className="mt-3">
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{kpi.value}</p>
@@ -142,7 +123,7 @@ export default function OverviewPage() {
                     <span>•</span>
                     <span>{cr.author}</span>
                     <span>•</span>
-                    <span>{cr.impact.affectedServices.length} services affected</span>
+                    <span>{cr.risk} risk</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -244,9 +225,9 @@ export default function OverviewPage() {
                 <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">ID</th>
                 <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Title</th>
                 <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Team</th>
-                <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Category</th>
+                <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Priority</th>
                 <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
-                <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Risk</th>
+                <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Risk Score</th>
                 <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Created</th>
               </tr>
             </thead>
@@ -258,7 +239,7 @@ export default function OverviewPage() {
                   <td className="py-3 text-gray-600 dark:text-gray-400">{cr.team}</td>
                   <td className="py-3">
                     <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                      {cr.category.replace("_", " ")}
+                      {cr.priority}
                     </span>
                   </td>
                   <td className="py-3">
