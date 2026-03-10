@@ -82,19 +82,14 @@ export type NavSection = { section: string | null; items: NavItem[] };
 
 export const NAV_SECTIONS: NavSection[] = [
   {
-    section: null,
-    items: [
-      { href: "/", label: "Overview", segment: null },
-      { href: "/metrics", label: "Metrics & Trends", segment: "metrics" },
-    ],
-  },
-  {
     section: "Changes",
     items: [
+      { href: "/", label: "Overview", segment: null },
       { href: "/changes", label: "Change Requests", segment: "changes" },
       { href: "/impact", label: "Impact Analysis", segment: "impact" },
       { href: "/failure-analysis", label: "Failure Analysis", segment: "failure-analysis" },
       { href: "/velocity", label: "Velocity", segment: "velocity" },
+      { href: "/metrics", label: "Metrics & Trends", segment: "metrics" },
     ],
   },
   {

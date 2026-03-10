@@ -25,8 +25,8 @@ describe("RISK_LABELS", () => {
 });
 
 describe("NAV_SECTIONS", () => {
-  it("has 3 sections", () => {
-    expect(NAV_SECTIONS.length).toBe(3);
+  it("has 2 sections", () => {
+    expect(NAV_SECTIONS.length).toBe(2);
   });
 
   it("has Changes and Releases sections", () => {
