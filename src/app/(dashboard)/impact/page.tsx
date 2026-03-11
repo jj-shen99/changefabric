@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend,
-  PieChart, Pie,
+  PieChart, Pie, ScatterChart, Scatter, ZAxis, LineChart, Line,
 } from "recharts";
 import {
   Shield, AlertTriangle, Gauge, Zap, Layers, Settings2, RotateCcw, Search,
@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { RiskBadge } from "@/components/risk-badge";
-import { RiskGauge } from "@/components/risk-gauge";
 import { useData } from "@/hooks";
 import { getRiskBg, getRiskLabel } from "@/lib/utils";
 import type { ChangeRequest } from "@/lib/types";
@@ -315,11 +314,94 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
         </select>
       </div>
       <Card><CardHeader><CardTitle>Risk Heatmap — All Change Requests ({filtered.length})</CardTitle><CardDescription>Click a row to view detailed impact analysis and what-if recalculation</CardDescription></CardHeader><div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-white dark:bg-gray-900 z-10"><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Overall</th>{DIMS.map((d) => (<th key={d.key} className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">{d.label}</th>))}<th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">State</th></tr></thead><tbody>{filtered.map((s) => (<tr key={s.cr.number} className={`cursor-pointer border-b border-gray-50 dark:border-gray-800 transition-colors hover:bg-blue-50 dark:hover:bg-blue-950/30 ${activeNum === s.cr.number ? "bg-blue-50 dark:bg-blue-950/30" : ""}`} onClick={() => setSelectedCR(s.cr.number)}><td className="py-2.5"><span className="font-mono text-[10px] text-gray-400">{s.cr.number}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{s.cr.short_description}</p><p className="text-[10px] text-gray-400">{s.cr.assignment_group || "Unassigned"}</p></td><td className="py-2.5 text-center"><RiskBadge score={s.overall} size="sm" /></td>{DIMS.map((d) => (<td key={d.key} className="py-2.5 text-center"><span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${getRiskBg(s.dims[d.key])}`}>{s.dims[d.key]}</span></td>))}<td className="py-2.5 text-center"><span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{s.cr.state}</span></td></tr>))}</tbody></table></div></Card>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card><CardHeader><CardTitle className="text-sm">Impact Radar — {cr.number}</CardTitle><CardDescription className="line-clamp-1">{cr.short_description}</CardDescription></CardHeader><div className="h-72"><ResponsiveContainer width="100%" height="100%"><RadarChart data={radarData}><PolarGrid stroke="#e2e8f0" /><PolarAngleAxis dataKey="dimension" tick={{ fontSize: 11 }} /><PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} /><Radar name="Score" dataKey="score" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} strokeWidth={2} /></RadarChart></ResponsiveContainer></div><div className="flex justify-center"><RiskGauge score={overall} label="Overall Impact" size="lg" /></div></Card>
-        <Card><CardHeader><div className="flex items-center justify-between"><CardTitle className="text-sm">Dimension Scores — What-If</CardTitle>{hasOverrides && (<button onClick={resetOverrides} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button>)}</div><CardDescription>Edit values below to recalculate the overall impact score</CardDescription></CardHeader><div className="space-y-3">{DIMS.map((d) => { const base = selected.baseDims[d.key]; const current = dims[d.key]; const snValue = d.key==="risk"?cr.risk:d.key==="impact"?cr.sn_impact:d.key==="urgency"?cr.urgency:d.key==="priority"?cr.priority:d.key==="type"?cr.type:cr.scope; const isOverridden = overrides[activeNum]?.[d.key] !== undefined; return (<div key={d.key} className="rounded-lg border border-gray-100 dark:border-gray-800 p-3"><div className="flex items-center justify-between mb-1"><div className="flex items-center gap-2"><d.icon className="h-3.5 w-3.5 text-gray-400" /><span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{d.label}</span><span className="text-[10px] text-gray-400">SN: &quot;{snValue || "—"}&quot;</span></div><div className="flex items-center gap-2"><span className={`text-xs font-mono font-bold ${getRiskBg(current)} rounded px-1.5 py-0.5`}>{current}</span>{isOverridden && <span className="text-[10px] text-amber-500">(was {base})</span>}</div></div><input type="range" min="0" max="100" value={current} onChange={(e) => handleOverride(d.key, Number(e.target.value))} className="w-full h-1.5 accent-blue-600" /><div className="flex justify-between text-[10px] text-gray-400 mt-0.5"><span>0</span><span>Weight: {(weights[d.key]*100).toFixed(0)}% → contributes {Math.round(current * weights[d.key])} pts</span><span>100</span></div></div>); })}<div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-3"><div className="flex items-center justify-between"><span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Overall Impact Score</span><RiskBadge score={overall} /></div><p className="text-[10px] text-gray-400 mt-1 font-mono">= {DIMS.map((d) => `${dims[d.key]}×${(weights[d.key]*100).toFixed(0)}%`).join(" + ")} = {overall}</p></div></div></Card>
-        <Card><CardHeader><CardTitle className="text-sm">Change Details — {cr.number}</CardTitle></CardHeader><div className="space-y-3 text-sm">{[{ label: "State", value: cr.state },{ label: "Type", value: cr.type },{ label: "Category", value: cr.category },{ label: "Priority", value: cr.priority },{ label: "Risk", value: cr.risk },{ label: "Impact", value: cr.sn_impact },{ label: "Urgency", value: cr.urgency },{ label: "Scope", value: cr.scope },{ label: "Approval", value: cr.approval },{ label: "Opened By", value: cr.opened_by },{ label: "Assigned To", value: cr.assigned_to },{ label: "Assignment Group", value: cr.assignment_group },{ label: "Config Item", value: cr.cmdb_ci },{ label: "Business Service", value: cr.business_service },{ label: "Close Code", value: cr.close_code }].map((row) => row.value ? (<div key={row.label} className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">{row.label}</span><span className="font-medium text-gray-700 dark:text-gray-300 text-right max-w-[200px] truncate">{row.value}</span></div>) : null)}{cr.implementation_plan && (<div className="mt-2"><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Implementation Plan</p><p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line rounded bg-gray-50 dark:bg-gray-800 p-2 line-clamp-4">{cr.implementation_plan}</p></div>)}{cr.backout_plan && (<div><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Backout Plan</p><p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line rounded bg-gray-50 dark:bg-gray-800 p-2 line-clamp-4">{cr.backout_plan}</p></div>)}{cr.test_plan && (<div><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Test Plan</p><p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line rounded bg-gray-50 dark:bg-gray-800 p-2 line-clamp-4">{cr.test_plan}</p></div>)}</div></Card>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* ── Column 1: Plan Readiness ── */}
+        {(() => {
+          const planResult = planResults.find(p => p.cr.number === activeNum);
+          if (!planResult) return <Card className="border-teal-200 bg-teal-50/20 dark:border-teal-900 dark:bg-teal-950/10"><CardHeader><CardTitle className="text-sm flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-teal-500" />Plan Readiness</CardTitle></CardHeader><p className="px-6 pb-4 text-sm text-gray-400">No plan data available</p></Card>;
+          const planRadarData = PLAN_DIMS.map((d) => ({ dimension: d.label.replace(" Plan", "").replace("/Impact Analysis", ""), score: planResult[d.key].quality, fullMark: 100 }));
+          return (
+            <Card className="border-teal-200 bg-teal-50/20 dark:border-teal-900 dark:bg-teal-950/10">
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-teal-500" />Plan Readiness — {cr.number}</CardTitle>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${pBg(planResult.overallScore)}`}>{planResult.overallScore}/100</span>
+                  <span className={`text-xs font-semibold ${pColor(planResult.overallScore)}`}>{pLabel(planResult.overallScore)}</span>
+                  {planResult.gapCount > 0 && <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900 dark:text-red-300">{planResult.gapCount} missing</span>}
+                </div>
+              </CardHeader>
+              <div className="h-52">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={planRadarData}><PolarGrid stroke="#e2e8f0" /><PolarAngleAxis dataKey="dimension" tick={{ fontSize: 9 }} /><PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9 }} /><Radar name="Quality" dataKey="score" stroke="#0d9488" fill="#0d9488" fillOpacity={0.2} strokeWidth={2} /></RadarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="space-y-1.5 px-4 pb-4">
+                {PLAN_DIMS.map((d) => {
+                  const ps = planResult[d.key];
+                  return (
+                    <div key={d.key} className="flex items-center gap-2">
+                      <d.icon className="h-3 w-3 text-teal-500 shrink-0" />
+                      <span className="text-[11px] text-gray-600 dark:text-gray-400 flex-1 truncate">{d.label}</span>
+                      {ps.present ? (
+                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${pBg(ps.quality)}`}>{ps.quality}</span>
+                      ) : (
+                        <span className="flex items-center gap-0.5 text-[10px] text-red-500"><XCircle className="h-3 w-3" />Missing</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          );
+        })()}
+        {/* ── Column 2: Dimensions & Impact ── */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2"><Gauge className="h-4 w-4 text-blue-500" />Dimensions &amp; Impact — {cr.number}</CardTitle>
+              {hasOverrides && (<button onClick={resetOverrides} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button>)}
+            </div>
+          </CardHeader>
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={radarData}><PolarGrid stroke="#e2e8f0" /><PolarAngleAxis dataKey="dimension" tick={{ fontSize: 10 }} /><PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9 }} /><Radar name="Score" dataKey="score" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} strokeWidth={2} /></RadarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex justify-center mb-3"><RiskBadge score={overall} /></div>
+          <div className="space-y-1.5 px-4 pb-4">
+            {DIMS.map((d) => {
+              const current = dims[d.key];
+              const snValue = d.key==="risk"?cr.risk:d.key==="impact"?cr.sn_impact:d.key==="urgency"?cr.urgency:d.key==="priority"?cr.priority:d.key==="type"?cr.type:cr.scope;
+              const isOverridden = overrides[activeNum]?.[d.key] !== undefined;
+              return (
+                <div key={d.key} className="rounded border border-gray-100 dark:border-gray-800 p-2">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <d.icon className="h-3 w-3 text-gray-400" />
+                      <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{d.label}</span>
+                      <span className="text-[9px] text-gray-400">SN: &quot;{snValue || "—"}&quot;</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className={`text-[10px] font-mono font-bold ${getRiskBg(current)} rounded px-1 py-0.5`}>{current}</span>
+                      {isOverridden && <span className="text-[9px] text-amber-500">(was {selected.baseDims[d.key]})</span>}
+                    </div>
+                  </div>
+                  <input type="range" min="0" max="100" value={current} onChange={(e) => handleOverride(d.key, Number(e.target.value))} className="w-full h-1 accent-blue-600" />
+                  <div className="flex justify-between text-[9px] text-gray-400"><span>0</span><span>{(weights[d.key]*100).toFixed(0)}% → {Math.round(current * weights[d.key])} pts</span><span>100</span></div>
+                </div>
+              );
+            })}
+            <div className="rounded bg-gray-50 dark:bg-gray-800 p-2 mt-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Overall Impact</span>
+                <RiskBadge score={overall} size="sm" />
+              </div>
+              <p className="text-[9px] text-gray-400 mt-0.5 font-mono">= {DIMS.map((d) => `${dims[d.key]}×${(weights[d.key]*100).toFixed(0)}%`).join(" + ")} = {overall}</p>
+            </div>
+          </div>
+        </Card>
       </div>
+      <Card><CardHeader><CardTitle className="text-sm">Change Details — {cr.number}</CardTitle></CardHeader><div className="space-y-3 text-sm">{[{ label: "State", value: cr.state },{ label: "Type", value: cr.type },{ label: "Category", value: cr.category },{ label: "Priority", value: cr.priority },{ label: "Risk", value: cr.risk },{ label: "Impact", value: cr.sn_impact },{ label: "Urgency", value: cr.urgency },{ label: "Scope", value: cr.scope },{ label: "Approval", value: cr.approval },{ label: "Opened By", value: cr.opened_by },{ label: "Assigned To", value: cr.assigned_to },{ label: "Assignment Group", value: cr.assignment_group },{ label: "Config Item", value: cr.cmdb_ci },{ label: "Business Service", value: cr.business_service },{ label: "Close Code", value: cr.close_code }].map((row) => row.value ? (<div key={row.label} className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">{row.label}</span><span className="font-medium text-gray-700 dark:text-gray-300 text-right max-w-[200px] truncate">{row.value}</span></div>) : null)}</div></Card>
       </div>
       )}
 
@@ -420,6 +502,107 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                 </Card>
               );
             })()}
+            {/* ── 5×5 Risk Heatmap Matrix + Scatter Plot ── */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* 5×5 Likelihood × Impact Heatmap */}
+              {(() => {
+                const matrix: Record<string, typeof riskResults> = {};
+                for (let l = 1; l <= 5; l++) for (let i = 1; i <= 5; i++) matrix[`${l}-${i}`] = [];
+                riskResults.forEach((r) => {
+                  const lBucket = Math.max(1, Math.min(5, Math.round(r.L)));
+                  const iBucket = Math.max(1, Math.min(5, Math.round(r.I)));
+                  matrix[`${lBucket}-${iBucket}`]?.push(r);
+                });
+                const cellColor = (l: number, i: number) => {
+                  const v = l * i;
+                  if (v >= 16) return "bg-red-500 text-white";
+                  if (v >= 10) return "bg-orange-400 text-white";
+                  if (v >= 5) return "bg-amber-300 text-gray-900";
+                  return "bg-green-300 text-gray-900";
+                };
+                const impLabels = ["", "1-Low", "2", "3", "4", "5-High"];
+                const likLabels = ["", "1-Low", "2", "3", "4", "5-High"];
+                return (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-purple-500" /> 5×5 Risk Heatmap — Likelihood × Impact</CardTitle>
+                      <CardDescription>ISO 31000 risk matrix. Numbers show CR count per cell.</CardDescription>
+                    </CardHeader>
+                    <div className="px-4 pb-4">
+                      <div className="flex">
+                        <div className="flex flex-col items-center justify-center mr-1 w-6">
+                          <span className="text-[9px] text-gray-400 [writing-mode:vertical-lr] rotate-180">Likelihood →</span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="grid grid-cols-6 gap-0.5">
+                            {/* Header row */}
+                            <div className="h-8" />
+                            {[1,2,3,4,5].map(i => <div key={i} className="h-8 flex items-center justify-center text-[10px] font-semibold text-gray-500">{impLabels[i]}</div>)}
+                            {/* Data rows (L from 5 down to 1) */}
+                            {[5,4,3,2,1].map(l => (
+                              <>{/* row label */}
+                                <div key={`l-${l}`} className="h-14 flex items-center justify-center text-[10px] font-semibold text-gray-500">{likLabels[l]}</div>
+                                {[1,2,3,4,5].map(i => {
+                                  const items = matrix[`${l}-${i}`] || [];
+                                  return (
+                                    <div key={`${l}-${i}`} className={`h-14 rounded flex flex-col items-center justify-center ${cellColor(l, i)} transition-all hover:scale-105`} title={items.map(r => r.cr.number).join(", ") || "No CRs"}>
+                                      <span className="text-lg font-bold">{items.length || ""}</span>
+                                      {items.length > 0 && <span className="text-[8px] opacity-75">{items.length === 1 ? "CR" : "CRs"}</span>}
+                                    </div>
+                                  );
+                                })}
+                              </>
+                            ))}
+                          </div>
+                          <p className="text-center text-[9px] text-gray-400 mt-1">Impact Severity →</p>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })()}
+
+              {/* Plan Readiness vs Computed Risk Scatter Plot */}
+              {(() => {
+                const planMap = new Map(planResults.map(p => [p.cr.number, p.overallScore]));
+                const scatterData = riskResults.map((r) => ({
+                  planReadiness: planMap.get(r.cr.number) ?? 0,
+                  riskScore: r.score,
+                  name: r.cr.number,
+                  desc: r.cr.short_description.slice(0, 40),
+                }));
+                return (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-teal-500" /> Plan Readiness vs Computed Risk</CardTitle>
+                      <CardDescription>Bottom-right quadrant = high risk + weak plans → highest concern.</CardDescription>
+                    </CardHeader>
+                    <div className="h-72 px-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ScatterChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis type="number" dataKey="planReadiness" name="Plan Readiness" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" label={{ value: "Plan Readiness →", position: "insideBottom", offset: -5, fontSize: 10, fill: "#94a3b8" }} />
+                          <YAxis type="number" dataKey="riskScore" name="Computed Risk" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" label={{ value: "Risk →", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "#94a3b8" }} />
+                          <ZAxis range={[40, 200]} />
+                          <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} labelFormatter={(_, payload) => payload?.[0]?.payload?.name || ""} />
+                          <Scatter name="Change Requests" data={scatterData} fill="#8b5cf6">
+                            {scatterData.map((d, i) => <Cell key={i} fill={d.riskScore >= 75 ? "#ef4444" : d.riskScore >= 50 ? "#f97316" : d.riskScore >= 25 ? "#eab308" : "#22c55e"} />)}
+                          </Scatter>
+                          {/* Quadrant reference lines */}
+                        </ScatterChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex justify-center gap-4 px-4 pb-3 text-[10px] text-gray-400">
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /> Critical (≥75)</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" /> High (50-74)</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" /> Medium (25-49)</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500" /> Low (&lt;25)</span>
+                    </div>
+                  </Card>
+                );
+              })()}
+            </div>
+
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[200px] max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={riskSearch} onChange={(e) => setRiskSearch(e.target.value)} /></div>
             </div>
@@ -446,6 +629,102 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
               <Card><CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-purple-500" /> Commit Risk Distribution</CardTitle></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={[{ bucket: "Critical", count: gitData.summary.criticalCount, fill: "#ef4444" },{ bucket: "High", count: gitData.summary.highCount, fill: "#f97316" },{ bucket: "Medium", count: gitData.summary.mediumCount, fill: "#eab308" },{ bucket: "Low", count: gitData.summary.lowCount, fill: "#22c55e" }]}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis dataKey="bucket" tick={{ fontSize: 10 }} stroke="#94a3b8" /><YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" /><Tooltip /><Bar dataKey="count" name="Commits" radius={[4, 4, 0, 0]}>{[{ fill: "#ef4444" },{ fill: "#f97316" },{ fill: "#eab308" },{ fill: "#22c55e" }].map((e, i) => <Cell key={i} fill={e.fill} />)}</Bar></BarChart></ResponsiveContainer></div></Card>
               <Card><CardHeader><CardTitle className="flex items-center gap-2"><User className="h-4 w-4 text-blue-500" /> Risk by Author</CardTitle></CardHeader><div className="overflow-x-auto max-h-64 overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-white dark:bg-gray-900"><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-2 text-left font-medium text-gray-500 dark:text-gray-400">Author</th><th className="pb-2 text-center font-medium text-gray-500 dark:text-gray-400">Commits</th><th className="pb-2 text-center font-medium text-gray-500 dark:text-gray-400">Avg Risk</th><th className="pb-2 text-right font-medium text-gray-500 dark:text-gray-400">Churn</th></tr></thead><tbody>{gitData.authorBreakdown.map((a) => (<tr key={a.author} className="border-b border-gray-50 dark:border-gray-800"><td className="py-2 font-medium text-gray-900 dark:text-gray-100 text-xs">{a.author}</td><td className="py-2 text-center text-xs">{a.commits}</td><td className="py-2 text-center"><span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${riskBgCls(a.avgRisk)}`}>{a.avgRisk}</span></td><td className="py-2 text-right text-xs text-gray-500">+{a.additions} / −{a.deletions}</td></tr>))}</tbody></table></div></Card>
             </div>
+            {/* ── Daily Commit Risk Trend ── */}
+            {(() => {
+              const dayMap: Record<string, { count: number; riskSum: number }> = {};
+              gitData.commits.forEach(c => {
+                const day = new Date(c.date).toISOString().slice(0, 10);
+                if (!dayMap[day]) dayMap[day] = { count: 0, riskSum: 0 };
+                dayMap[day].count++;
+                dayMap[day].riskSum += c.riskScore;
+              });
+              const trendData = Object.entries(dayMap)
+                .sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([date, d]) => ({
+                  date: new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+                  avgRisk: Math.round(d.riskSum / d.count),
+                  commits: d.count,
+                }));
+              return trendData.length > 1 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-purple-500" /> Daily Commit Risk Trend</CardTitle>
+                    <CardDescription>Average risk score per day over the analysis period. Spikes indicate high-risk commit activity.</CardDescription>
+                  </CardHeader>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                        <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={[0, 100]} />
+                        <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                        <Legend wrapperStyle={{ fontSize: "11px" }} />
+                        <Line type="monotone" dataKey="avgRisk" name="Avg Risk" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                        <Line type="monotone" dataKey="commits" name="Commits" stroke="#94a3b8" strokeWidth={1} strokeDasharray="4 4" dot={{ r: 2 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+              ) : null;
+            })()}
+
+            {/* ── File Hotspot Treemap ── */}
+            {(() => {
+              const fileMap: Record<string, { risk: number; churn: number; commits: number }> = {};
+              gitData.commits.forEach(c => {
+                c.files.forEach(f => {
+                  const name = f.filename;
+                  if (!fileMap[name]) fileMap[name] = { risk: 0, churn: 0, commits: 0 };
+                  fileMap[name].risk = Math.max(fileMap[name].risk, f.fileRisk || 0);
+                  fileMap[name].churn += f.additions + f.deletions;
+                  fileMap[name].commits++;
+                });
+              });
+              const hotspots = Object.entries(fileMap)
+                .map(([file, d]) => ({ file, shortName: file.split("/").pop() || file, dir: file.split("/").slice(0, -1).join("/") || "/", ...d }))
+                .sort((a, b) => b.risk - a.risk)
+                .slice(0, 30);
+              if (hotspots.length === 0) return null;
+              const maxChurn = Math.max(...hotspots.map(h => h.churn), 1);
+              return (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><FileCode2 className="h-4 w-4 text-purple-500" /> File Hotspot Map — Top 30 Riskiest Files</CardTitle>
+                    <CardDescription>Size = code churn (additions + deletions). Color = max risk score. Hover for details.</CardDescription>
+                  </CardHeader>
+                  <div className="px-4 pb-4">
+                    <div className="flex flex-wrap gap-1">
+                      {hotspots.map((h) => {
+                        const minSize = 48;
+                        const maxSize = 140;
+                        const size = Math.round(minSize + (h.churn / maxChurn) * (maxSize - minSize));
+                        const bg = h.risk >= 75 ? "bg-red-500" : h.risk >= 50 ? "bg-orange-400" : h.risk >= 25 ? "bg-amber-300" : "bg-green-400";
+                        const textColor = h.risk >= 50 ? "text-white" : "text-gray-900";
+                        return (
+                          <div
+                            key={h.file}
+                            className={`rounded ${bg} ${textColor} flex flex-col items-center justify-center p-1 overflow-hidden transition-transform hover:scale-105 hover:z-10 hover:shadow-lg cursor-default`}
+                            style={{ width: size, height: size }}
+                            title={`${h.file}\nRisk: ${h.risk} | Churn: +${h.churn} lines | ${h.commits} commits`}
+                          >
+                            <span className="text-[8px] font-bold truncate w-full text-center leading-tight">{h.shortName}</span>
+                            <span className="text-[10px] font-bold mt-0.5">{h.risk}</span>
+                            <span className="text-[7px] opacity-75">±{h.churn}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-center gap-4 mt-3 text-[10px] text-gray-400">
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded bg-red-500" /> Critical (≥75)</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded bg-orange-400" /> High (50-74)</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded bg-amber-300" /> Medium (25-49)</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded bg-green-400" /> Low (&lt;25)</span>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })()}
+
             <div className="flex items-center gap-3 text-xs text-gray-400"><a href={gitData.repoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-purple-600 hover:underline"><ExternalLink className="h-3 w-3" /> {gitData.owner}/{gitData.repo}</a><span>·</span><span>Since {new Date(gitData.sinceDate).toLocaleDateString()}</span><span>·</span><span>{gitData.summary.totalFilesChanged} files touched</span></div>
             <Card><CardHeader><CardTitle>All Commits — Risk Assessment ({gitData.commits.length})</CardTitle><CardDescription>Click a row to see file-level details and risk factors.</CardDescription></CardHeader><div className="overflow-x-auto max-h-[520px] overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-white dark:bg-gray-900 z-10"><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Commit</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Risk</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Level</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Files</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">+/−</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Author</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Date</th></tr></thead><tbody>{gitData.commits.map((c) => (<><tr key={c.sha} className={`cursor-pointer border-b border-gray-50 dark:border-gray-800 hover:bg-purple-50 dark:hover:bg-purple-950/20 ${expandedCommit===c.sha?"bg-purple-50 dark:bg-purple-950/20":""}`} onClick={() => setExpandedCommit(expandedCommit===c.sha?null:c.sha)}><td className="py-2.5"><span className="font-mono text-[11px] text-purple-500">{c.shortSha}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{c.message}</p></td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${riskBgCls(c.riskScore)}`}>{c.riskScore}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-semibold capitalize ${riskColor(c.riskScore)}`}>{c.riskLevel}</span></td><td className="py-2.5 text-center text-xs">{c.filesChanged}</td><td className="py-2.5 text-center text-xs"><span className="text-green-600">+{c.additions}</span>{" / "}<span className="text-red-500">−{c.deletions}</span></td><td className="py-2.5 text-xs text-gray-600 dark:text-gray-400">{c.author}</td><td className="py-2.5 text-xs text-gray-400">{c.date ? new Date(c.date).toLocaleDateString() : "—"}</td></tr>{expandedCommit===c.sha && (<tr key={`${c.sha}-d`}><td colSpan={7} className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3"><div className="space-y-3"><div><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Risk Factors</p><div className="flex flex-wrap gap-1.5">{c.riskFactors.map((f, i) => <span key={i} className="rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">{f}</span>)}</div></div>{c.files.length > 0 && (<div><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Files Changed ({c.files.length})</p><div className="max-h-48 overflow-y-auto space-y-1">{c.files.map((f, fi) => (<div key={fi} className="flex items-center justify-between rounded bg-white dark:bg-gray-900 px-3 py-1.5 text-xs"><div className="flex items-center gap-2 min-w-0 flex-1"><FileCode2 className="h-3 w-3 text-gray-400 shrink-0" /><span className="font-mono text-gray-700 dark:text-gray-300 truncate">{f.filename}</span></div><div className="flex items-center gap-3 shrink-0 ml-3"><span className="text-green-600">+{f.additions}</span><span className="text-red-500">−{f.deletions}</span><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${riskBgCls(f.fileRisk)}`}>{f.fileRisk}</span></div></div>))}</div></div>)}</div></td></tr>)}</>))}</tbody></table></div></Card>
           </>)}
@@ -919,6 +1198,125 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
             ) : (
             /* ── Overview Mode ── */
             <div className="space-y-6">
+
+            {/* ── Cross-CR Plan Quality Heatmap ── */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-teal-500" /> Plan Quality Heatmap — All CRs × Dimensions</CardTitle>
+                <CardDescription>Each row is a change request, each column a plan dimension. Color intensity shows quality (red=missing/poor, green=strong). Quickly spot systemic gaps.</CardDescription>
+              </CardHeader>
+              <div className="overflow-x-auto max-h-[360px] overflow-y-auto px-4 pb-4">
+                <table className="w-full border-collapse text-[10px]">
+                  <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
+                    <tr>
+                      <th className="py-1.5 text-left font-medium text-gray-500 min-w-[120px]">CR</th>
+                      {PLAN_DIMS.map(d => <th key={d.key} className="py-1.5 text-center font-medium text-gray-500 px-1 min-w-[60px]">{d.label.replace(" Plan","").replace("/Impact Analysis","")}</th>)}
+                      <th className="py-1.5 text-center font-medium text-gray-500 px-1 min-w-[50px]">Overall</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPlans.slice(0, 50).map((p) => (
+                      <tr key={p.cr.number} className="cursor-pointer hover:ring-1 hover:ring-teal-300" onClick={() => { setSelectedPlanCR(p.cr.number); setExpandedPlanContent(null); setMlAnalysis(null); setMlError(null); }}>
+                        <td className="py-0.5 font-mono text-gray-500 truncate max-w-[120px]" title={p.cr.short_description}>{p.cr.number.replace("CHG","")}</td>
+                        {PLAN_DIMS.map(d => {
+                          const q = p[d.key].quality;
+                          const present = p[d.key].present;
+                          const bg = !present ? "bg-red-500" : q >= 75 ? "bg-green-500" : q >= 50 ? "bg-amber-400" : q >= 25 ? "bg-orange-500" : "bg-red-400";
+                          return <td key={d.key} className="py-0.5 px-0.5"><div className={`rounded h-5 flex items-center justify-center text-white text-[9px] font-bold ${bg}`} style={{ opacity: present ? Math.max(0.35, q/100) : 0.6 }}>{present ? q : "—"}</div></td>;
+                        })}
+                        <td className="py-0.5 px-0.5"><div className={`rounded h-5 flex items-center justify-center text-white text-[9px] font-bold ${p.overallScore >= 75 ? "bg-green-600" : p.overallScore >= 50 ? "bg-amber-500" : p.overallScore >= 25 ? "bg-orange-500" : "bg-red-500"}`}>{p.overallScore}</div></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {/* ── Peer Benchmark: by Team + by Risk Level ── */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* By Team */}
+              {(() => {
+                const teamMap: Record<string, { total: number; scoreSum: number; gapSum: number }> = {};
+                planResults.forEach(p => {
+                  const team = p.cr.assignment_group || "Unassigned";
+                  if (!teamMap[team]) teamMap[team] = { total: 0, scoreSum: 0, gapSum: 0 };
+                  teamMap[team].total++;
+                  teamMap[team].scoreSum += p.overallScore;
+                  teamMap[team].gapSum += p.gapCount;
+                });
+                const teamData = Object.entries(teamMap).map(([team, d]) => ({
+                  team: team.length > 20 ? team.slice(0, 18) + "…" : team,
+                  avgReadiness: Math.round(d.scoreSum / d.total),
+                  avgGaps: +(d.gapSum / d.total).toFixed(1),
+                  count: d.total,
+                })).sort((a, b) => a.avgReadiness - b.avgReadiness);
+                return (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><User className="h-4 w-4 text-teal-500" /> Plan Readiness by Team</CardTitle>
+                      <CardDescription>Average plan readiness score per assignment group. Lower = more risk.</CardDescription>
+                    </CardHeader>
+                    <div className="h-64 px-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={teamData} layout="vertical" barCategoryGap="20%">
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                          <YAxis type="category" dataKey="team" tick={{ fontSize: 9 }} stroke="#94a3b8" width={110} />
+                          <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                          <Bar dataKey="avgReadiness" name="Avg Readiness" radius={[0, 4, 4, 0]}>
+                            {teamData.map((d, i) => <Cell key={i} fill={d.avgReadiness >= 75 ? "#22c55e" : d.avgReadiness >= 50 ? "#eab308" : d.avgReadiness >= 25 ? "#f97316" : "#ef4444"} />)}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+                );
+              })()}
+
+              {/* By Risk Level */}
+              {(() => {
+                const riskMap: Record<string, { total: number; scoreSum: number; gapSum: number }> = {};
+                planResults.forEach(p => {
+                  const risk = p.cr.risk || "Unknown";
+                  if (!riskMap[risk]) riskMap[risk] = { total: 0, scoreSum: 0, gapSum: 0 };
+                  riskMap[risk].total++;
+                  riskMap[risk].scoreSum += p.overallScore;
+                  riskMap[risk].gapSum += p.gapCount;
+                });
+                const riskData = Object.entries(riskMap).map(([risk, d]) => ({
+                  risk,
+                  avgReadiness: Math.round(d.scoreSum / d.total),
+                  avgGaps: +(d.gapSum / d.total).toFixed(1),
+                  count: d.total,
+                })).sort((a, b) => a.avgReadiness - b.avgReadiness);
+                const riskFill: Record<string, string> = { "Very High": "#ef4444", "High": "#f97316", "Moderate": "#eab308", "Low": "#22c55e", "None": "#94a3b8" };
+                return (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Plan Readiness by SN Risk Level</CardTitle>
+                      <CardDescription>Do high-risk CRs have better plans? Compare readiness across risk categories.</CardDescription>
+                    </CardHeader>
+                    <div className="space-y-3 px-4 pb-4">
+                      {riskData.map(d => (
+                        <div key={d.risk} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">{d.risk} <span className="text-gray-400 font-normal">({d.count} CRs)</span></span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-gray-400">Avg gaps: <span className="font-bold text-gray-600 dark:text-gray-300">{d.avgGaps}</span></span>
+                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(d.avgReadiness)}`}>{d.avgReadiness}</span>
+                            </div>
+                          </div>
+                          <div className="h-3 rounded-full bg-gray-100 dark:bg-gray-800">
+                            <div className="h-3 rounded-full transition-all" style={{ width: `${d.avgReadiness}%`, backgroundColor: riskFill[d.risk] || "#6366f1" }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                );
+              })()}
+            </div>
+
             <Card>
               <CardHeader>
                 <CardTitle>Change Requests — Plan Risk Assessment ({filteredPlans.length}{pq ? ` of ${n}` : ""})</CardTitle>

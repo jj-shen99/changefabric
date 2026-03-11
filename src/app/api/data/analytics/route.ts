@@ -3,12 +3,18 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { searchParams } = new URL(request.url);
+  const days = parseInt(searchParams.get("days") || "0", 10);
+  const dateFilter = days > 0
+    ? { opened_at: { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString() } }
+    : {};
+
   const [changeRequests, releases] = await Promise.all([
-    prisma.changeRequest.findMany({ include: { validations: true }, orderBy: { opened_at: "desc" } }),
+    prisma.changeRequest.findMany({ where: dateFilter, include: { validations: true }, orderBy: { opened_at: "desc" } }),
     prisma.release.findMany({ orderBy: { scheduledDate: "desc" } }),
   ]);
 

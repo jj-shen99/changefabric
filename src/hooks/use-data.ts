@@ -40,8 +40,9 @@ async function fetcher(url: string): Promise<DashboardData> {
   return res.json();
 }
 
-export function useData(): UseDataReturn {
-  const { data, error, isLoading } = useSWR<DashboardData>("/api/data", fetcher, {
+export function useData(days?: number): UseDataReturn {
+  const url = days ? `/api/data?days=${days}` : "/api/data";
+  const { data, error, isLoading } = useSWR<DashboardData>(url, fetcher, {
     revalidateOnFocus: true,
     revalidateOnReconnect: true,
     refreshInterval: 30000, // auto-refresh every 30s
@@ -49,7 +50,7 @@ export function useData(): UseDataReturn {
   });
 
   const refetch = async () => {
-    await globalMutate("/api/data");
+    await globalMutate(url);
   };
 
   return {

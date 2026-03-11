@@ -36,14 +36,21 @@ function overallRisk(risk: string, impact: string, priority: string): number {
   return Math.round(riskScore(risk) * 0.4 + impactScore(impact) * 0.35 + priorityScore(priority) * 0.25);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const days = parseInt(searchParams.get("days") || "0", 10);
+  const dateFilter = days > 0
+    ? { opened_at: { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString() } }
+    : {};
+
   const [changeRequests, releases] = await Promise.all([
     prisma.changeRequest.findMany({
+      where: dateFilter,
       include: { validations: true },
       orderBy: { opened_at: "desc" },
     }),

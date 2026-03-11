@@ -47,6 +47,28 @@ function parseRepoUrl(url: string): { baseUrl: string; owner: string; repo: stri
   };
 }
 
+/** Search GHE for a repo by name when direct access returns 404 */
+async function searchRepo(
+  baseUrl: string,
+  repoName: string
+): Promise<{ owner: string; repo: string } | null> {
+  const user = getSecret("GIT_USER");
+  const pass = getSecret("GIT_PASSWORD");
+  const authHeader = user ? "Basic " + Buffer.from(`${user}:${pass}`).toString("base64") : "";
+  try {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (authHeader) headers.Authorization = authHeader;
+    const res = await fetch(`${baseUrl}/api/v3/search/repositories?q=${encodeURIComponent(repoName)}`, { headers });
+    if (!res.ok) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = (await res.json()) as any;
+    if (data.total_count > 0 && data.items?.[0]) {
+      return { owner: data.items[0].owner?.login || "", repo: data.items[0].name || "" };
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
 /** Fetch commits from a Gitea/GitHub-compatible API */
 async function fetchCommits(
   baseUrl: string,
@@ -289,11 +311,30 @@ export async function GET(request: Request) {
     // 1. Fetch commits list
     let commits = await fetchCommits(baseUrl, owner, repo, since);
 
+    // 1b. If no commits found, try searching for the repo by name (owner may be wrong)
+    let resolvedOwner = owner;
+    let resolvedRepo = repo;
+    if (commits.length === 0) {
+      const found = await searchRepo(baseUrl, repo);
+      if (found && (found.owner !== owner || found.repo !== repo)) {
+        resolvedOwner = found.owner;
+        resolvedRepo = found.repo;
+        commits = await fetchCommits(baseUrl, resolvedOwner, resolvedRepo, since);
+      }
+    }
+
+    if (commits.length === 0) {
+      return NextResponse.json(
+        { error: `No commits found for ${owner}/${repo}. The repository may not exist, may be private, or may have no commits in the last ${days} days. Verify the repo URL is correct (e.g. https://code.devsnc.com/owner/repo).` },
+        { status: 404 }
+      );
+    }
+
     // 2. Enrich commits that lack file details
     const enriched: GitCommit[] = [];
     for (const c of commits.slice(0, 50)) {
       if (c.files.length === 0 && c.sha) {
-        const detail = await fetchCommitDetail(baseUrl, owner, repo, c.sha);
+        const detail = await fetchCommitDetail(baseUrl, resolvedOwner, resolvedRepo, c.sha);
         enriched.push({ ...c, ...detail });
       } else {
         enriched.push(c);
@@ -344,9 +385,9 @@ export async function GET(request: Request) {
     ));
 
     return NextResponse.json({
-      repoUrl,
-      owner,
-      repo,
+      repoUrl: resolvedOwner !== owner ? `${baseUrl}/${resolvedOwner}/${resolvedRepo}` : repoUrl,
+      owner: resolvedOwner,
+      repo: resolvedRepo,
       sinceDate: since,
       days,
       summary: {

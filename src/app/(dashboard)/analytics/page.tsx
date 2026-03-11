@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   AlertTriangle, TrendingDown, RotateCcw, XCircle, Target, Zap, Clock, Users,
-  GitPullRequest, TrendingUp, Timer, BarChart3,
+  GitPullRequest, TrendingUp, Timer, BarChart3, Calendar,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
@@ -61,8 +61,9 @@ const weeklyDeployHealth = [
 ];
 
 export default function AnalyticsPage() {
-  const { failureAnalysis, rollbackIntelligence, velocity, loading: aLoading, error: aError } = useAnalytics();
-  const { dashboardMetrics, riskTrendData, validationTrendData, deploymentFrequencyData, loading: dLoading, error: dError } = useData();
+  const [days, setDays] = useState(7);
+  const { failureAnalysis, rollbackIntelligence, velocity, loading: aLoading, error: aError } = useAnalytics(days);
+  const { dashboardMetrics, riskTrendData, validationTrendData, deploymentFrequencyData, loading: dLoading, error: dError } = useData(days);
   const [activeTab, setActiveTab] = useState<AnalyticsTab>("failures");
 
   const loading = aLoading || dLoading;
@@ -91,11 +92,22 @@ export default function AnalyticsPage() {
       <PageHeader title="Analytics" subtitle="Failure analysis, deployment velocity, and DORA metrics & trends" />
     <div className="space-y-6 p-4 md:p-6">
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 pb-0.5 dark:border-gray-800">
-        <TabButton active={activeTab === "failures"} onClick={() => setActiveTab("failures")} icon={AlertTriangle} label="Failure Analysis" />
-        <TabButton active={activeTab === "velocity"} onClick={() => setActiveTab("velocity")} icon={Zap} label="Velocity" />
-        <TabButton active={activeTab === "metrics"} onClick={() => setActiveTab("metrics")} icon={BarChart3} label="Metrics & Trends" />
+      {/* Tabs + Date Range */}
+      <div className="flex items-center justify-between border-b border-gray-200 pb-0.5 dark:border-gray-800">
+        <div className="flex gap-1">
+          <TabButton active={activeTab === "failures"} onClick={() => setActiveTab("failures")} icon={AlertTriangle} label="Failure Analysis" />
+          <TabButton active={activeTab === "velocity"} onClick={() => setActiveTab("velocity")} icon={Zap} label="Velocity" />
+          <TabButton active={activeTab === "metrics"} onClick={() => setActiveTab("metrics")} icon={BarChart3} label="Metrics & Trends" />
+        </div>
+        <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 dark:border-gray-700 dark:bg-gray-800">
+          <Calendar className="h-3.5 w-3.5 text-gray-400" />
+          <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="bg-transparent text-xs font-medium text-gray-700 outline-none dark:text-gray-300">
+            <option value={7}>Last 7 days</option>
+            <option value={14}>Last 14 days</option>
+            <option value={30}>Last 30 days</option>
+            <option value={90}>Last 90 days</option>
+          </select>
+        </div>
       </div>
 
       {/* ═══ TAB: FAILURE ANALYSIS ═══ */}

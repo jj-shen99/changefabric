@@ -129,8 +129,9 @@ async function fetcher(url: string): Promise<AnalyticsData> {
   return res.json();
 }
 
-export function useAnalytics() {
-  const { data, error, isLoading } = useSWR<AnalyticsData>("/api/data/analytics", fetcher, {
+export function useAnalytics(days?: number) {
+  const url = days ? `/api/data/analytics?days=${days}` : "/api/data/analytics";
+  const { data, error, isLoading } = useSWR<AnalyticsData>(url, fetcher, {
     revalidateOnFocus: true,
     refreshInterval: 60000,
     dedupingInterval: 10000,

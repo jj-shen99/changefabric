@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -9,6 +10,7 @@ import {
   Rocket,
   TrendingDown,
   XCircle,
+  Calendar,
 } from "lucide-react";
 import {
   BarChart,
@@ -33,7 +35,8 @@ import Link from "next/link";
 import DashboardLoading from "./loading";
 
 export default function OverviewPage() {
-  const { changeRequests, dashboardMetrics, riskTrendData, deploymentFrequencyData, loading, error } = useData();
+  const [days, setDays] = useState(7);
+  const { changeRequests, dashboardMetrics, riskTrendData, deploymentFrequencyData, loading, error } = useData(days);
 
   if (loading) return <DashboardLoading />;
   if (error) return <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">{error}</div>;
@@ -61,10 +64,21 @@ export default function OverviewPage() {
   return (
     <>
       <PageHeader title="Dashboard Overview" subtitle={`Software Change & Release Validation — ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}`} actions={
-        <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-          System Healthy
-        </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 dark:border-gray-700 dark:bg-gray-800">
+            <Calendar className="h-3.5 w-3.5 text-gray-400" />
+            <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="bg-transparent text-xs font-medium text-gray-700 outline-none dark:text-gray-300">
+              <option value={7}>Last 7 days</option>
+              <option value={14}>Last 14 days</option>
+              <option value={30}>Last 30 days</option>
+              <option value={90}>Last 90 days</option>
+            </select>
+          </div>
+          <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+            System Healthy
+          </span>
+        </div>
       } />
     <div className="space-y-6 p-4 md:p-6">
 
