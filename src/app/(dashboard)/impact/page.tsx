@@ -878,6 +878,18 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
               </>)}
             </Card>
 
+            {/* ── Dimension & Impact Scoring Formula (collapsible) ── */}
+            <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20">
+              <CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Settings2 className="h-5 w-5 text-blue-600" />Dimension &amp; Impact Scoring Formula</CardTitle><div className="flex items-center gap-2"><button onClick={resetWeights} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button><button onClick={() => setWeightsOpen(!weightsOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900">{weightsOpen ? "▲ Collapse" : "▼ Expand"}</button></div></div><CardDescription className="text-sm">Overall = Σ (dimension_score × weight). Adjust weights below.</CardDescription></CardHeader>
+              {weightsOpen && (<>
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+                  {DIMS.map((d) => (<div key={d.key} className="rounded-lg border border-blue-100 bg-white p-3 dark:border-blue-900 dark:bg-gray-900"><div className="flex items-center gap-1.5 mb-2"><d.icon className="h-4 w-4 text-blue-500" /><span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{d.label}</span></div><p className="text-xs text-gray-500 dark:text-gray-400 mb-2 leading-snug">{d.formula}</p><label className="text-xs text-gray-500">Weight</label><input type="range" min="0" max="100" value={Math.round(weights[d.key]*100)} onChange={(e) => setWeight(d.key, Number(e.target.value)/100)} className="w-full h-1.5 accent-blue-600" /><span className="text-sm font-mono font-semibold text-blue-700 dark:text-blue-400">{(weights[d.key]*100).toFixed(0)}%</span></div>))}
+                </div>
+                <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Total weight: {((weights.risk+weights.impact+weights.urgency+weights.priority+weights.type+weights.scope)*100).toFixed(0)}%</p>
+                <div className="mt-4 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Dimension</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">SN Field</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Mapping</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Current Weight</th></tr></thead><tbody>{DIMS.map((d) => (<tr key={d.key} className="border-b border-gray-50 dark:border-gray-800"><td className="py-3"><div className="flex items-center gap-2"><d.icon className="h-4 w-4 text-blue-500" /><span className="font-medium text-gray-900 dark:text-gray-100">{d.label}</span></div></td><td className="py-3 font-mono text-xs text-gray-500">{d.snField}</td><td className="py-3 text-xs text-gray-600 dark:text-gray-400">{d.formula}</td><td className="py-3 text-center"><span className="rounded bg-blue-100 px-2 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">{(weights[d.key]*100).toFixed(0)}%</span></td></tr>))}</tbody></table></div>
+              </>)}
+            </Card>
+
             {/* ── Single CR Detail View ── */}
             {selectedPlan ? (
               <div className="space-y-6">
@@ -919,7 +931,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                   </div>
                 </Card>
 
-                {/* ── Two Radar Charts Side by Side ── */}
+                {/* ── Two-column layout: Left = Radar + Plan Content, Right = Dimensions & Impact ── */}
                 {(() => {
                   const planScored = scored.find((s) => s.cr.number === selectedPlan.cr.number) || scored[0];
                   const planDims = planScored.dims;
@@ -934,21 +946,95 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                   ];
                   return (
                     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                      {/* Plan Quality Radar */}
-                      <Card>
-                        <CardHeader><CardTitle className="text-sm">Plan Quality Radar</CardTitle></CardHeader>
-                        <div className="h-96">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart data={planRadarData}>
-                              <PolarGrid stroke="#e2e8f0" />
-                              <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 14, fontWeight: 700 }} />
-                              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 12 }} />
-                              <Radar name="Quality" dataKey="score" stroke="#0d9488" fill="#0d9488" fillOpacity={0.2} strokeWidth={2} />
-                            </RadarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </Card>
-                      {/* Dimensions & Impact Radar */}
+                      {/* Left column: Plan Quality Radar + Plan Content & Risk Assessment */}
+                      <div className="space-y-6">
+                        <Card>
+                          <CardHeader><CardTitle className="text-sm">Plan Quality Radar</CardTitle></CardHeader>
+                          <div className="h-96">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <RadarChart data={planRadarData}>
+                                <PolarGrid stroke="#e2e8f0" />
+                                <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 14, fontWeight: 700 }} />
+                                <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 12 }} />
+                                <Radar name="Quality" dataKey="score" stroke="#0d9488" fill="#0d9488" fillOpacity={0.2} strokeWidth={2} />
+                              </RadarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </Card>
+
+                        {/* Plan Content & Risk Assessment */}
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4 text-teal-500" /> Plan Content &amp; Risk Assessment</CardTitle>
+                            <CardDescription>Click a plan section to expand and read its full content. Risk-related keywords are highlighted.</CardDescription>
+                          </CardHeader>
+                          <div className="space-y-3">
+                            {[
+                              { key: "implementation_plan", label: "Implementation Plan", score: selectedPlan.implementation, icon: FileText },
+                              { key: "backout_plan", label: "Backout Plan", score: selectedPlan.backout, icon: RotateCcw },
+                              { key: "test_plan", label: "Test Plan", score: selectedPlan.testPlan, icon: CheckCircle2 },
+                              { key: "change_plan", label: "Change Plan", score: selectedPlan.changePlan, icon: ClipboardCheck },
+                              { key: "risk_impact_analysis", label: "Risk/Impact Analysis", score: selectedPlan.riskAnalysis, icon: AlertTriangle },
+                              { key: "justification", label: "Justification", score: selectedPlan.justification, icon: Info },
+                            ].map((plan) => {
+                              const text = (selectedPlan.cr as Record<string, unknown>)[plan.key] as string || "";
+                              const isExpanded = expandedPlanContent === plan.key;
+                              return (
+                                <div key={plan.key} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                                  <button
+                                    onClick={() => setExpandedPlanContent(isExpanded ? null : plan.key)}
+                                    className="w-full flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <plan.icon className="h-4 w-4 text-teal-500" />
+                                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{plan.label}</span>
+                                      {plan.score.present ? (
+                                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${pBg(plan.score.quality)}`}>{plan.score.quality}</span>
+                                      ) : (
+                                        <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900 dark:text-red-300">Missing</span>
+                                      )}
+                                    </div>
+                                    <span className="text-xs text-gray-400">{isExpanded ? "▲ Collapse" : "▼ Expand"}</span>
+                                  </button>
+                                  {isExpanded && (
+                                    <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-800/50">
+                                      {text.trim() ? (
+                                        <div className="space-y-3">
+                                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                                            <span>{text.split(/\s+/).length} words</span>
+                                            <span>·</span>
+                                            <span>{text.length.toLocaleString()} characters</span>
+                                            <span>·</span>
+                                            <span className={`font-semibold ${pColor(plan.score.quality)}`}>{pLabel(plan.score.quality)}</span>
+                                          </div>
+                                          <div className="rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-4 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto font-mono">
+                                            {highlightRisks(text)}
+                                          </div>
+                                          {plan.score.factors.length > 0 && (
+                                            <div>
+                                              <p className="text-xs font-semibold text-gray-500 mb-1">Assessment Factors</p>
+                                              <div className="flex flex-wrap gap-1">
+                                                {plan.score.factors.map((f, i) => <span key={i} className="rounded bg-teal-50 border border-teal-200 px-2 py-0.5 text-[11px] text-teal-700 dark:bg-teal-900 dark:border-teal-800 dark:text-teal-300">{f}</span>)}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-2 text-sm text-red-500 py-2">
+                                          <XCircle className="h-4 w-4" />
+                                          <span>No content provided. This is a <strong>risk gap</strong> — consider requiring this plan before approval.</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </Card>
+                      </div>
+
+                      {/* Right column: Dimensions & Impact Radar */}
                       <Card>
                         <CardHeader>
                           <div className="flex items-center justify-between">
@@ -998,91 +1084,47 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                   );
                 })()}
 
-                {/* Plan Content Reader */}
+                {/* ── Change Details (all fields including plans) ── */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4 text-teal-500" /> Plan Content &amp; Risk Assessment</CardTitle>
-                    <CardDescription>Click a plan section to expand and read its full content. Risk-related keywords are highlighted.</CardDescription>
-                  </CardHeader>
-                  <div className="space-y-3">
+                  <CardHeader><CardTitle className="text-sm">Change Details — {selectedPlan.cr.number}</CardTitle></CardHeader>
+                  <div className="space-y-3 text-sm">
                     {[
-                      { key: "implementation_plan", label: "Implementation Plan", score: selectedPlan.implementation, icon: FileText },
-                      { key: "backout_plan", label: "Backout Plan", score: selectedPlan.backout, icon: RotateCcw },
-                      { key: "test_plan", label: "Test Plan", score: selectedPlan.testPlan, icon: CheckCircle2 },
-                      { key: "change_plan", label: "Change Plan", score: selectedPlan.changePlan, icon: ClipboardCheck },
-                      { key: "risk_impact_analysis", label: "Risk/Impact Analysis", score: selectedPlan.riskAnalysis, icon: AlertTriangle },
-                      { key: "justification", label: "Justification", score: selectedPlan.justification, icon: Info },
-                    ].map((plan) => {
-                      const text = (selectedPlan.cr as Record<string, unknown>)[plan.key] as string || "";
-                      const isExpanded = expandedPlanContent === plan.key;
-                      return (
-                        <div key={plan.key} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                          <button
-                            onClick={() => setExpandedPlanContent(isExpanded ? null : plan.key)}
-                            className="w-full flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-left"
-                          >
-                            <div className="flex items-center gap-2">
-                              <plan.icon className="h-4 w-4 text-teal-500" />
-                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{plan.label}</span>
-                              {plan.score.present ? (
-                                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${pBg(plan.score.quality)}`}>{plan.score.quality}</span>
-                              ) : (
-                                <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900 dark:text-red-300">Missing</span>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-400">{isExpanded ? "▲ Collapse" : "▼ Expand"}</span>
-                          </button>
-                          {isExpanded && (
-                            <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-800/50">
-                              {text.trim() ? (
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                                    <span>{text.split(/\s+/).length} words</span>
-                                    <span>·</span>
-                                    <span>{text.length.toLocaleString()} characters</span>
-                                    <span>·</span>
-                                    <span className={`font-semibold ${pColor(plan.score.quality)}`}>{pLabel(plan.score.quality)}</span>
-                                  </div>
-                                  <div className="rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-4 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed max-h-96 overflow-y-auto font-mono">
-                                    {highlightRisks(text)}
-                                  </div>
-                                  {plan.score.factors.length > 0 && (
-                                    <div>
-                                      <p className="text-xs font-semibold text-gray-500 mb-1">Assessment Factors</p>
-                                      <div className="flex flex-wrap gap-1">
-                                        {plan.score.factors.map((f, i) => <span key={i} className="rounded bg-teal-50 border border-teal-200 px-2 py-0.5 text-[11px] text-teal-700 dark:bg-teal-900 dark:border-teal-800 dark:text-teal-300">{f}</span>)}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="flex items-center gap-2 text-sm text-red-500 py-2">
-                                  <XCircle className="h-4 w-4" />
-                                  <span>No content provided. This is a <strong>risk gap</strong> — consider requiring this plan before approval.</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                      { label: "Short Description", value: selectedPlan.cr.short_description },
+                      { label: "State", value: selectedPlan.cr.state },
+                      { label: "Type", value: selectedPlan.cr.type },
+                      { label: "Category", value: selectedPlan.cr.category },
+                      { label: "Priority", value: selectedPlan.cr.priority },
+                      { label: "Risk", value: selectedPlan.cr.risk },
+                      { label: "Impact", value: selectedPlan.cr.sn_impact },
+                      { label: "Urgency", value: selectedPlan.cr.urgency },
+                      { label: "Scope", value: selectedPlan.cr.scope },
+                      { label: "Approval", value: selectedPlan.cr.approval },
+                      { label: "Opened By", value: selectedPlan.cr.opened_by },
+                      { label: "Opened At", value: selectedPlan.cr.opened_at },
+                      { label: "Assigned To", value: selectedPlan.cr.assigned_to },
+                      { label: "Assignment Group", value: selectedPlan.cr.assignment_group },
+                      { label: "Config Item", value: selectedPlan.cr.cmdb_ci },
+                      { label: "Business Service", value: selectedPlan.cr.business_service },
+                      { label: "Close Code", value: selectedPlan.cr.close_code },
+                      { label: "Close Notes", value: selectedPlan.cr.close_notes },
+                      { label: "Closed At", value: selectedPlan.cr.closed_at },
+                      { label: "Start Date", value: selectedPlan.cr.start_date },
+                      { label: "End Date", value: selectedPlan.cr.end_date },
+                      { label: "Description", value: selectedPlan.cr.description },
+                      { label: "Implementation Plan", value: selectedPlan.cr.implementation_plan },
+                      { label: "Backout Plan", value: selectedPlan.cr.backout_plan },
+                      { label: "Test Plan", value: selectedPlan.cr.test_plan },
+                      { label: "Change Plan", value: selectedPlan.cr.change_plan },
+                      { label: "Risk/Impact Analysis", value: selectedPlan.cr.risk_impact_analysis },
+                      { label: "Justification", value: selectedPlan.cr.justification },
+                    ].map((row) => row.value ? (
+                      <div key={row.label} className="flex justify-between gap-4">
+                        <span className="text-gray-500 dark:text-gray-400 shrink-0">{row.label}</span>
+                        <span className="font-medium text-gray-700 dark:text-gray-300 text-right break-words max-w-[60%] whitespace-pre-wrap">{row.value.length > 200 ? row.value.slice(0, 200) + "…" : row.value}</span>
+                      </div>
+                    ) : null)}
                   </div>
                 </Card>
-
-                {/* ── Weights & Formulas ── */}
-                <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20">
-                  <CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Settings2 className="h-5 w-5 text-blue-600" />Weights &amp; Formulas</CardTitle><div className="flex items-center gap-2"><button onClick={resetWeights} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button><button onClick={() => setWeightsOpen(!weightsOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900">{weightsOpen ? "▲ Collapse" : "▼ Expand"}</button></div></div><CardDescription className="text-sm">Overall = Σ (dimension_score × weight). Adjust weights below.</CardDescription></CardHeader>
-                  {weightsOpen && (<>
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-                      {DIMS.map((d) => (<div key={d.key} className="rounded-lg border border-blue-100 bg-white p-3 dark:border-blue-900 dark:bg-gray-900"><div className="flex items-center gap-1.5 mb-2"><d.icon className="h-4 w-4 text-blue-500" /><span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{d.label}</span></div><p className="text-xs text-gray-500 dark:text-gray-400 mb-2 leading-snug">{d.formula}</p><label className="text-xs text-gray-500">Weight</label><input type="range" min="0" max="100" value={Math.round(weights[d.key]*100)} onChange={(e) => setWeight(d.key, Number(e.target.value)/100)} className="w-full h-1.5 accent-blue-600" /><span className="text-sm font-mono font-semibold text-blue-700 dark:text-blue-400">{(weights[d.key]*100).toFixed(0)}%</span></div>))}
-                    </div>
-                    <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Total weight: {((weights.risk+weights.impact+weights.urgency+weights.priority+weights.type+weights.scope)*100).toFixed(0)}%</p>
-                    <div className="mt-4 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Dimension</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">SN Field</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Mapping</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Current Weight</th></tr></thead><tbody>{DIMS.map((d) => (<tr key={d.key} className="border-b border-gray-50 dark:border-gray-800"><td className="py-3"><div className="flex items-center gap-2"><d.icon className="h-4 w-4 text-blue-500" /><span className="font-medium text-gray-900 dark:text-gray-100">{d.label}</span></div></td><td className="py-3 font-mono text-xs text-gray-500">{d.snField}</td><td className="py-3 text-xs text-gray-600 dark:text-gray-400">{d.formula}</td><td className="py-3 text-center"><span className="rounded bg-blue-100 px-2 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">{(weights[d.key]*100).toFixed(0)}%</span></td></tr>))}</tbody></table></div>
-                  </>)}
-                </Card>
-
-                {/* ── Change Details ── */}
-                <Card><CardHeader><CardTitle className="text-sm">Change Details — {selectedPlan.cr.number}</CardTitle></CardHeader><div className="space-y-3 text-sm">{[{ label: "State", value: selectedPlan.cr.state },{ label: "Type", value: selectedPlan.cr.type },{ label: "Category", value: selectedPlan.cr.category },{ label: "Priority", value: selectedPlan.cr.priority },{ label: "Risk", value: selectedPlan.cr.risk },{ label: "Impact", value: selectedPlan.cr.sn_impact },{ label: "Urgency", value: selectedPlan.cr.urgency },{ label: "Scope", value: selectedPlan.cr.scope },{ label: "Approval", value: selectedPlan.cr.approval },{ label: "Opened By", value: selectedPlan.cr.opened_by },{ label: "Assigned To", value: selectedPlan.cr.assigned_to },{ label: "Assignment Group", value: selectedPlan.cr.assignment_group },{ label: "Config Item", value: selectedPlan.cr.cmdb_ci },{ label: "Business Service", value: selectedPlan.cr.business_service },{ label: "Close Code", value: selectedPlan.cr.close_code }].map((row) => row.value ? (<div key={row.label} className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">{row.label}</span><span className="font-medium text-gray-700 dark:text-gray-300 text-right max-w-[200px] truncate">{row.value}</span></div>) : null)}</div></Card>
 
               </div>
             ) : (
