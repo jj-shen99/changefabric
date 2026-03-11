@@ -95,9 +95,10 @@ function scorePlan(text: string, keywords: string[], planName: string): PlanScor
 export default function ImpactPage() {
   const [days, setDays] = useState(7);
   const { changeRequests, loading, error } = useData(days);
-  const [selectedCR, setSelectedCR] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [selectedCR, _setSelectedCR] = useState<string | null>(null);
   const [weights, setWeights] = useState<Weights>({ ...DEFAULT_WEIGHTS });
-  const [activeTab, setActiveTab] = useState<"overview"|"analysis"|"risk"|"ml"|"plans"|"mlTab">("overview");
+  const [activeTab, setActiveTab] = useState<"overview"|"risk"|"ml"|"plans"|"mlTab">("overview");
   const [weightsOpen, setWeightsOpen] = useState(false);
   const [gitData, setGitData] = useState<GitAnalysisData | null>(null);
   const [gitLoading, setGitLoading] = useState(false);
@@ -144,7 +145,8 @@ export default function ImpactPage() {
   }, [changeRequests]);
   const uniqueGroups = useMemo(() => {
     const fromData = changeRequests.map((c) => c.assignment_group).filter(Boolean);
-    return [...new Set(fromData)].sort();
+    const standard = ["CAB Approval", "Change Management", "Database", "Hardware", "Network", "Security", "Service Desk", "Software"];
+    return [...new Set([...standard, ...fromData])].sort();
   }, [changeRequests]);
   const uniqueRiskLevels = useMemo(() => {
     const fromData = changeRequests.map((c) => c.risk).filter(Boolean);
@@ -606,6 +608,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
               })()}
             </div>
 
+            {/* Search bar + filters */}
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[200px] max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={riskSearch} onChange={(e) => setRiskSearch(e.target.value)} /></div>
               <select value={riskFilterRisk} onChange={(e) => setRiskFilterRisk(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
@@ -621,7 +624,31 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                 {uniqueGroups.map((g) => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
-            <Card><CardHeader><CardTitle>All Change Requests — Risk Assessment ({filteredRisk.length}{rq ? ` of ${n}` : ""})</CardTitle><CardDescription>Computed score vs ServiceNow risk field. Delta shows how much the computed score differs.</CardDescription></CardHeader><div className="overflow-x-auto max-h-[480px] overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-white dark:bg-gray-900 z-10"><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Computed</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Level</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">SN Risk</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">SN Score</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Delta</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Likelihood">L</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Impact Severity">I</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Velocity Modifier">V</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Control Credit">C</th></tr></thead><tbody>{filteredRisk.map((r) => (<tr key={r.cr.number} className="cursor-pointer border-b border-gray-50 dark:border-gray-800 hover:bg-blue-50 dark:hover:bg-blue-950/30" onClick={() => { setSelectedCR(r.cr.number); setActiveTab("analysis"); }}><td className="py-2.5"><span className="font-mono text-[11px] text-gray-400">{r.cr.number}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{r.cr.short_description}</p></td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${riskBgCls(r.score)}`}>{r.score}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-semibold capitalize ${riskColor(r.score)}`}>{riskLbl(r.score)}</span></td><td className="py-2.5 text-center text-xs text-gray-600 dark:text-gray-400">{r.snRisk}</td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${riskBgCls(r.snScore)}`}>{r.snScore}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-bold ${r.delta > 10 ? "text-red-600" : r.delta < -10 ? "text-green-600" : "text-gray-500"}`}>{r.delta > 0 ? "+" : ""}{r.delta}</span></td><td className="py-2.5 text-center text-xs font-mono">{r.L}</td><td className="py-2.5 text-center text-xs font-mono">{r.I}</td><td className="py-2.5 text-center text-xs font-mono">{r.V}</td><td className="py-2.5 text-center text-xs font-mono">{r.C}</td></tr>))}</tbody></table></div></Card>
+
+            {/* CR Selection List */}
+            <Card>
+              <CardHeader>
+                <CardTitle>All Change Requests — Risk Assessment ({filteredRisk.length}{rq ? ` of ${n}` : ""})</CardTitle>
+                <CardDescription>Computed score vs ServiceNow risk field. Click a row to view plan details. Delta shows how much the computed score differs.</CardDescription>
+              </CardHeader>
+              <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
+                    <tr className="border-b border-gray-100 dark:border-gray-800">
+                      <th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Computed</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Level</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">SN Risk</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">SN Score</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Delta</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">State</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Likelihood">L</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Impact Severity">I</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Velocity Modifier">V</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Control Credit">C</th>
+                    </tr>
+                  </thead>
+                  <tbody>{filteredRisk.map((r) => (<tr key={r.cr.number} className="cursor-pointer border-b border-gray-50 dark:border-gray-800 hover:bg-blue-50 dark:hover:bg-blue-950/30" onClick={() => { setSelectedPlanCR(r.cr.number); setActiveTab("plans"); }}><td className="py-2.5"><span className="font-mono text-[11px] text-gray-400">{r.cr.number}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{r.cr.short_description}</p><p className="text-[11px] text-gray-400">{r.cr.assignment_group || "Unassigned"}</p></td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${riskBgCls(r.score)}`}>{r.score}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-semibold capitalize ${riskColor(r.score)}`}>{riskLbl(r.score)}</span></td><td className="py-2.5 text-center text-xs text-gray-600 dark:text-gray-400">{r.snRisk}</td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${riskBgCls(r.snScore)}`}>{r.snScore}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-bold ${r.delta > 10 ? "text-red-600" : r.delta < -10 ? "text-green-600" : "text-gray-500"}`}>{r.delta > 0 ? "+" : ""}{r.delta}</span></td><td className="py-2.5 text-center"><span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{r.cr.state}</span></td><td className="py-2.5 text-center text-xs font-mono">{r.L}</td><td className="py-2.5 text-center text-xs font-mono">{r.I}</td><td className="py-2.5 text-center text-xs font-mono">{r.V}</td><td className="py-2.5 text-center text-xs font-mono">{r.C}</td></tr>))}</tbody></table></div></Card>
           </div>
         );
       })()}
@@ -892,60 +919,84 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                   </div>
                 </Card>
 
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                  {/* Radar chart */}
-                  <Card>
-                    <CardHeader><CardTitle className="text-sm">Plan Quality Radar</CardTitle></CardHeader>
-                    <div className="h-72">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart data={planRadarData}>
-                          <PolarGrid stroke="#e2e8f0" />
-                          <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 13, fontWeight: 600 }} />
-                          <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 11 }} />
-                          <Radar name="Quality" dataKey="score" stroke="#0d9488" fill="#0d9488" fillOpacity={0.2} strokeWidth={2} />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </Card>
-
-                  {/* Dimension scores */}
-                  <Card className="lg:col-span-2">
-                    <CardHeader><CardTitle className="text-sm">Plan Dimension Scores</CardTitle><CardDescription>Quality assessment of each plan section</CardDescription></CardHeader>
-                    <div className="space-y-3">
-                      {PLAN_DIMS.map((d) => {
-                        const ps = selectedPlan[d.key];
-                        return (
-                          <div key={d.key} className="rounded-lg border border-gray-100 dark:border-gray-800 p-3">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <div className="flex items-center gap-2">
-                                <d.icon className="h-4 w-4 text-teal-500" />
-                                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{d.label}</span>
-                                <span className="text-[10px] text-gray-400">(weight: {d.weight})</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {ps.present ? (
-                                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${pBg(ps.quality)}`}>{ps.quality}</span>
-                                ) : (
-                                  <span className="flex items-center gap-1 text-xs text-red-500"><XCircle className="h-3.5 w-3.5" /> Missing</span>
-                                )}
-                              </div>
-                            </div>
-                            {ps.present && (
-                              <>
-                                <div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800 mb-1.5">
-                                  <div className="h-2 rounded-full transition-all" style={{ width: `${ps.quality}%`, backgroundColor: ps.quality>=75?"#22c55e":ps.quality>=50?"#eab308":ps.quality>=25?"#f97316":"#ef4444" }} />
-                                </div>
-                                <div className="flex flex-wrap gap-1">
-                                  {ps.factors.map((f, i) => <span key={i} className="rounded bg-teal-50 px-1.5 py-0.5 text-[10px] text-teal-700 dark:bg-teal-900 dark:text-teal-300">{f}</span>)}
-                                </div>
-                              </>
-                            )}
+                {/* ── Two Radar Charts Side by Side ── */}
+                {(() => {
+                  const planScored = scored.find((s) => s.cr.number === selectedPlan.cr.number) || scored[0];
+                  const planDims = planScored.dims;
+                  const planOverall = planScored.overall;
+                  const planCr = planScored.cr;
+                  const planNum = planCr.number;
+                  const planHasOverrides = !!overrides[planNum] && Object.keys(overrides[planNum]).length > 0;
+                  const planRadarDims = [
+                    { dimension: "Risk", score: planDims.risk, fullMark: 100 }, { dimension: "Impact", score: planDims.impact, fullMark: 100 },
+                    { dimension: "Urgency", score: planDims.urgency, fullMark: 100 }, { dimension: "Priority", score: planDims.priority, fullMark: 100 },
+                    { dimension: "Type", score: planDims.type, fullMark: 100 }, { dimension: "Scope", score: planDims.scope, fullMark: 100 },
+                  ];
+                  return (
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                      {/* Plan Quality Radar */}
+                      <Card>
+                        <CardHeader><CardTitle className="text-sm">Plan Quality Radar</CardTitle></CardHeader>
+                        <div className="h-96">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart data={planRadarData}>
+                              <PolarGrid stroke="#e2e8f0" />
+                              <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 14, fontWeight: 700 }} />
+                              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 12 }} />
+                              <Radar name="Quality" dataKey="score" stroke="#0d9488" fill="#0d9488" fillOpacity={0.2} strokeWidth={2} />
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </Card>
+                      {/* Dimensions & Impact Radar */}
+                      <Card>
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm flex items-center gap-2"><Gauge className="h-4 w-4 text-blue-500" />Dimensions &amp; Impact — {planNum}</CardTitle>
+                            {planHasOverrides && (<button onClick={() => { setOverrides((p) => { const nn = { ...p }; delete nn[planNum]; return nn; }); }} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button>)}
                           </div>
-                        );
-                      })}
+                        </CardHeader>
+                        <div className="h-80">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart data={planRadarDims}><PolarGrid stroke="#e2e8f0" /><PolarAngleAxis dataKey="dimension" tick={{ fontSize: 14, fontWeight: 700 }} /><PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 12 }} /><Radar name="Score" dataKey="score" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} strokeWidth={2} /></RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="flex justify-center mb-3"><RiskBadge score={planOverall} /></div>
+                        <div className="space-y-1.5 px-4 pb-4">
+                          {DIMS.map((d) => {
+                            const current = planDims[d.key];
+                            const snValue = d.key==="risk"?planCr.risk:d.key==="impact"?planCr.sn_impact:d.key==="urgency"?planCr.urgency:d.key==="priority"?planCr.priority:d.key==="type"?planCr.type:planCr.scope;
+                            const isOverridden = overrides[planNum]?.[d.key] !== undefined;
+                            return (
+                              <div key={d.key} className="rounded border border-gray-100 dark:border-gray-800 p-2">
+                                <div className="flex items-center justify-between mb-0.5">
+                                  <div className="flex items-center gap-1.5">
+                                    <d.icon className="h-3 w-3 text-gray-400" />
+                                    <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{d.label}</span>
+                                    <span className="text-[9px] text-gray-400">SN: &quot;{snValue || "—"}&quot;</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className={`text-[10px] font-mono font-bold ${getRiskBg(current)} rounded px-1 py-0.5`}>{current}</span>
+                                    {isOverridden && <span className="text-[9px] text-amber-500">(was {planScored.baseDims[d.key]})</span>}
+                                  </div>
+                                </div>
+                                <input type="range" min="0" max="100" value={current} onChange={(e) => handleOverride(d.key, Number(e.target.value))} className="w-full h-1 accent-blue-600" />
+                                <div className="flex justify-between text-[9px] text-gray-400"><span>0</span><span>{(weights[d.key]*100).toFixed(0)}% → {Math.round(current * weights[d.key])} pts</span><span>100</span></div>
+                              </div>
+                            );
+                          })}
+                          <div className="rounded bg-gray-50 dark:bg-gray-800 p-2 mt-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Overall Impact</span>
+                              <RiskBadge score={planOverall} size="sm" />
+                            </div>
+                            <p className="text-[9px] text-gray-400 mt-0.5 font-mono">= {DIMS.map((d) => `${planDims[d.key]}×${(weights[d.key]*100).toFixed(0)}%`).join(" + ")} = {planOverall}</p>
+                          </div>
+                        </div>
+                      </Card>
                     </div>
-                  </Card>
-                </div>
+                  );
+                })()}
 
                 {/* Plan Content Reader */}
                 <Card>
@@ -1018,7 +1069,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                   </div>
                 </Card>
 
-                {/* ── Weights & Formulas (from Detailed Analysis) ── */}
+                {/* ── Weights & Formulas ── */}
                 <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20">
                   <CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Settings2 className="h-5 w-5 text-blue-600" />Weights &amp; Formulas</CardTitle><div className="flex items-center gap-2"><button onClick={resetWeights} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button><button onClick={() => setWeightsOpen(!weightsOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900">{weightsOpen ? "▲ Collapse" : "▼ Expand"}</button></div></div><CardDescription className="text-sm">Overall = Σ (dimension_score × weight). Adjust weights below.</CardDescription></CardHeader>
                   {weightsOpen && (<>
@@ -1029,68 +1080,6 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                     <div className="mt-4 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Dimension</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">SN Field</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Mapping</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Current Weight</th></tr></thead><tbody>{DIMS.map((d) => (<tr key={d.key} className="border-b border-gray-50 dark:border-gray-800"><td className="py-3"><div className="flex items-center gap-2"><d.icon className="h-4 w-4 text-blue-500" /><span className="font-medium text-gray-900 dark:text-gray-100">{d.label}</span></div></td><td className="py-3 font-mono text-xs text-gray-500">{d.snField}</td><td className="py-3 text-xs text-gray-600 dark:text-gray-400">{d.formula}</td><td className="py-3 text-center"><span className="rounded bg-blue-100 px-2 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">{(weights[d.key]*100).toFixed(0)}%</span></td></tr>))}</tbody></table></div>
                   </>)}
                 </Card>
-
-                {/* ── Dimensions & Impact ── */}
-                {(() => {
-                  const planScored = scored.find((s) => s.cr.number === selectedPlan.cr.number) || scored[0];
-                  const planDims = planScored.dims;
-                  const planOverall = planScored.overall;
-                  const planCr = planScored.cr;
-                  const planNum = planCr.number;
-                  const planHasOverrides = !!overrides[planNum] && Object.keys(overrides[planNum]).length > 0;
-                  const planRadarDims = [
-                    { dimension: "Risk", score: planDims.risk, fullMark: 100 }, { dimension: "Impact", score: planDims.impact, fullMark: 100 },
-                    { dimension: "Urgency", score: planDims.urgency, fullMark: 100 }, { dimension: "Priority", score: planDims.priority, fullMark: 100 },
-                    { dimension: "Type", score: planDims.type, fullMark: 100 }, { dimension: "Scope", score: planDims.scope, fullMark: 100 },
-                  ];
-                  return (
-                    <Card>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm flex items-center gap-2"><Gauge className="h-4 w-4 text-blue-500" />Dimensions &amp; Impact — {planNum}</CardTitle>
-                          {planHasOverrides && (<button onClick={() => { setOverrides((p) => { const n = { ...p }; delete n[planNum]; return n; }); }} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button>)}
-                        </div>
-                      </CardHeader>
-                      <div className="h-56">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <RadarChart data={planRadarDims}><PolarGrid stroke="#e2e8f0" /><PolarAngleAxis dataKey="dimension" tick={{ fontSize: 13, fontWeight: 600 }} /><PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 11 }} /><Radar name="Score" dataKey="score" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} strokeWidth={2} /></RadarChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="flex justify-center mb-3"><RiskBadge score={planOverall} /></div>
-                      <div className="space-y-1.5 px-4 pb-4">
-                        {DIMS.map((d) => {
-                          const current = planDims[d.key];
-                          const snValue = d.key==="risk"?planCr.risk:d.key==="impact"?planCr.sn_impact:d.key==="urgency"?planCr.urgency:d.key==="priority"?planCr.priority:d.key==="type"?planCr.type:planCr.scope;
-                          const isOverridden = overrides[planNum]?.[d.key] !== undefined;
-                          return (
-                            <div key={d.key} className="rounded border border-gray-100 dark:border-gray-800 p-2">
-                              <div className="flex items-center justify-between mb-0.5">
-                                <div className="flex items-center gap-1.5">
-                                  <d.icon className="h-3 w-3 text-gray-400" />
-                                  <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{d.label}</span>
-                                  <span className="text-[9px] text-gray-400">SN: &quot;{snValue || "—"}&quot;</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <span className={`text-[10px] font-mono font-bold ${getRiskBg(current)} rounded px-1 py-0.5`}>{current}</span>
-                                  {isOverridden && <span className="text-[9px] text-amber-500">(was {planScored.baseDims[d.key]})</span>}
-                                </div>
-                              </div>
-                              <input type="range" min="0" max="100" value={current} onChange={(e) => handleOverride(d.key, Number(e.target.value))} className="w-full h-1 accent-blue-600" />
-                              <div className="flex justify-between text-[9px] text-gray-400"><span>0</span><span>{(weights[d.key]*100).toFixed(0)}% → {Math.round(current * weights[d.key])} pts</span><span>100</span></div>
-                            </div>
-                          );
-                        })}
-                        <div className="rounded bg-gray-50 dark:bg-gray-800 p-2 mt-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Overall Impact</span>
-                            <RiskBadge score={planOverall} size="sm" />
-                          </div>
-                          <p className="text-[9px] text-gray-400 mt-0.5 font-mono">= {DIMS.map((d) => `${planDims[d.key]}×${(weights[d.key]*100).toFixed(0)}%`).join(" + ")} = {planOverall}</p>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })()}
 
                 {/* ── Change Details ── */}
                 <Card><CardHeader><CardTitle className="text-sm">Change Details — {selectedPlan.cr.number}</CardTitle></CardHeader><div className="space-y-3 text-sm">{[{ label: "State", value: selectedPlan.cr.state },{ label: "Type", value: selectedPlan.cr.type },{ label: "Category", value: selectedPlan.cr.category },{ label: "Priority", value: selectedPlan.cr.priority },{ label: "Risk", value: selectedPlan.cr.risk },{ label: "Impact", value: selectedPlan.cr.sn_impact },{ label: "Urgency", value: selectedPlan.cr.urgency },{ label: "Scope", value: selectedPlan.cr.scope },{ label: "Approval", value: selectedPlan.cr.approval },{ label: "Opened By", value: selectedPlan.cr.opened_by },{ label: "Assigned To", value: selectedPlan.cr.assigned_to },{ label: "Assignment Group", value: selectedPlan.cr.assignment_group },{ label: "Config Item", value: selectedPlan.cr.cmdb_ci },{ label: "Business Service", value: selectedPlan.cr.business_service },{ label: "Close Code", value: selectedPlan.cr.close_code }].map((row) => row.value ? (<div key={row.label} className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">{row.label}</span><span className="font-medium text-gray-700 dark:text-gray-300 text-right max-w-[200px] truncate">{row.value}</span></div>) : null)}</div></Card>
@@ -1112,6 +1101,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                       <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Readiness</th>
                       <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Risk</th>
                       <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Gaps</th>
+                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">State</th>
                       {PLAN_DIMS.map((d) => (
                         <th key={d.key} className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title={d.label}><d.icon className="h-3.5 w-3.5 inline text-gray-400" /></th>
                       ))}
@@ -1128,6 +1118,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                         <td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${pBg(p.overallScore)}`}>{p.overallScore}</span></td>
                         <td className="py-2.5 text-center"><span className={`text-xs font-semibold ${pColor(p.overallScore)}`}>{planRiskLabel(p.overallScore)}</span></td>
                         <td className="py-2.5 text-center">{p.gapCount > 0 ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-700 dark:bg-red-900 dark:text-red-300">{p.gapCount} missing</span> : <span className="text-xs text-green-600">None</span>}</td>
+                        <td className="py-2.5 text-center"><span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{p.cr.state}</span></td>
                         {PLAN_DIMS.map((d) => (
                           <td key={d.key} className="py-2.5 text-center">{p[d.key].present ? <span className={`inline-block rounded px-1.5 py-0.5 text-[11px] font-bold ${pBg(p[d.key].quality)}`}>{p[d.key].quality}</span> : <XCircle className="h-3.5 w-3.5 inline text-red-400" />}</td>
                         ))}
