@@ -1,7 +1,7 @@
 # Deployment Guide — Change & Release Dashboard
 
-> **Version**: 1.0.0
-> **Last Updated**: March 10, 2026
+> **Version**: 1.1.0
+> **Last Updated**: March 11, 2026
 
 ---
 
@@ -353,8 +353,9 @@ netlify deploy --prod
 | API endpoints | `GET /api/data` returns JSON with `changeRequests` array |
 | Dark mode | Toggle theme → persists across page refresh |
 | ServiceNow sync | Click "Pull Data" → toast shows success/failure |
-| Impact Analysis tabs | Navigate to Impact → all 4 tabs render correctly |
-| Risk Analysis | Click Risk Analysis tab → formula card and risk matrix display |
+| Impact Analysis tabs | Navigate to Impact → all 4 tabs render correctly (Overview, Plan Analysis, ML Analysis, Code Change) |
+| Analytics tabs | Navigate to Analytics → all 4 tabs render (Failure Analysis, Velocity, Metrics & Trends, Change Health) |
+| ML Analysis | Select a CR in ML Analysis tab → quality scores, radar chart, and recommendations display |
 
 ### 8.2 Automated Checks
 

@@ -1,7 +1,7 @@
 # Requirements Document — Change & Release Dashboard
 
-> **Version**: 1.0.0
-> **Last Updated**: March 10, 2026
+> **Version**: 1.1.0
+> **Last Updated**: March 11, 2026
 
 ---
 
@@ -35,34 +35,39 @@ The **Change & Release Dashboard** is a full-stack web application that provides
 
 | ID | Requirement | Priority |
 |----|------------|----------|
-| FR-09 | **Overview tab**: KPI summary, pie chart of impact score distribution, top 5 highest impact changes, average impact by category | High |
-| FR-10 | **Weights & Formulas tab**: Adjustable dimension weights (Risk, Impact, Urgency, Priority, Type, Scope) with live formula display, reset to defaults, and dimension explanation table | High |
-| FR-11 | **Detailed Analysis tab**: Risk heatmap table of all CRs with overall impact scores, radar chart per selected CR, what-if analysis with editable dimension overrides | High |
-| FR-12 | **Risk Analysis tab**: Industry-standard risk assessment (ISO 31000 / NIST SP 800-30) with formula `Risk Score = (L × I / 25 × 100) × (1 + V) − C`, 5×5 risk matrix, distribution chart, and sortable breakdown table | High |
-| FR-13 | Impact score formula: `Overall = Σ(dimension_score × weight)` with 6 dimensions scored 0–100 | High |
+| FR-09 | **Overview tab**: KPI summary (impact + risk + plan readiness), impact/risk/state/type/priority distribution charts, plan coverage, readiness by team and SN risk level, top risk CRs table, risk vs readiness correlation insights | High |
+| FR-10 | **Plan Analysis tab**: Per-CR plan readiness scoring with editable dimension weights (Implementation, Backout, Test, Risk/Impact, Change, Justification), radar chart, plan content viewer, ML quality score KPI | High |
+| FR-11 | **ML Analysis tab**: Deep ML content analysis per CR with Structure/Completeness/Clarity/Risk Awareness scores, quality radar chart, ML vs readiness comparison, detected actions/risks, severity-rated recommendations | High |
+| FR-12 | **Code Change Analysis tab**: Git commit analysis for code-level risk factors, file change heatmap, commit frequency | High |
+| FR-13 | Plan readiness formula: `Overall = Σ(dimension_score × weight)` with 6 plan dimensions scored 0–100 | High |
+| FR-13a | ML quality formula: `Overall = Structure×25% + Completeness×30% + Clarity×25% + RiskAwareness×20%` | High |
 
-### 2.4 Risk Analysis Formula
+### 2.4 Plan Quality & ML Analysis
 
-The Risk Analysis tab implements an industry-standard risk calculation:
+The Impact Analysis page uses two complementary scoring approaches:
 
+**Plan Readiness Score** (weighted dimension scoring):
+- 6 dimensions: Implementation Plan (25%), Backout Plan (25%), Test Plan (20%), Risk/Impact Analysis (15%), Change Plan (10%), Justification (5%)
+- Weights are user-adjustable with live formula display
+- Score range: 0–100
+
+**ML Content Analysis** (NLP-based quality scoring):
 ```
-Risk Score = (Likelihood × Impact / 25 × 100) × (1 + Velocity) − Controllability
+ML Quality = Structure×25% + Completeness×30% + Clarity×25% + RiskAwareness×20%
 ```
+- **Structure**: Numbered steps, bullets, line count, pre/post checks
+- **Completeness**: Element checklist coverage (8 elements), word count depth
+- **Clarity**: Words-per-line ratio, sequence words, conditionals
+- **Risk Awareness**: Rollback refs, risk keywords, monitoring, backups, communication
 
-| Component | Scale | Source Fields | Mapping |
-|-----------|-------|---------------|---------|
-| **Likelihood (L)** | 1–5 | Priority, Urgency | Avg of Priority (Critical→5, High→4, Moderate→3, Low→2) and Urgency (High→5, Medium→3, Low→1) |
-| **Impact (I)** | 1–5 | Impact, Risk, Scope | Avg of Impact (High→5, Med→3, Low→1), Risk (Very High→5 … None→1), Scope (Large→5, Med→3, Small→1) |
-| **Velocity (V)** | 0–1 | Change Type | Emergency→0.8, Normal→0.3, Standard→0.1 |
-| **Controllability (C)** | 0–25 | Backout/Test/Impl plans | Backout plan (−10), Test plan (−8), Implementation plan (−7) |
-
-**Risk Levels**: Critical (75–100), High (50–74), Medium (25–49), Low (0–24)
+ML Analysis also provides: detected actions, detected risks/gaps, severity-rated recommendations, change nature profiling, and application profiling.
 
 ### 2.5 Analytics & Advanced Pages
 
 | ID | Requirement | Priority |
 |----|------------|----------|
 | FR-14 | **Risk Radar**: Multi-dimensional radar chart per release, release selector, risk factor assessment, blast radius by assignment group | High |
+| FR-14a | **Change Health** (Analytics tab): Overall health score formula (DeployRate×40% + RiskInverse×30% + FailureInverse×30%), team performance radar, team risk ranking, team health summary table | High |
 | FR-15 | **Confidence Scoring**: Release confidence scores with continue/pause/rollback recommendations | Medium |
 | FR-16 | **Executive Summary**: High-level KPIs, risk gauges, and confidence indicators for leadership | Medium |
 | FR-17 | **Releases**: Timeline view, deployment readiness, bundled change tracking | Medium |
@@ -178,6 +183,7 @@ The application uses 5 Prisma models:
 |--------|----------|------|-------------|
 | GET | `/api/data` | Required | All change requests, releases, dashboard metrics |
 | GET | `/api/data/analytics` | Required | Computed analytics (risk radar, blast radius, confidence, failure analysis, velocity) |
+| GET | `/api/data/plan-analysis` | Required | ML content analysis for a specific CR (structure, completeness, clarity, risk awareness scores, recommendations) |
 | POST | `/api/data/changes` | Required | Create change request |
 | PUT | `/api/data/changes` | Required | Update change request |
 | DELETE | `/api/data/changes` | Required | Delete change request |

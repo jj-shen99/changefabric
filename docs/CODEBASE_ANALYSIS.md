@@ -1,7 +1,7 @@
 # Codebase Analysis — Change & Release Dashboard
 
-> **Version**: 1.0.0
-> **Last Updated**: March 10, 2026
+> **Version**: 1.1.0
+> **Last Updated**: March 11, 2026
 
 ---
 
@@ -101,10 +101,10 @@ release_change_ai/
 │   │   │   │   ├── layout.tsx          Metadata layout
 │   │   │   │   └── loading.tsx         Skeleton
 │   │   │   ├── impact/                Impact Analysis
-│   │   │   │   ├── page.tsx            4-tab page (~800 lines, largest page)
+│   │   │   │   ├── page.tsx            4-tab page (~1300 lines, largest page)
 │   │   │   │   ├── layout.tsx
 │   │   │   │   └── loading.tsx
-│   │   │   ├── analytics/page.tsx      Analytics dashboard
+│   │   │   ├── analytics/page.tsx      Analytics dashboard (4 tabs, ~660 lines)
 │   │   │   ├── executive/page.tsx      Executive summary
 │   │   │   ├── releases/              Releases & Validations
 │   │   │   │   ├── page.tsx
@@ -136,7 +136,8 @@ release_change_ai/
 │   │       ├── data/
 │   │       │   ├── route.ts               GET /api/data (main data endpoint)
 │   │       │   ├── analytics/route.ts     GET /api/data/analytics
-│   │       │   └── changes/route.ts       POST/PUT/DELETE /api/data/changes
+│   │       │   ├── changes/route.ts       POST/PUT/DELETE /api/data/changes
+│   │       │   └── plan-analysis/route.ts GET /api/data/plan-analysis (ML content analysis)
 │   │       ├── admin/
 │   │       │   └── users/route.ts         GET/PUT/DELETE /api/admin/users
 │   │       └── sync/route.ts             POST /api/sync (ServiceNow)
@@ -468,13 +469,13 @@ Returns a boolean for a CSS media query string. Used to detect mobile breakpoint
 
 | Page | Approx. Lines | Complexity | Notable Features |
 |------|--------------|------------|-----------------|
-| `impact/page.tsx` | ~800 | **Very High** | 4 tabs, scoring functions, radar chart, what-if analysis, risk matrix |
+| `impact/page.tsx` | ~1300 | **Very High** | 4 tabs (Overview, Plan Analysis, ML Analysis, Code Change), scoring functions, radar charts, ML content analysis, quality radar, risk vs readiness comparison |
 | `changes/page.tsx` | ~500 | **High** | Search, filters, pagination, detail panel, SN sync |
 | `risk-radar/page.tsx` | ~295 | **High** | Radar chart, confidence charts, release selector |
-| `analytics/page.tsx` | ~530 | **High** | Multiple chart types, failure analysis, velocity |
+| `analytics/page.tsx` | ~660 | **Very High** | 4 tabs (Failure Analysis, Velocity, Metrics & Trends, Change Health), team radar, health scoring |
 | `releases/page.tsx` | ~585 | **High** | Timeline, validation tracking, collapsible details |
 | `executive/page.tsx` | ~320 | **Medium** | KPIs, risk gauges, confidence summary |
-| `page.tsx` (Overview) | ~270 | **Medium** | KPI cards, state/risk charts, recent changes |
+| `page.tsx` (Overview) | ~375 | **Medium** | KPI cards, state/risk/category/team distribution charts, recent changes |
 | `settings/page.tsx` | ~90 | **Low** | Config form |
 | `settings/users/page.tsx` | ~225 | **Medium** | User table, role editing, deletion |
 

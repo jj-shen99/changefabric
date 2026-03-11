@@ -1,7 +1,7 @@
 # User Guide — Change & Release Dashboard
 
-> **Version**: 1.0.0
-> **Last Updated**: March 10, 2026
+> **Version**: 1.1.0
+> **Last Updated**: March 11, 2026
 
 ---
 
@@ -127,6 +127,15 @@ The top row shows key performance indicators computed from real ServiceNow data:
 
 A table of the most recent change requests with quick-access links.
 
+### 3.4 Change Health Charts
+
+Below the recent changes table, four additional distribution charts provide deeper insight:
+
+- **Change Status Distribution** — Pie chart of CR statuses
+- **Risk Level Distribution** — Pie chart of risk buckets (Critical, High, Medium, Low)
+- **Changes by Category** — Horizontal bar chart of CR categories
+- **Avg Risk Score by Team** — Horizontal bar chart with color-coded risk levels per team
+
 ---
 
 ## 4. Change Requests
@@ -190,74 +199,96 @@ Click on any change request row to expand a detailed view showing all ServiceNow
 
 ## 5. Impact Analysis
 
-The Impact Analysis page provides multi-dimensional risk and impact scoring for every change request. It has **four tabs**:
+The Impact Analysis page provides multi-dimensional risk, plan readiness, and ML-powered content analysis for every change request. It has **four tabs**:
 
 ### 5.1 Overview Tab (Default)
 
-- **KPI Summary** — Average impact score, high-impact count, low-impact count, total analyzed
-- **Impact Distribution** — Pie chart showing score distribution across ranges
-- **Top 5 Highest Impact** — Table of the riskiest changes
-- **Average Impact by Category** — Bar chart comparing categories
+- **KPI Summary** — Average impact score, critical/high risk counts, average plan readiness, plan coverage percentage
+- **Risk Score Distribution** — Pie chart of computed risk scores (Critical, High, Medium, Low)
+- **Impact Score Distribution** — Pie chart across score ranges
+- **Readiness Distribution** — Pie chart of plan readiness scores
+- **State & Type & Priority Distributions** — Charts showing CR breakdowns
+- **Top Risk CRs Table** — Top 8 highest-impact CRs with impact score, readiness, SN risk, state, and type — clickable to navigate to Plan Analysis
+- **Risk vs Readiness Insights** — Highlights high-impact/low-readiness CRs needing attention and low-impact/high-readiness CRs that are well-prepared
 
-### 5.2 Weights & Formulas Tab
+### 5.2 Plan Analysis Tab
 
-View and adjust the impact scoring formula:
+Per-CR plan readiness scoring:
 
-**Impact Score = Σ(dimension_score × weight)**
+**Plan Readiness Score = Σ(dimension_score × weight)**
 
-Six scoring dimensions:
-| Dimension | What it measures | SN Field |
-|-----------|-----------------|----------|
-| **Risk** | Overall risk assessment | `risk` |
-| **Impact** | Business impact level | `impact` |
-| **Urgency** | Time sensitivity | `urgency` |
-| **Priority** | Prioritization level | `priority` |
-| **Type** | Change type (Emergency = highest) | `type` |
-| **Scope** | Scope of change | `scope` |
+Six plan dimensions:
+| Dimension | Default Weight | What it measures |
+|-----------|---------------|------------------|
+| **Implementation Plan** | 25% | Quality and detail of implementation steps |
+| **Backout Plan** | 25% | Rollback procedure quality |
+| **Test Plan** | 20% | Testing coverage and approach |
+| **Risk/Impact Analysis** | 15% | Risk identification and mitigation |
+| **Change Plan** | 10% | Change execution planning |
+| **Justification** | 5% | Business justification quality |
 
 - Use the **sliders** to adjust each dimension's weight
 - The formula updates in real-time
 - Click **Reset to Defaults** to restore original weights
-- The dimension explanation table shows how each SN field maps to a 0–100 score
+- **Plan Quality Radar** — Visual comparison of all dimensions
+- **Plan Content Viewer** — View raw plan text for the selected CR
+- **ML Quality Score KPI** — Shows the ML-computed overall quality alongside the weighted score
 
-### 5.3 Detailed Analysis Tab
+### 5.3 ML Analysis Tab
 
-- **Search** — Filter changes by number or description
-- **Impact Table** — All changes ranked by overall impact score with individual dimension breakdowns
-- **Click a row** to see:
-  - **Radar chart** — Visual comparison of all dimensions
-  - **What-if analysis** — Edit dimension scores to model scenario changes
-  - **Change details** — Full SN field details
+Deep ML-powered content analysis for each change request:
 
-### 5.4 Risk Analysis Tab
+1. **Select a CR** from the filterable table
+2. The system runs ML content analysis on the implementation plan
+3. Results include:
+   - **Assessment Verdict** — Approve / Approve with Conditions / Needs Rework / Reject
+   - **Quality Scores** — Structure, Completeness, Clarity, Risk Awareness (each 0–100)
+   - **Quality Radar Chart** — Visual comparison of the 4 quality dimensions
+   - **ML vs Plan Readiness Comparison** — Side-by-side scores with gap analysis
+   - **Change Nature Profile** — Change type, risk tier, complexity, category tags
+   - **Application Profile** — Application name, service category, criticality, technology stack
+   - **Detected Actions** — Actions identified in the plan text
+   - **Detected Risks & Gaps** — Missing elements or risk factors
+   - **Recommendations** — Severity-rated action items (critical, high, medium, info)
 
-Industry-standard risk assessment based on **ISO 31000 / NIST SP 800-30**:
+**ML Quality Formula**: `Overall = Structure×25% + Completeness×30% + Clarity×25% + RiskAwareness×20%`
 
-**Formula**: `Risk Score = (Likelihood × Impact / 25 × 100) × (1 + Velocity) − Controllability`
+### 5.4 Code Change Analysis Tab
 
-- **Formula Card** — Shows the calculation methodology and component definitions
-- **KPI Row** — Average risk, critical count, high count, with controllability credit
-- **Risk Distribution** — Bar chart of risk levels (Critical, High, Medium, Low)
-- **5×5 Risk Matrix** — Likelihood vs. Impact grid showing change positions
-- **Detailed Table** — Every change with its risk score, likelihood, impact, velocity, and controllability
+Git-based code change risk analysis:
 
-**Risk Levels**:
-- 🔴 **Critical**: 75–100
-- 🟠 **High**: 50–74
-- 🟡 **Medium**: 25–49
-- 🟢 **Low**: 0–24
+- Analyzes git commit history for the selected change request
+- Shows file change frequency, commit patterns, and code-level risk factors
+- Helps identify changes with high code churn or complex file modifications
 
 ---
 
 ## 6. Analytics
 
-The Analytics page provides deep-dive analytics across your change data:
+The Analytics page provides deep-dive analytics across your change data. It has **four tabs**:
 
-- **Failure Analysis** — Team failure rates, change failure rate (DORA metric)
+### 6.1 Failure Analysis Tab
+- **Change Failure Rate** — DORA metric showing percentage of failed deployments
+- **Failure by Team** — Bar chart of failure rates per team
 - **Service Risk Ranking** — Which services have the highest risk exposure
+
+### 6.2 Velocity Tab
 - **Team Velocity** — Deployment rates and throughput by team
 - **Category Breakdown** — Change volume by category
 - **Approval Efficiency** — Lead time analysis for approvals
+
+### 6.3 Metrics & Trends Tab
+- **DORA Metrics** — Deployment frequency, lead time, change failure rate, MTTR
+- **Risk Trends** — Average risk score over time
+- **Validation Trends** — Pass rate over time
+- **Team Health Table** — Per-team metrics with health indicators
+
+### 6.4 Change Health Tab
+- **Health KPIs** — Overall health score, avg deploy rate, avg team risk, failure rate, active teams
+- **Team Performance Radar** — Radar chart comparing deploy rate vs risk across teams
+- **Team Risk Ranking** — Horizontal bar chart of average risk per team
+- **Health Score Formula** — `Health = DeployRate×40% + (100−AvgRisk)×30% + (100−FailureRate)×30%`
+- **Team Health Summary Table** — Detailed per-team breakdown with health grades (Excellent/Good/Fair/Poor)
 
 ---
 

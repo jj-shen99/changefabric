@@ -10,9 +10,14 @@ A full-stack **software change validation and release impact analysis dashboard*
 ## Features
 
 ### Core Dashboard
-- **Overview** — KPI cards, risk gauges, deployment frequency charts, recent change requests
+- **Overview** — KPI cards, risk gauges, deployment frequency charts, recent change requests, **change status/risk/category/team distribution charts**
 - **Change Requests** — Searchable/filterable list with detail panel, validation progress bars, **CRUD operations** (create, delete), **pagination**
-- **Impact Analysis** — Risk heatmap, radar chart per change, bar chart by category
+- **Impact Analysis** — 4-tab interface:
+  - **Overview** — KPI summary (impact + risk + plan readiness), impact/risk/state/type/priority distribution charts, plan coverage, readiness by team and SN risk level, **top risk CRs table**, **risk vs readiness correlation insights**
+  - **Plan Analysis** — Per-CR plan readiness scoring with editable dimension weights, radar chart, plan content viewer, ML quality score integration
+  - **ML Analysis** — Deep ML content analysis per CR: structure/completeness/clarity/risk-awareness scores, **quality radar chart**, **ML vs readiness comparison**, detected actions/risks, recommendations with severity
+  - **Code Change Analysis** — Git commit analysis for code-level risk factors
+- **Analytics** — 4-tab interface: Failure Analysis, Velocity, Metrics & Trends, **Change Health** (health score formula, team performance radar, team health table)
 - **Validations** — Pie/bar charts, pass rate by team, blocker alerts, type/status filters
 - **Releases** — Timeline view, bundled changes, deployment readiness bars, **collapsible per-release validation details**
 - **Metrics & Trends** — DORA metrics, risk/validation trends, lead time breakdown, weekly health
@@ -130,6 +135,7 @@ src/
 │   │   └── reset-password/
 │   ├── (dashboard)/         # Dashboard pages (with sidebar)
 │   │   ├── changes/
+│   │   ├── analytics/
 │   │   ├── impact/
 │   │   ├── metrics/
 │   │   ├── releases/
@@ -142,7 +148,9 @@ src/
 │   │   ├── auth/            # NextAuth + register + reset-password
 │   │   └── data/
 │   │       ├── route.ts     # Dashboard data API
-│   │       └── changes/     # Change request CRUD API
+│   │       ├── changes/     # Change request CRUD API
+│   │       ├── analytics/   # Computed analytics API
+│   │       └── plan-analysis/ # ML plan content analysis API
 │   ├── error.tsx            # Global error boundary
 │   ├── not-found.tsx        # Custom 404
 │   ├── globals.css

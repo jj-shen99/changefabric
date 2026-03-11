@@ -1,7 +1,7 @@
 # Architecture Document — Change & Release Dashboard
 
-> **Version**: 1.0.0
-> **Last Updated**: March 10, 2026
+> **Version**: 1.1.0
+> **Last Updated**: March 11, 2026
 
 ---
 
@@ -138,8 +138,8 @@ src/app/
 │   ├── layout.tsx              ← Sidebar + mobile nav + command palette
 │   ├── page.tsx                → /           (Overview)
 │   ├── changes/page.tsx        → /changes    (Change Requests)
-│   ├── impact/page.tsx         → /impact     (Impact Analysis)
-│   ├── analytics/page.tsx      → /analytics  (Analytics)
+│   ├── impact/page.tsx         → /impact     (Impact Analysis — 4 tabs: Overview, Plan Analysis, ML Analysis, Code Change)
+│   ├── analytics/page.tsx      → /analytics  (Analytics — 4 tabs: Failure Analysis, Velocity, Metrics & Trends, Change Health)
 │   ├── executive/page.tsx      → /executive  (Executive Summary)
 │   ├── releases/page.tsx       → /releases   (Releases & Validations)
 │   ├── risk-radar/page.tsx     → /risk-radar (Risk Radar)
@@ -157,6 +157,7 @@ src/app/
     ├── data/route.ts                ← GET /api/data
     ├── data/analytics/route.ts      ← GET /api/data/analytics
     ├── data/changes/route.ts        ← POST/PUT/DELETE /api/data/changes
+    ├── data/plan-analysis/route.ts   ← GET /api/data/plan-analysis (ML content analysis)
     ├── admin/users/route.ts         ← Admin user management
     └── sync/route.ts                ← POST /api/sync (ServiceNow)
 ```
