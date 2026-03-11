@@ -115,7 +115,6 @@ export default function ImpactPage() {
   const [planFilterRisk, setPlanFilterRisk] = useState<string>("all");
   const [planFilterState, setPlanFilterState] = useState<string>("all");
   const [planFilterGroup, setPlanFilterGroup] = useState<string>("all");
-  const [planEvalOpen, setPlanEvalOpen] = useState(true);
   const [riskFormulaOpen, setRiskFormulaOpen] = useState(false);
   const [riskSearch, setRiskSearch] = useState("");
   const [planScoringOpen, setPlanScoringOpen] = useState(false);
@@ -724,7 +723,6 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
             ) : (
             /* ── Overview Mode ── */
             <div className="space-y-6">
-            <Card className="border-teal-200 bg-teal-50/30 dark:border-teal-900 dark:bg-teal-950/20"><CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-teal-600" />Plan Quality &amp; Risk Evaluation</CardTitle><button onClick={() => setPlanEvalOpen(!planEvalOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-teal-600 hover:bg-teal-100 dark:hover:bg-teal-900">{planEvalOpen ? "▲ Collapse" : "▼ Expand"}</button></div><CardDescription className="text-sm">Evaluates each change request&apos;s plans for completeness, structure, and keyword coverage. A low readiness score indicates higher deployment risk.</CardDescription></CardHeader>{planEvalOpen && <div className="grid grid-cols-3 gap-3 md:grid-cols-6">{PLAN_DIMS.map((d) => (<div key={d.key} className="rounded-lg border border-teal-100 bg-white p-3 dark:border-teal-900 dark:bg-gray-900"><div className="flex items-center gap-1.5 mb-1"><d.icon className="h-3.5 w-3.5 text-teal-500" /><span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{d.label}</span></div><span className="text-xs text-gray-400">Weight: {d.weight}</span></div>))}</div>}</Card>
             <Card>
               <CardHeader>
                 <CardTitle>Change Requests — Plan Risk Assessment ({filteredPlans.length}{pq ? ` of ${n}` : ""})</CardTitle>
