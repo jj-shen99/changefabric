@@ -59,13 +59,14 @@ export default function OverviewPage() {
     changeRequests.length > 0 ? Math.round(changeRequests.reduce((a, c) => a + fn(c), 0) / changeRequests.length) : 0;
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader title="Dashboard Overview" subtitle={`Software Change & Release Validation — ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}`} actions={
         <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
           <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
           System Healthy
         </span>
       } />
+    <div className="space-y-6 p-4 md:p-6">
 
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4">
@@ -249,5 +250,6 @@ export default function OverviewPage() {
         </div>
       </Card>
     </div>
+    </>
   );
 }

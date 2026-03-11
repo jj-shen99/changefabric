@@ -81,7 +81,7 @@ export default function ExecutivePage() {
   ].filter(d => d.value > 0);
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader title="Release Overview" subtitle="Organization-wide software delivery health — validations, risk, confidence & DORA" actions={
         <div className="flex items-center gap-2">
           {blockersCount > 0 && (
@@ -94,6 +94,7 @@ export default function ExecutivePage() {
           </span>
         </div>
       } />
+    <div className="space-y-6 p-4 md:p-6">
 
       {/* Top KPI Row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -339,5 +340,6 @@ export default function ExecutivePage() {
         </Card>
       </div>
     </div>
+    </>
   );
 }

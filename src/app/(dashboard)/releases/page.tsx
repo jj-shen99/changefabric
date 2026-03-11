@@ -149,8 +149,9 @@ export default function ReleasesPage() {
   const blockers = allValidations.filter((v) => v.status === "failed" && v.blockers && v.blockers.length > 0);
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader title="Releases & Validations" subtitle="Release timeline, deployment readiness, and validation tracking" />
+    <div className="space-y-6 p-4 md:p-6">
 
       {/* Top-Level Tabs */}
       <div className="flex gap-1 border-b border-gray-200 pb-0.5 dark:border-gray-800">
@@ -580,5 +581,6 @@ export default function ReleasesPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

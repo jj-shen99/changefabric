@@ -102,13 +102,14 @@ export default function UserManagementPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader title="User Management" subtitle="Manage user accounts and role assignments" actions={
         <div className="flex items-center gap-2 rounded-lg bg-blue-50/20 px-3 py-1 text-xs font-medium text-blue-300">
           <UserPlus className="h-3.5 w-3.5" />
           {users.length} users
         </div>
       } />
+    <div className="space-y-6 p-4 md:p-6">
 
       {error && (
         <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">{error}</div>
@@ -219,5 +220,6 @@ export default function UserManagementPage() {
         </div>
       </Card>
     </div>
+    </>
   );
 }

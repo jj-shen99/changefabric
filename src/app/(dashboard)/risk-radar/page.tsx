@@ -75,8 +75,9 @@ export default function RiskRadarPage() {
   }));
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader title="Risk & Confidence" subtitle="Multi-dimensional risk analysis and release confidence scoring" />
+    <div className="space-y-6 p-4 md:p-6">
 
       {/* Top-Level Tabs */}
       <div className="flex gap-1 border-b border-gray-200 pb-0.5 dark:border-gray-800">
@@ -286,5 +287,6 @@ export default function RiskRadarPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

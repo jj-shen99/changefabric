@@ -87,8 +87,9 @@ export default function AnalyticsPage() {
   ].filter(d => d.value > 0);
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader title="Analytics" subtitle="Failure analysis, deployment velocity, and DORA metrics & trends" />
+    <div className="space-y-6 p-4 md:p-6">
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-gray-200 pb-0.5 dark:border-gray-800">
@@ -519,5 +520,6 @@ export default function AnalyticsPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

@@ -11,7 +11,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
   return (
-    <div className="flex h-11 items-center justify-between rounded-lg bg-gradient-to-r from-slate-700 to-slate-800 px-5 dark:from-slate-800 dark:to-slate-900">
+    <div className="flex h-11 items-center justify-between bg-gradient-to-r from-slate-600 to-slate-700 px-5 dark:from-slate-700 dark:to-slate-800">
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-3">
           <h1 className="text-sm font-bold text-white">{title}</h1>

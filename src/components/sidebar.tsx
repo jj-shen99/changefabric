@@ -54,14 +54,11 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
       className="flex w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
       aria-label="Main navigation"
     >
-      <div className="flex h-11 items-center gap-2 bg-gradient-to-r from-slate-700 to-slate-800 px-4 dark:from-slate-800 dark:to-slate-900">
-        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-500">
+      <div className="flex h-11 items-center gap-2 bg-gradient-to-r from-indigo-700 to-blue-700 px-4 dark:from-indigo-900 dark:to-blue-900">
+        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-white/20">
           <GitPullRequest className="h-3.5 w-3.5 text-white" aria-hidden="true" />
         </div>
-        <div className="flex items-baseline gap-1.5">
-          <h1 className="text-sm font-bold text-white">Change & Release</h1>
-          <p className="text-[10px] text-slate-400">Validation Dashboard</p>
-        </div>
+        <h1 className="text-base font-bold text-white tracking-tight">Release &amp; Change Management</h1>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Primary">

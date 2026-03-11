@@ -90,8 +90,9 @@ export default function AccountPage() {
   const inputClass = "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100";
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader title="Account Settings" subtitle="Update your email address and password" />
+    <div className="space-y-6 p-4 md:p-6">
 
       {/* Current info */}
       <Card className="p-5">
@@ -217,5 +218,6 @@ export default function AccountPage() {
         </Card>
       </div>
     </div>
+    </>
   );
 }

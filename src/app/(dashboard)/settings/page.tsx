@@ -52,8 +52,9 @@ const settingSections = [
 
 export default function SettingsPage() {
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader title="Settings" subtitle="Configure dashboard policies, alert thresholds, and validation requirements" />
+    <div className="space-y-6 p-4 md:p-6">
 
       <div className="space-y-6">
         {settingSections.map((section) => (
@@ -82,5 +83,6 @@ export default function SettingsPage() {
         ))}
       </div>
     </div>
+    </>
   );
 }

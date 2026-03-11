@@ -63,7 +63,7 @@ export default function ChangesPage() {
   const selected = changeRequests.find((cr) => cr.id === selectedCR);
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader title="Change Requests" subtitle="Track and manage all software change requests" actions={
         <button
           onClick={async () => {
@@ -90,6 +90,7 @@ export default function ChangesPage() {
           {syncing ? "Syncing..." : "Refresh Data"}
         </button>
       } />
+    <div className="space-y-6 p-4 md:p-6">
 
       {showCreate && canManageChanges && <CreateChangeForm onCreated={() => { setShowCreate(false); refetch(); }} onCancel={() => setShowCreate(false)} />}
 
@@ -143,9 +144,9 @@ export default function ChangesPage() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className={`grid gap-6 ${selectedCR ? "grid-cols-2" : "grid-cols-1"}`}>
         {/* Change List */}
-        <div className={`${selectedCR ? "col-span-2" : "col-span-3"} space-y-3`}>
+        <div className="space-y-3">
           {paginated.map((cr) => (
             <Card
               key={cr.id}
@@ -250,7 +251,7 @@ export default function ChangesPage() {
 
         {/* Detail Panel */}
         {selected && (
-          <div className="col-span-1 space-y-4">
+          <div className="space-y-4 max-h-[calc(100vh-14rem)] overflow-y-auto">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -287,42 +288,28 @@ export default function ChangesPage() {
                   <span className="text-gray-500">Risk Score</span>
                   <RiskBadge score={selected.impact.overallRisk} />
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Author</span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{selected.author}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Team</span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{selected.team}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Risk</span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{selected.risk}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Priority</span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{selected.priority}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Impact</span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{selected.sn_impact}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Type</span>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">{selected.type}</span>
-                </div>
-                {selected.business_service && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Business Service</span>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">{selected.business_service}</span>
+                {[
+                  { label: "Author", value: selected.author },
+                  { label: "Team", value: selected.team },
+                  { label: "Risk", value: selected.risk },
+                  { label: "Priority", value: selected.priority },
+                  { label: "Impact", value: selected.sn_impact },
+                  { label: "Urgency", value: selected.urgency },
+                  { label: "Type", value: selected.type },
+                  { label: "Scope", value: selected.scope },
+                  { label: "Category", value: selected.category },
+                  { label: "Business Service", value: selected.business_service },
+                  { label: "Assigned To", value: selected.assigned_to },
+                  { label: "Assignment Group", value: selected.assignment_group },
+                  { label: "Config Item", value: selected.cmdb_ci },
+                  { label: "Opened By", value: selected.opened_by },
+                  { label: "Close Code", value: selected.close_code },
+                ].map((row) => row.value ? (
+                  <div key={row.label} className="flex justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">{row.label}</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-300 text-right max-w-[55%] truncate">{row.value}</span>
                   </div>
-                )}
-                {selected.assigned_to && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 dark:text-gray-400">Assigned To</span>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">{selected.assigned_to}</span>
-                  </div>
-                )}
+                ) : null)}
               </div>
 
               {selected.impact.affectedServices.length > 0 && (
@@ -330,7 +317,7 @@ export default function ChangesPage() {
                   <h4 className="text-xs font-semibold uppercase text-gray-400 mb-2">Affected Services</h4>
                   <div className="flex flex-wrap gap-1">
                     {selected.impact.affectedServices.map((s) => (
-                      <span key={s} className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                      <span key={s} className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300">
                         {s}
                       </span>
                     ))}
@@ -344,6 +331,32 @@ export default function ChangesPage() {
                   <span className="text-xs text-gray-600 dark:text-gray-400">{selected.approval}</span>
                 </div>
               )}
+            </Card>
+
+            {/* Plans & Documentation */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Plans & Documentation</CardTitle>
+              </CardHeader>
+              <div className="space-y-4">
+                {[
+                  { label: "Implementation Plan", value: selected.implementation_plan },
+                  { label: "Backout Plan", value: selected.backout_plan },
+                  { label: "Test Plan", value: selected.test_plan },
+                  { label: "Change Plan", value: selected.change_plan },
+                  { label: "Risk / Impact Analysis", value: selected.risk_impact_analysis },
+                  { label: "Justification", value: selected.justification },
+                ].map((plan) => (
+                  <div key={plan.label}>
+                    <h4 className="text-xs font-semibold uppercase text-gray-400 mb-1">{plan.label}</h4>
+                    {plan.value && plan.value.trim() ? (
+                      <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line rounded bg-gray-50 dark:bg-gray-800 p-2 max-h-32 overflow-y-auto">{plan.value}</p>
+                    ) : (
+                      <p className="text-xs text-red-400 italic">Not provided</p>
+                    )}
+                  </div>
+                ))}
+              </div>
             </Card>
 
             <Card>
@@ -367,6 +380,7 @@ export default function ChangesPage() {
         )}
       </div>
     </div>
+    </>
   );
 }
 
