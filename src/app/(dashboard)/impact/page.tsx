@@ -279,6 +279,124 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                 </div>
               </>);
             })()}
+
+            {/* ── Cross-CR Plan Quality Heatmap ── */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-teal-500" /> Plan Quality Heatmap — All CRs × Dimensions</CardTitle>
+                <CardDescription>Each row is a change request, each column a plan dimension. Color intensity shows quality (red=missing/poor, green=strong). Click a row to drill in.</CardDescription>
+              </CardHeader>
+              <div className="overflow-x-auto max-h-[360px] overflow-y-auto px-4 pb-4">
+                <table className="w-full border-collapse text-[10px]">
+                  <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
+                    <tr>
+                      <th className="py-1.5 text-left font-medium text-gray-500 min-w-[120px]">CR</th>
+                      {PLAN_DIMS.map(d => <th key={d.key} className="py-1.5 text-center font-medium text-gray-500 px-1 min-w-[60px]">{d.label.replace(" Plan","").replace("/Impact Analysis","")}</th>)}
+                      <th className="py-1.5 text-center font-medium text-gray-500 px-1 min-w-[50px]">Overall</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {planResults.slice(0, 50).map((p) => (
+                      <tr key={p.cr.number} className="cursor-pointer hover:ring-1 hover:ring-teal-300" onClick={() => { setSelectedPlanCR(p.cr.number); setExpandedPlanContent(null); setMlAnalysis(null); setMlError(null); setActiveTab("plans"); }}>
+                        <td className="py-0.5 font-mono text-gray-500 truncate max-w-[120px]" title={p.cr.short_description}>{p.cr.number.replace("CHG","")}</td>
+                        {PLAN_DIMS.map(d => {
+                          const q = p[d.key].quality;
+                          const present = p[d.key].present;
+                          const bg = !present ? "bg-red-500" : q >= 75 ? "bg-green-500" : q >= 50 ? "bg-amber-400" : q >= 25 ? "bg-orange-500" : "bg-red-400";
+                          return <td key={d.key} className="py-0.5 px-0.5"><div className={`rounded h-5 flex items-center justify-center text-white text-[9px] font-bold ${bg}`} style={{ opacity: present ? Math.max(0.35, q/100) : 0.6 }}>{present ? q : "—"}</div></td>;
+                        })}
+                        <td className="py-0.5 px-0.5"><div className={`rounded h-5 flex items-center justify-center text-white text-[9px] font-bold ${p.overallScore >= 75 ? "bg-green-600" : p.overallScore >= 50 ? "bg-amber-500" : p.overallScore >= 25 ? "bg-orange-500" : "bg-red-500"}`}>{p.overallScore}</div></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {/* ── Peer Benchmark: by Team + by Risk Level ── */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* By Team */}
+              {(() => {
+                const teamMap: Record<string, { total: number; scoreSum: number; gapSum: number }> = {};
+                planResults.forEach(p => {
+                  const team = p.cr.assignment_group || "Unassigned";
+                  if (!teamMap[team]) teamMap[team] = { total: 0, scoreSum: 0, gapSum: 0 };
+                  teamMap[team].total++;
+                  teamMap[team].scoreSum += p.overallScore;
+                  teamMap[team].gapSum += p.gapCount;
+                });
+                const teamData = Object.entries(teamMap).map(([team, d]) => ({
+                  team: team.length > 20 ? team.slice(0, 18) + "…" : team,
+                  avgReadiness: Math.round(d.scoreSum / d.total),
+                  avgGaps: +(d.gapSum / d.total).toFixed(1),
+                  count: d.total,
+                })).sort((a, b) => a.avgReadiness - b.avgReadiness);
+                return (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><User className="h-4 w-4 text-teal-500" /> Plan Readiness by Team</CardTitle>
+                      <CardDescription>Average plan readiness score per assignment group. Lower = more risk.</CardDescription>
+                    </CardHeader>
+                    <div className="h-64 px-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={teamData} layout="vertical" barCategoryGap="20%">
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                          <YAxis type="category" dataKey="team" tick={{ fontSize: 9 }} stroke="#94a3b8" width={110} />
+                          <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                          <Bar dataKey="avgReadiness" name="Avg Readiness" radius={[0, 4, 4, 0]}>
+                            {teamData.map((d, i) => <Cell key={i} fill={d.avgReadiness >= 75 ? "#22c55e" : d.avgReadiness >= 50 ? "#eab308" : d.avgReadiness >= 25 ? "#f97316" : "#ef4444"} />)}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+                );
+              })()}
+
+              {/* By Risk Level */}
+              {(() => {
+                const riskMap: Record<string, { total: number; scoreSum: number; gapSum: number }> = {};
+                planResults.forEach(p => {
+                  const risk = p.cr.risk || "Unknown";
+                  if (!riskMap[risk]) riskMap[risk] = { total: 0, scoreSum: 0, gapSum: 0 };
+                  riskMap[risk].total++;
+                  riskMap[risk].scoreSum += p.overallScore;
+                  riskMap[risk].gapSum += p.gapCount;
+                });
+                const riskData = Object.entries(riskMap).map(([risk, d]) => ({
+                  risk,
+                  avgReadiness: Math.round(d.scoreSum / d.total),
+                  avgGaps: +(d.gapSum / d.total).toFixed(1),
+                  count: d.total,
+                })).sort((a, b) => a.avgReadiness - b.avgReadiness);
+                const riskFill: Record<string, string> = { "Very High": "#ef4444", "High": "#f97316", "Moderate": "#eab308", "Low": "#22c55e", "None": "#94a3b8" };
+                return (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Plan Readiness by SN Risk Level</CardTitle>
+                      <CardDescription>Do high-risk CRs have better plans? Compare readiness across risk categories.</CardDescription>
+                    </CardHeader>
+                    <div className="space-y-3 px-4 pb-4">
+                      {riskData.map(d => (
+                        <div key={d.risk} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-gray-700 dark:text-gray-300">{d.risk} <span className="text-gray-400 font-normal">({d.count} CRs)</span></span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-gray-400">Avg gaps: <span className="font-bold text-gray-600 dark:text-gray-300">{d.avgGaps}</span></span>
+                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(d.avgReadiness)}`}>{d.avgReadiness}</span>
+                            </div>
+                          </div>
+                          <div className="h-3 rounded-full bg-gray-100 dark:bg-gray-800">
+                            <div className="h-3 rounded-full transition-all" style={{ width: `${d.avgReadiness}%`, backgroundColor: riskFill[d.risk] || "#6366f1" }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                );
+              })()}
+            </div>
           </div>
         );
       })()}
@@ -1198,125 +1316,6 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
             ) : (
             /* ── Overview Mode ── */
             <div className="space-y-6">
-
-            {/* ── Cross-CR Plan Quality Heatmap ── */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-teal-500" /> Plan Quality Heatmap — All CRs × Dimensions</CardTitle>
-                <CardDescription>Each row is a change request, each column a plan dimension. Color intensity shows quality (red=missing/poor, green=strong). Quickly spot systemic gaps.</CardDescription>
-              </CardHeader>
-              <div className="overflow-x-auto max-h-[360px] overflow-y-auto px-4 pb-4">
-                <table className="w-full border-collapse text-[10px]">
-                  <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
-                    <tr>
-                      <th className="py-1.5 text-left font-medium text-gray-500 min-w-[120px]">CR</th>
-                      {PLAN_DIMS.map(d => <th key={d.key} className="py-1.5 text-center font-medium text-gray-500 px-1 min-w-[60px]">{d.label.replace(" Plan","").replace("/Impact Analysis","")}</th>)}
-                      <th className="py-1.5 text-center font-medium text-gray-500 px-1 min-w-[50px]">Overall</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredPlans.slice(0, 50).map((p) => (
-                      <tr key={p.cr.number} className="cursor-pointer hover:ring-1 hover:ring-teal-300" onClick={() => { setSelectedPlanCR(p.cr.number); setExpandedPlanContent(null); setMlAnalysis(null); setMlError(null); }}>
-                        <td className="py-0.5 font-mono text-gray-500 truncate max-w-[120px]" title={p.cr.short_description}>{p.cr.number.replace("CHG","")}</td>
-                        {PLAN_DIMS.map(d => {
-                          const q = p[d.key].quality;
-                          const present = p[d.key].present;
-                          const bg = !present ? "bg-red-500" : q >= 75 ? "bg-green-500" : q >= 50 ? "bg-amber-400" : q >= 25 ? "bg-orange-500" : "bg-red-400";
-                          return <td key={d.key} className="py-0.5 px-0.5"><div className={`rounded h-5 flex items-center justify-center text-white text-[9px] font-bold ${bg}`} style={{ opacity: present ? Math.max(0.35, q/100) : 0.6 }}>{present ? q : "—"}</div></td>;
-                        })}
-                        <td className="py-0.5 px-0.5"><div className={`rounded h-5 flex items-center justify-center text-white text-[9px] font-bold ${p.overallScore >= 75 ? "bg-green-600" : p.overallScore >= 50 ? "bg-amber-500" : p.overallScore >= 25 ? "bg-orange-500" : "bg-red-500"}`}>{p.overallScore}</div></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-
-            {/* ── Peer Benchmark: by Team + by Risk Level ── */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* By Team */}
-              {(() => {
-                const teamMap: Record<string, { total: number; scoreSum: number; gapSum: number }> = {};
-                planResults.forEach(p => {
-                  const team = p.cr.assignment_group || "Unassigned";
-                  if (!teamMap[team]) teamMap[team] = { total: 0, scoreSum: 0, gapSum: 0 };
-                  teamMap[team].total++;
-                  teamMap[team].scoreSum += p.overallScore;
-                  teamMap[team].gapSum += p.gapCount;
-                });
-                const teamData = Object.entries(teamMap).map(([team, d]) => ({
-                  team: team.length > 20 ? team.slice(0, 18) + "…" : team,
-                  avgReadiness: Math.round(d.scoreSum / d.total),
-                  avgGaps: +(d.gapSum / d.total).toFixed(1),
-                  count: d.total,
-                })).sort((a, b) => a.avgReadiness - b.avgReadiness);
-                return (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2"><User className="h-4 w-4 text-teal-500" /> Plan Readiness by Team</CardTitle>
-                      <CardDescription>Average plan readiness score per assignment group. Lower = more risk.</CardDescription>
-                    </CardHeader>
-                    <div className="h-64 px-2">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={teamData} layout="vertical" barCategoryGap="20%">
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                          <YAxis type="category" dataKey="team" tick={{ fontSize: 9 }} stroke="#94a3b8" width={110} />
-                          <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
-                          <Bar dataKey="avgReadiness" name="Avg Readiness" radius={[0, 4, 4, 0]}>
-                            {teamData.map((d, i) => <Cell key={i} fill={d.avgReadiness >= 75 ? "#22c55e" : d.avgReadiness >= 50 ? "#eab308" : d.avgReadiness >= 25 ? "#f97316" : "#ef4444"} />)}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </Card>
-                );
-              })()}
-
-              {/* By Risk Level */}
-              {(() => {
-                const riskMap: Record<string, { total: number; scoreSum: number; gapSum: number }> = {};
-                planResults.forEach(p => {
-                  const risk = p.cr.risk || "Unknown";
-                  if (!riskMap[risk]) riskMap[risk] = { total: 0, scoreSum: 0, gapSum: 0 };
-                  riskMap[risk].total++;
-                  riskMap[risk].scoreSum += p.overallScore;
-                  riskMap[risk].gapSum += p.gapCount;
-                });
-                const riskData = Object.entries(riskMap).map(([risk, d]) => ({
-                  risk,
-                  avgReadiness: Math.round(d.scoreSum / d.total),
-                  avgGaps: +(d.gapSum / d.total).toFixed(1),
-                  count: d.total,
-                })).sort((a, b) => a.avgReadiness - b.avgReadiness);
-                const riskFill: Record<string, string> = { "Very High": "#ef4444", "High": "#f97316", "Moderate": "#eab308", "Low": "#22c55e", "None": "#94a3b8" };
-                return (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Plan Readiness by SN Risk Level</CardTitle>
-                      <CardDescription>Do high-risk CRs have better plans? Compare readiness across risk categories.</CardDescription>
-                    </CardHeader>
-                    <div className="space-y-3 px-4 pb-4">
-                      {riskData.map(d => (
-                        <div key={d.risk} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-gray-700 dark:text-gray-300">{d.risk} <span className="text-gray-400 font-normal">({d.count} CRs)</span></span>
-                            <div className="flex items-center gap-3">
-                              <span className="text-gray-400">Avg gaps: <span className="font-bold text-gray-600 dark:text-gray-300">{d.avgGaps}</span></span>
-                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(d.avgReadiness)}`}>{d.avgReadiness}</span>
-                            </div>
-                          </div>
-                          <div className="h-3 rounded-full bg-gray-100 dark:bg-gray-800">
-                            <div className="h-3 rounded-full transition-all" style={{ width: `${d.avgReadiness}%`, backgroundColor: riskFill[d.risk] || "#6366f1" }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                );
-              })()}
-            </div>
-
             <Card>
               <CardHeader>
                 <CardTitle>Change Requests — Plan Risk Assessment ({filteredPlans.length}{pq ? ` of ${n}` : ""})</CardTitle>
