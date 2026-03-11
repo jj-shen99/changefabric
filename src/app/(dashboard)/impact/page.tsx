@@ -106,6 +106,7 @@ export default function ImpactPage() {
   const [gitRepo, setGitRepo] = useState("https://code.devsnc.com/dev/perf-testing-ai");
   const [gitDays, setGitDays] = useState(14);
   const [expandedCommit, setExpandedCommit] = useState<string | null>(null);
+  const [planWeights, setPlanWeights] = useState({ implementation: 0.25, backout: 0.25, testPlan: 0.20, riskAnalysis: 0.15, changePlan: 0.10, justification: 0.05 });
   const [planSearch, setPlanSearch] = useState("");
   const [selectedPlanCR, setSelectedPlanCR] = useState<string | null>(null);
   const [expandedPlanContent, setExpandedPlanContent] = useState<string | null>(null);
@@ -117,6 +118,7 @@ export default function ImpactPage() {
   const [riskFilterRisk, setRiskFilterRisk] = useState<string>("all");
   const [riskFilterState, setRiskFilterState] = useState<string>("all");
   const [riskFilterGroup, setRiskFilterGroup] = useState<string>("all");
+  const [selectedRiskCR, setSelectedRiskCR] = useState<string | null>(null);
   const [planScoringOpen, setPlanScoringOpen] = useState(false);
   const [mlSearch, setMlSearch] = useState("");
   const [mlFilterRisk, setMlFilterRisk] = useState<string>("all");
@@ -162,11 +164,11 @@ export default function ImpactPage() {
     const changePlan = scorePlan(c.change_plan, IMPL_KW, "change plan");
     const riskAnalysis = scorePlan(c.risk_impact_analysis, RISK_KW, "risk/impact analysis");
     const justification = scorePlan(c.justification, JUST_KW, "justification");
-    const overallScore = Math.round(implementation.quality*0.25 + backout.quality*0.25 + testPlan.quality*0.20 + riskAnalysis.quality*0.15 + changePlan.quality*0.10 + justification.quality*0.05);
+    const overallScore = Math.round(implementation.quality*planWeights.implementation + backout.quality*planWeights.backout + testPlan.quality*planWeights.testPlan + riskAnalysis.quality*planWeights.riskAnalysis + changePlan.quality*planWeights.changePlan + justification.quality*planWeights.justification);
     const gapCount = [implementation, backout, testPlan, changePlan, riskAnalysis, justification].filter(p => !p.present).length;
     const riskLevel = overallScore>=75?"low":overallScore>=50?"medium":overallScore>=25?"high":"critical";
     return { cr: c, implementation, backout, testPlan, changePlan, riskAnalysis, justification, overallScore, riskLevel, gapCount };
-  }).sort((a, b) => a.overallScore - b.overallScore), [changeRequests]);
+  }).sort((a, b) => a.overallScore - b.overallScore), [changeRequests, planWeights]);
 
   if (loading) return <div className="space-y-4">{[1,2,3].map((i) => <div key={i} className="h-40 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />)}</div>;
   if (error) return <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">{error}</div>;
@@ -190,13 +192,16 @@ export default function ImpactPage() {
 
   /* ═══ Plan Analysis Data ═══ */
   const PLAN_DIMS = [
-    { key: "implementation" as const, label: "Implementation Plan", weight: "25%", icon: FileText },
-    { key: "backout" as const, label: "Backout Plan", weight: "25%", icon: RotateCcw },
-    { key: "testPlan" as const, label: "Test Plan", weight: "20%", icon: CheckCircle2 },
-    { key: "riskAnalysis" as const, label: "Risk/Impact Analysis", weight: "15%", icon: AlertTriangle },
-    { key: "changePlan" as const, label: "Change Plan", weight: "10%", icon: ClipboardCheck },
-    { key: "justification" as const, label: "Justification", weight: "5%", icon: Info },
+    { key: "implementation" as const, label: "Implementation Plan", icon: FileText },
+    { key: "backout" as const, label: "Backout Plan", icon: RotateCcw },
+    { key: "testPlan" as const, label: "Test Plan", icon: CheckCircle2 },
+    { key: "riskAnalysis" as const, label: "Risk/Impact Analysis", icon: AlertTriangle },
+    { key: "changePlan" as const, label: "Change Plan", icon: ClipboardCheck },
+    { key: "justification" as const, label: "Justification", icon: Info },
   ];
+  const planWeightTotal = Object.values(planWeights).reduce((a, b) => a + b, 0);
+  const setPlanWeight = (key: keyof typeof planWeights, val: number) => setPlanWeights(prev => ({ ...prev, [key]: val }));
+  const resetPlanWeights = () => setPlanWeights({ implementation: 0.25, backout: 0.25, testPlan: 0.20, riskAnalysis: 0.15, changePlan: 0.10, justification: 0.05 });
 
   /* ═══ Git Analysis Fetch ═══ */
   async function fetchGitAnalysis() {
@@ -236,6 +241,38 @@ export default function ImpactPage() {
           { name: "Medium (40-59)", value: scored.filter((s) => s.overall >= 40 && s.overall < 60).length, fill: "#eab308" },
           { name: "Low (<40)", value: lowCount, fill: "#22c55e" },
         ].filter((d) => d.value > 0);
+        /* ── Risk Analysis summary KPIs for overview ── */
+        const riskScores = scored.map(s => {
+          const c = s.cr;
+          const p = (c.priority||"").trim(); const pS = p.startsWith("1")?5:p.startsWith("2")?4:p.startsWith("3")?3:p.startsWith("4")?2:3;
+          const u = (c.urgency||"").trim(); const uS = u.startsWith("1")?5:u.startsWith("2")?3:u.startsWith("3")?1:3;
+          const L = Math.round((pS+uS)/2*10)/10;
+          const imp = (c.sn_impact||"").trim(); const iS = imp.startsWith("1")?5:imp.startsWith("2")?3:imp.startsWith("3")?1:3;
+          const r = (c.risk||"").toLowerCase(); const rS = r==="very high"?5:r==="high"?4:r==="moderate"?3:r==="low"?2:r==="none"?1:3;
+          const sc = (c.scope||"").toLowerCase(); const sS = (sc==="large"||sc==="extensive")?5:sc==="medium"?3:sc==="small"?1:3;
+          const I = Math.round((iS+rS+sS)/3*10)/10;
+          const t = (c.type||"").toLowerCase(); const V = t==="emergency"?0.8:t==="normal"?0.3:t==="standard"?0.1:0.3;
+          let C = 0; if (c.backout_plan && c.backout_plan.trim().length > 10) C += 10; if (c.test_plan && c.test_plan.trim().length > 10) C += 8; if (c.implementation_plan && c.implementation_plan.trim().length > 10) C += 7;
+          return Math.max(0, Math.min(100, Math.round((L*I/25)*100*(1+V) - C)));
+        });
+        const avgRiskScore = riskScores.length > 0 ? Math.round(riskScores.reduce((a, b) => a+b, 0) / riskScores.length) : 0;
+        const maxRiskScore = riskScores.length > 0 ? Math.max(...riskScores) : 0;
+        const riskCritCount = riskScores.filter(s => s >= 75).length;
+
+        /* ── Plan Readiness KPIs ── */
+        const pn = planResults.length;
+        const pAvg = pn>0?Math.round(planResults.reduce((a, p) => a+p.overallScore, 0)/pn):0;
+        const pFull = planResults.filter(p => p.gapCount===0).length;
+        const pMissingBack = planResults.filter(p => !p.backout.present).length;
+        const pMissingImpl = planResults.filter(p => !p.implementation.present).length;
+        const pMissingTest = planResults.filter(p => !p.testPlan.present).length;
+
+        /* ── State distribution ── */
+        const stateMap: Record<string, number> = {};
+        changeRequests.forEach(c => { const st = c.state || "Unknown"; stateMap[st] = (stateMap[st] || 0) + 1; });
+        const stateData = Object.entries(stateMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+        const stateColors = ["#6366f1", "#8b5cf6", "#a855f7", "#c084fc", "#d8b4fe", "#e9d5ff", "#f3e8ff", "#94a3b8"];
+
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -250,77 +287,39 @@ export default function ImpactPage() {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Changes Analyzed</p><p className="mt-1 text-3xl font-bold text-gray-900 dark:text-gray-100">{totalCRs}</p></Card>
-              <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Avg Impact Score</p><p className="mt-1 text-3xl font-bold text-gray-900 dark:text-gray-100">{avgOverall}</p><p className="text-xs text-gray-400">{getRiskLabel(avgOverall)}</p></Card>
-              <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Critical / High Risk</p><p className="mt-1 text-3xl font-bold text-red-600">{criticalCount + highCount}</p><p className="text-xs text-gray-400">{criticalCount} critical, {highCount} high</p></Card>
-              <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Low Risk</p><p className="mt-1 text-3xl font-bold text-green-600">{lowCount}</p><p className="text-xs text-gray-400">Score below 40</p></Card>
+
+            {/* ═══ ALL KPIs AT TOP ═══ */}
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
+              <Card className="p-4"><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total CRs</p><p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{totalCRs}</p></Card>
+              <Card className="p-4"><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Avg Impact Score</p><p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{avgOverall}</p><p className="text-[11px] text-gray-400">{getRiskLabel(avgOverall)}</p></Card>
+              <Card className="p-4"><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Critical / High Impact</p><p className="mt-1 text-2xl font-bold text-red-600">{criticalCount + highCount}</p><p className="text-[11px] text-gray-400">{criticalCount} crit, {highCount} high</p></Card>
+              <Card className="p-4"><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Low Impact</p><p className="mt-1 text-2xl font-bold text-green-600">{lowCount}</p><p className="text-[11px] text-gray-400">Score &lt; 40</p></Card>
+              <Card className="p-4"><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Avg Risk Score</p><p className={`mt-1 text-2xl font-bold ${riskColor(avgRiskScore)}`}>{avgRiskScore}</p><p className="text-[11px] text-gray-400">{riskLbl(avgRiskScore)}</p></Card>
             </div>
-            <Card><CardHeader><CardTitle className="flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-blue-500" /> Impact Score Distribution</CardTitle></CardHeader><div className="h-72"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={riskDistData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, value }) => `${name}: ${value}`} /><Legend /><Tooltip /></PieChart></ResponsiveContainer></div></Card>
-            <Card><CardHeader><CardTitle>Average Impact Score by Category</CardTitle><CardDescription>Based on computed overall scores with current weights</CardDescription></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={categoryData} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#94a3b8" /><YAxis type="category" dataKey="category" tick={{ fontSize: 12 }} stroke="#94a3b8" width={100} /><Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }} // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
+              <Card className="p-4"><div className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Max Risk Score</span></div><p className={`mt-1 text-2xl font-bold ${riskColor(maxRiskScore)}`}>{maxRiskScore}</p></Card>
+              <Card className="p-4"><div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Risk Critical</span></div><p className="mt-1 text-2xl font-bold text-red-600">{riskCritCount}</p><p className="text-[11px] text-gray-400">Score ≥ 75</p></Card>
+              <Card className="p-4"><div className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-teal-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Avg Readiness</span></div><p className={`mt-1 text-2xl font-bold ${pColor(pAvg)}`}>{pAvg}</p><p className="text-[11px] text-gray-400">{pLabel(pAvg)}</p></Card>
+              <Card className="p-4"><div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-green-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Full Plan Coverage</span></div><p className="mt-1 text-2xl font-bold text-green-600">{pFull}</p><p className="text-[11px] text-gray-400">All 6 plans</p></Card>
+              <Card className="p-4"><div className="flex items-center gap-2"><AlertCircle className="h-4 w-4 text-amber-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Missing Plans</span></div><p className="mt-1 text-2xl font-bold text-amber-600">{pMissingImpl+pMissingBack+pMissingTest}</p><p className="text-[11px] text-gray-400">impl:{pMissingImpl} back:{pMissingBack} test:{pMissingTest}</p></Card>
+            </div>
+
+            {/* ═══ ALL PLOTS IN 2-COL GRID ═══ */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* Impact Score Distribution Pie */}
+              <Card><CardHeader><CardTitle className="flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-blue-500" /> Impact Score Distribution</CardTitle></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={riskDistData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`} /><Legend /><Tooltip /></PieChart></ResponsiveContainer></div></Card>
+
+              {/* Average Impact by Category */}
+              <Card><CardHeader><CardTitle>Avg Impact Score by Category</CardTitle><CardDescription>Computed overall scores with current weights</CardDescription></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={categoryData} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#94a3b8" /><YAxis type="category" dataKey="category" tick={{ fontSize: 12 }} stroke="#94a3b8" width={100} /><Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }} // eslint-disable-next-line @typescript-eslint/no-explicit-any
 formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Impact"]} /><Bar dataKey="avgRisk" radius={[0, 4, 4, 0]}>{categoryData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.avgRisk >= 80 ? "#ef4444" : entry.avgRisk >= 60 ? "#f97316" : entry.avgRisk >= 40 ? "#eab308" : "#22c55e"} />))}</Bar></BarChart></ResponsiveContainer></div></Card>
 
-            {/* ── Plan Readiness Summary ── */}
-            {(() => {
-              const pn = planResults.length;
-              const pAvg = pn>0?Math.round(planResults.reduce((a, p) => a+p.overallScore, 0)/pn):0;
-              const pCrit = planResults.filter(p => p.riskLevel==="critical").length;
-              const pHigh = planResults.filter(p => p.riskLevel==="high").length;
-              const pFull = planResults.filter(p => p.gapCount===0).length;
-              const pMissingBack = planResults.filter(p => !p.backout.present).length;
-              const pMissingImpl = planResults.filter(p => !p.implementation.present).length;
-              const pMissingTest = planResults.filter(p => !p.testPlan.present).length;
-              return (<>
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-                  <Card className="p-4"><div className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-teal-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Avg Readiness</span></div><p className={`mt-1 text-2xl font-bold ${pColor(pAvg)}`}>{pAvg}</p><p className="text-[11px] text-gray-400">{pLabel(pAvg)}</p></Card>
-                  <Card className="p-4"><div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-red-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Critical / High Risk</span></div><p className="mt-1 text-2xl font-bold text-red-600">{pCrit+pHigh}</p><p className="text-[11px] text-gray-400">{pCrit} critical, {pHigh} high</p></Card>
-                  <Card className="p-4"><div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-green-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Full Coverage</span></div><p className="mt-1 text-2xl font-bold text-green-600">{pFull}</p><p className="text-[11px] text-gray-400">All 6 plans present</p></Card>
-                  <Card className="p-4"><div className="flex items-center gap-2"><RotateCcw className="h-4 w-4 text-orange-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Missing Backout</span></div><p className="mt-1 text-2xl font-bold text-orange-600">{pMissingBack}</p><p className="text-[11px] text-gray-400">of {pn} changes</p></Card>
-                  <Card className="p-4"><div className="flex items-center gap-2"><AlertCircle className="h-4 w-4 text-amber-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Missing Plans</span></div><p className="mt-1 text-2xl font-bold text-amber-600">{pMissingImpl+pMissingBack+pMissingTest}</p><p className="text-[11px] text-gray-400">impl: {pMissingImpl}, backout: {pMissingBack}, test: {pMissingTest}</p></Card>
-                </div>
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  <Card><CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-teal-500" /> Plan Readiness Distribution</CardTitle></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={[{ bucket: "Well Prepared (75-100)", count: planResults.filter(p => p.overallScore>=75).length, fill: "#22c55e" },{ bucket: "Adequate (50-74)", count: planResults.filter(p => p.overallScore>=50 && p.overallScore<75).length, fill: "#eab308" },{ bucket: "Gaps Found (25-49)", count: planResults.filter(p => p.overallScore>=25 && p.overallScore<50).length, fill: "#f97316" },{ bucket: "Critical Gaps (0-24)", count: planResults.filter(p => p.overallScore<25).length, fill: "#ef4444" }]}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis dataKey="bucket" tick={{ fontSize: 10 }} stroke="#94a3b8" /><YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" /><Tooltip /><Bar dataKey="count" name="Changes" radius={[4, 4, 0, 0]}>{["#22c55e","#eab308","#f97316","#ef4444"].map((fill, idx) => <Cell key={idx} fill={fill} />)}</Bar></BarChart></ResponsiveContainer></div></Card>
-                  <Card><CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4 text-teal-500" /> Plan Coverage Summary</CardTitle><CardDescription>Average quality score per plan dimension</CardDescription></CardHeader><div className="space-y-3">{PLAN_DIMS.map((d) => { const avg = pn>0?Math.round(planResults.reduce((a, p) => a+p[d.key].quality, 0)/pn):0; const presentCount = planResults.filter(p => p[d.key].present).length; return (<div key={d.key} className="space-y-1"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><d.icon className="h-3.5 w-3.5 text-teal-500" /><span className="text-xs font-medium text-gray-700 dark:text-gray-300">{d.label}</span></div><div className="flex items-center gap-2"><span className="text-[11px] text-gray-400">{presentCount}/{pn} present</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(avg)}`}>{avg}</span></div></div><div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800"><div className="h-2 rounded-full transition-all" style={{ width: `${avg}%`, backgroundColor: avg>=75?"#22c55e":avg>=50?"#eab308":avg>=25?"#f97316":"#ef4444" }} /></div></div>); })}</div></Card>
-                </div>
-              </>);
-            })()}
+              {/* Plan Readiness Distribution */}
+              <Card><CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-teal-500" /> Plan Readiness Distribution</CardTitle></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={[{ bucket: "Well Prepared (75-100)", count: planResults.filter(p => p.overallScore>=75).length, fill: "#22c55e" },{ bucket: "Adequate (50-74)", count: planResults.filter(p => p.overallScore>=50 && p.overallScore<75).length, fill: "#eab308" },{ bucket: "Gaps Found (25-49)", count: planResults.filter(p => p.overallScore>=25 && p.overallScore<50).length, fill: "#f97316" },{ bucket: "Critical Gaps (0-24)", count: planResults.filter(p => p.overallScore<25).length, fill: "#ef4444" }]}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis dataKey="bucket" tick={{ fontSize: 10 }} stroke="#94a3b8" /><YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" /><Tooltip /><Bar dataKey="count" name="Changes" radius={[4, 4, 0, 0]}>{["#22c55e","#eab308","#f97316","#ef4444"].map((fill, idx) => <Cell key={idx} fill={fill} />)}</Bar></BarChart></ResponsiveContainer></div></Card>
 
-            {/* ── Cross-CR Plan Quality Heatmap ── */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-teal-500" /> Plan Quality Heatmap — All CRs × Dimensions</CardTitle>
-                <CardDescription>Each row is a change request, each column a plan dimension. Color intensity shows quality (red=missing/poor, green=strong). Click a row to drill in.</CardDescription>
-              </CardHeader>
-              <div className="overflow-x-auto max-h-[360px] overflow-y-auto px-4 pb-4">
-                <table className="w-full border-collapse text-[10px]">
-                  <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
-                    <tr>
-                      <th className="py-1.5 text-left font-medium text-gray-500 min-w-[120px]">CR</th>
-                      {PLAN_DIMS.map(d => <th key={d.key} className="py-1.5 text-center font-medium text-gray-500 px-1 min-w-[60px]">{d.label.replace(" Plan","").replace("/Impact Analysis","")}</th>)}
-                      <th className="py-1.5 text-center font-medium text-gray-500 px-1 min-w-[50px]">Overall</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {planResults.slice(0, 50).map((p) => (
-                      <tr key={p.cr.number} className="cursor-pointer hover:ring-1 hover:ring-teal-300" onClick={() => { setSelectedPlanCR(p.cr.number); setExpandedPlanContent(null); setMlAnalysis(null); setMlError(null); setActiveTab("plans"); }}>
-                        <td className="py-0.5 font-mono text-gray-500 truncate max-w-[120px]" title={p.cr.short_description}>{p.cr.number.replace("CHG","")}</td>
-                        {PLAN_DIMS.map(d => {
-                          const q = p[d.key].quality;
-                          const present = p[d.key].present;
-                          const bg = !present ? "bg-red-500" : q >= 75 ? "bg-green-500" : q >= 50 ? "bg-amber-400" : q >= 25 ? "bg-orange-500" : "bg-red-400";
-                          return <td key={d.key} className="py-0.5 px-0.5"><div className={`rounded h-5 flex items-center justify-center text-white text-[9px] font-bold ${bg}`} style={{ opacity: present ? Math.max(0.35, q/100) : 0.6 }}>{present ? q : "—"}</div></td>;
-                        })}
-                        <td className="py-0.5 px-0.5"><div className={`rounded h-5 flex items-center justify-center text-white text-[9px] font-bold ${p.overallScore >= 75 ? "bg-green-600" : p.overallScore >= 50 ? "bg-amber-500" : p.overallScore >= 25 ? "bg-orange-500" : "bg-red-500"}`}>{p.overallScore}</div></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+              {/* Plan Coverage Summary */}
+              <Card><CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4 text-teal-500" /> Plan Coverage Summary</CardTitle><CardDescription>Average quality per plan dimension</CardDescription></CardHeader><div className="space-y-3 px-4 pb-4">{PLAN_DIMS.map((d) => { const avg = pn>0?Math.round(planResults.reduce((a, p) => a+p[d.key].quality, 0)/pn):0; const presentCount = planResults.filter(p => p[d.key].present).length; return (<div key={d.key} className="space-y-1"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><d.icon className="h-3.5 w-3.5 text-teal-500" /><span className="text-xs font-medium text-gray-700 dark:text-gray-300">{d.label}</span></div><div className="flex items-center gap-2"><span className="text-[11px] text-gray-400">{presentCount}/{pn} present</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(avg)}`}>{avg}</span></div></div><div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800"><div className="h-2 rounded-full transition-all" style={{ width: `${avg}%`, backgroundColor: avg>=75?"#22c55e":avg>=50?"#eab308":avg>=25?"#f97316":"#ef4444" }} /></div></div>); })}</div></Card>
 
-            {/* ── Peer Benchmark: by Team + by Risk Level ── */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* By Team */}
+              {/* Plan Readiness by Team */}
               {(() => {
                 const teamMap: Record<string, { total: number; scoreSum: number; gapSum: number }> = {};
                 planResults.forEach(p => {
@@ -338,52 +337,34 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                 })).sort((a, b) => a.avgReadiness - b.avgReadiness);
                 return (
                   <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2"><User className="h-4 w-4 text-teal-500" /> Plan Readiness by Team</CardTitle>
-                      <CardDescription>Average plan readiness score per assignment group. Lower = more risk.</CardDescription>
-                    </CardHeader>
-                    <div className="h-64 px-2">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={teamData} layout="vertical" barCategoryGap="20%">
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                          <YAxis type="category" dataKey="team" tick={{ fontSize: 9 }} stroke="#94a3b8" width={110} />
-                          <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
-                          <Bar dataKey="avgReadiness" name="Avg Readiness" radius={[0, 4, 4, 0]}>
-                            {teamData.map((d, i) => <Cell key={i} fill={d.avgReadiness >= 75 ? "#22c55e" : d.avgReadiness >= 50 ? "#eab308" : d.avgReadiness >= 25 ? "#f97316" : "#ef4444"} />)}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
+                    <CardHeader><CardTitle className="flex items-center gap-2"><User className="h-4 w-4 text-teal-500" /> Plan Readiness by Team</CardTitle><CardDescription>Average readiness per assignment group</CardDescription></CardHeader>
+                    <div className="h-64 px-2"><ResponsiveContainer width="100%" height="100%"><BarChart data={teamData} layout="vertical" barCategoryGap="20%"><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} /><XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" /><YAxis type="category" dataKey="team" tick={{ fontSize: 9 }} stroke="#94a3b8" width={110} /><Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} /><Bar dataKey="avgReadiness" name="Avg Readiness" radius={[0, 4, 4, 0]}>{teamData.map((d, i) => <Cell key={i} fill={d.avgReadiness >= 75 ? "#22c55e" : d.avgReadiness >= 50 ? "#eab308" : d.avgReadiness >= 25 ? "#f97316" : "#ef4444"} />)}</Bar></BarChart></ResponsiveContainer></div>
                   </Card>
                 );
               })()}
 
-              {/* By Risk Level */}
+              {/* Plan Readiness by SN Risk Level */}
               {(() => {
-                const riskMap: Record<string, { total: number; scoreSum: number; gapSum: number }> = {};
+                const rrMap: Record<string, { total: number; scoreSum: number; gapSum: number }> = {};
                 planResults.forEach(p => {
                   const risk = p.cr.risk || "Unknown";
-                  if (!riskMap[risk]) riskMap[risk] = { total: 0, scoreSum: 0, gapSum: 0 };
-                  riskMap[risk].total++;
-                  riskMap[risk].scoreSum += p.overallScore;
-                  riskMap[risk].gapSum += p.gapCount;
+                  if (!rrMap[risk]) rrMap[risk] = { total: 0, scoreSum: 0, gapSum: 0 };
+                  rrMap[risk].total++;
+                  rrMap[risk].scoreSum += p.overallScore;
+                  rrMap[risk].gapSum += p.gapCount;
                 });
-                const riskData = Object.entries(riskMap).map(([risk, d]) => ({
+                const rrData = Object.entries(rrMap).map(([risk, d]) => ({
                   risk,
                   avgReadiness: Math.round(d.scoreSum / d.total),
                   avgGaps: +(d.gapSum / d.total).toFixed(1),
                   count: d.total,
                 })).sort((a, b) => a.avgReadiness - b.avgReadiness);
-                const riskFill: Record<string, string> = { "Very High": "#ef4444", "High": "#f97316", "Moderate": "#eab308", "Low": "#22c55e", "None": "#94a3b8" };
+                const rrFill: Record<string, string> = { "Very High": "#ef4444", "High": "#f97316", "Moderate": "#eab308", "Low": "#22c55e", "None": "#94a3b8" };
                 return (
                   <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Plan Readiness by SN Risk Level</CardTitle>
-                      <CardDescription>Do high-risk CRs have better plans? Compare readiness across risk categories.</CardDescription>
-                    </CardHeader>
+                    <CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Readiness by SN Risk Level</CardTitle><CardDescription>Do high-risk CRs have better plans?</CardDescription></CardHeader>
                     <div className="space-y-3 px-4 pb-4">
-                      {riskData.map(d => (
+                      {rrData.map(d => (
                         <div key={d.risk} className="space-y-1">
                           <div className="flex items-center justify-between text-xs">
                             <span className="font-semibold text-gray-700 dark:text-gray-300">{d.risk} <span className="text-gray-400 font-normal">({d.count} CRs)</span></span>
@@ -392,15 +373,25 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                               <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(d.avgReadiness)}`}>{d.avgReadiness}</span>
                             </div>
                           </div>
-                          <div className="h-3 rounded-full bg-gray-100 dark:bg-gray-800">
-                            <div className="h-3 rounded-full transition-all" style={{ width: `${d.avgReadiness}%`, backgroundColor: riskFill[d.risk] || "#6366f1" }} />
-                          </div>
+                          <div className="h-3 rounded-full bg-gray-100 dark:bg-gray-800"><div className="h-3 rounded-full transition-all" style={{ width: `${d.avgReadiness}%`, backgroundColor: rrFill[d.risk] || "#6366f1" }} /></div>
                         </div>
                       ))}
                     </div>
                   </Card>
                 );
               })()}
+
+              {/* State Distribution (new from cross-tab data) */}
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-indigo-500" /> CR State Distribution</CardTitle><CardDescription>How CRs are distributed across states</CardDescription></CardHeader>
+                <div className="h-64"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={stateData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>{stateData.map((_, i) => <Cell key={i} fill={stateColors[i % stateColors.length]} />)}</Pie><Legend /><Tooltip /></PieChart></ResponsiveContainer></div>
+              </Card>
+
+              {/* Risk Score Distribution (new from risk analysis data) */}
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-purple-500" /> Risk Score Distribution</CardTitle><CardDescription>Computed risk scores across all CRs</CardDescription></CardHeader>
+                <div className="h-64"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={[{ name: "Critical (≥75)", value: riskCritCount, fill: "#ef4444" },{ name: "High (50-74)", value: riskScores.filter(s => s>=50 && s<75).length, fill: "#f97316" },{ name: "Medium (25-49)", value: riskScores.filter(s => s>=25 && s<50).length, fill: "#eab308" },{ name: "Low (<25)", value: riskScores.filter(s => s<25).length, fill: "#22c55e" }].filter(d => d.value > 0)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`} /><Legend /><Tooltip /></PieChart></ResponsiveContainer></div>
+              </Card>
             </div>
           </div>
         );
@@ -425,190 +416,10 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
         const maxScore = n>0?riskResults[0].score:0;
         const critCount = riskResults.filter(r => r.score>=75).length;
         const highCount = riskResults.filter(r => r.score>=50 && r.score<75).length;
+        const selectedRiskItem = selectedRiskCR ? riskResults.find(r => r.cr.number === selectedRiskCR) : null;
         return (
           <div className="space-y-6">
-            <Card className="border-purple-200 bg-purple-50/30 dark:border-purple-900 dark:bg-purple-950/20">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2"><Info className="h-5 w-5 text-purple-600" />Risk Assessment Formula (ISO 31000 / NIST SP 800-30)</CardTitle>
-                  <button onClick={() => setRiskFormulaOpen(!riskFormulaOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900">{riskFormulaOpen ? "▲ Collapse" : "▼ Expand"}</button>
-                </div>
-                <CardDescription className="text-sm">Risk = (L × I / 25 × 100) × (1 + V) − C. Industry-standard 5×5 risk matrix approach.</CardDescription>
-              </CardHeader>
-              {riskFormulaOpen && (<>
-                <div className="rounded-lg bg-white dark:bg-gray-900 border border-purple-100 dark:border-purple-900 p-5 space-y-4">
-                  <p className="text-lg font-bold font-mono text-purple-700 dark:text-purple-400">Risk Score = (L × I / 25 × 100) × (1 + V) − C</p>
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className="rounded-lg border border-purple-100 dark:border-purple-800 p-3 space-y-1">
-                      <p className="text-sm font-bold text-purple-700 dark:text-purple-300">L — Likelihood (1–5)</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Average of <strong>Priority</strong> and <strong>Urgency</strong> scores from the change request, each mapped to a 1–5 scale.</p>
-                      <p className="text-[11px] text-gray-400">Priority: 1-Critical → 5, 2-High → 4, 3-Moderate → 3, 4-Low → 2. Urgency: 1-High → 5, 2-Medium → 3, 3-Low → 1.</p>
-                    </div>
-                    <div className="rounded-lg border border-purple-100 dark:border-purple-800 p-3 space-y-1">
-                      <p className="text-sm font-bold text-purple-700 dark:text-purple-300">I — Impact Severity (1–5)</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Average of <strong>Impact</strong>, <strong>Risk</strong>, and <strong>Scope</strong> fields, each mapped to a 1–5 scale.</p>
-                      <p className="text-[11px] text-gray-400">Impact: 1-High → 5, 2-Medium → 3, 3-Low → 1. Risk: Very High → 5, High → 4, Moderate → 3, Low → 2, None → 1. Scope: Large/Extensive → 5, Medium → 3, Small → 1.</p>
-                    </div>
-                    <div className="rounded-lg border border-purple-100 dark:border-purple-800 p-3 space-y-1">
-                      <p className="text-sm font-bold text-purple-700 dark:text-purple-300">V — Velocity Modifier (0–0.8)</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Amplifies risk based on <strong>Change Type</strong>. Faster changes have less review time, increasing risk.</p>
-                      <p className="text-[11px] text-gray-400">Emergency → 0.8 (80% amplification), Normal → 0.3, Standard → 0.1.</p>
-                    </div>
-                    <div className="rounded-lg border border-purple-100 dark:border-purple-800 p-3 space-y-1">
-                      <p className="text-sm font-bold text-purple-700 dark:text-purple-300">C — Control Credit (0–25)</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Reduces risk when plans are documented. Rewards preparation with a score deduction.</p>
-                      <p className="text-[11px] text-gray-400">Backout plan present → −10, Test plan present → −8, Implementation plan present → −7. Max credit: 25.</p>
-                    </div>
-                  </div>
-                  <div className="mt-2 grid grid-cols-4 gap-2 text-center text-xs">
-                    <div className="rounded bg-green-100 dark:bg-green-900 p-2"><span className="font-bold text-green-700 dark:text-green-300">0-24</span><p className="text-green-600 dark:text-green-400">Low</p></div>
-                    <div className="rounded bg-amber-100 dark:bg-amber-900 p-2"><span className="font-bold text-amber-700 dark:text-amber-300">25-49</span><p className="text-amber-600 dark:text-amber-400">Medium</p></div>
-                    <div className="rounded bg-orange-100 dark:bg-orange-900 p-2"><span className="font-bold text-orange-700 dark:text-orange-300">50-74</span><p className="text-orange-600 dark:text-orange-400">High</p></div>
-                    <div className="rounded bg-red-100 dark:bg-red-900 p-2"><span className="font-bold text-red-700 dark:text-red-300">75-100</span><p className="text-red-600 dark:text-red-400">Critical</p></div>
-                  </div>
-                </div>
-              </>)}
-            </Card>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Avg Risk Score</p><p className={`mt-1 text-3xl font-bold ${riskColor(avgScore)}`}>{avgScore}</p><p className="text-xs text-gray-400">{riskLbl(avgScore)}</p></Card>
-              <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Max Risk Score</p><p className={`mt-1 text-3xl font-bold ${riskColor(maxScore)}`}>{maxScore}</p></Card>
-              <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Critical (≥75)</p><p className="mt-1 text-3xl font-bold text-red-600">{critCount}</p></Card>
-              <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">High (50-74)</p><p className="mt-1 text-3xl font-bold text-orange-600">{highCount}</p></Card>
-            </div>
-            {/* ── Score Comparison Chart ── */}
-            {(() => {
-              const planMap = new Map(planResults.map(p => [p.cr.number, p.overallScore]));
-              const chartData = riskResults.slice(0, 30).map((r) => ({
-                name: r.cr.number.replace("CHG", ""),
-                snScore: r.snScore,
-                planScore: planMap.get(r.cr.number) ?? 0,
-                riskScore: r.score,
-              }));
-              return (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-purple-500" /> Score Comparison — SN Risk vs Plan Readiness vs Computed Risk</CardTitle>
-                    <CardDescription>Top 30 change requests by computed risk score. Lower plan readiness + higher risk = more concern.</CardDescription>
-                  </CardHeader>
-                  <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} barGap={1} barCategoryGap="15%">
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="name" tick={{ fontSize: 9 }} stroke="#94a3b8" angle={-45} textAnchor="end" height={50} />
-                        <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" domain={[0, 100]} />
-                        <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }} />
-                        <Legend wrapperStyle={{ fontSize: "12px" }} />
-                        <Bar dataKey="snScore" name="SN Risk Score" fill="#6366f1" radius={[2, 2, 0, 0]} />
-                        <Bar dataKey="planScore" name="Plan Readiness" fill="#14b8a6" radius={[2, 2, 0, 0]} />
-                        <Bar dataKey="riskScore" name="Computed Risk" fill="#ef4444" radius={[2, 2, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </Card>
-              );
-            })()}
-            {/* ── 5×5 Risk Heatmap Matrix + Scatter Plot ── */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* 5×5 Likelihood × Impact Heatmap */}
-              {(() => {
-                const matrix: Record<string, typeof riskResults> = {};
-                for (let l = 1; l <= 5; l++) for (let i = 1; i <= 5; i++) matrix[`${l}-${i}`] = [];
-                riskResults.forEach((r) => {
-                  const lBucket = Math.max(1, Math.min(5, Math.round(r.L)));
-                  const iBucket = Math.max(1, Math.min(5, Math.round(r.I)));
-                  matrix[`${lBucket}-${iBucket}`]?.push(r);
-                });
-                const cellColor = (l: number, i: number) => {
-                  const v = l * i;
-                  if (v >= 16) return "bg-red-500 text-white";
-                  if (v >= 10) return "bg-orange-400 text-white";
-                  if (v >= 5) return "bg-amber-300 text-gray-900";
-                  return "bg-green-300 text-gray-900";
-                };
-                const impLabels = ["", "1-Low", "2", "3", "4", "5-High"];
-                const likLabels = ["", "1-Low", "2", "3", "4", "5-High"];
-                return (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-purple-500" /> 5×5 Risk Heatmap — Likelihood × Impact</CardTitle>
-                      <CardDescription>ISO 31000 risk matrix. Numbers show CR count per cell.</CardDescription>
-                    </CardHeader>
-                    <div className="px-4 pb-4">
-                      <div className="flex">
-                        <div className="flex flex-col items-center justify-center mr-1 w-6">
-                          <span className="text-[9px] text-gray-400 [writing-mode:vertical-lr] rotate-180">Likelihood →</span>
-                        </div>
-                        <div className="flex-1">
-                          <div className="grid grid-cols-6 gap-0.5">
-                            {/* Header row */}
-                            <div className="h-8" />
-                            {[1,2,3,4,5].map(i => <div key={i} className="h-8 flex items-center justify-center text-[10px] font-semibold text-gray-500">{impLabels[i]}</div>)}
-                            {/* Data rows (L from 5 down to 1) */}
-                            {[5,4,3,2,1].map(l => (
-                              <>{/* row label */}
-                                <div key={`l-${l}`} className="h-14 flex items-center justify-center text-[10px] font-semibold text-gray-500">{likLabels[l]}</div>
-                                {[1,2,3,4,5].map(i => {
-                                  const items = matrix[`${l}-${i}`] || [];
-                                  return (
-                                    <div key={`${l}-${i}`} className={`h-14 rounded flex flex-col items-center justify-center ${cellColor(l, i)} transition-all hover:scale-105`} title={items.map(r => r.cr.number).join(", ") || "No CRs"}>
-                                      <span className="text-lg font-bold">{items.length || ""}</span>
-                                      {items.length > 0 && <span className="text-[8px] opacity-75">{items.length === 1 ? "CR" : "CRs"}</span>}
-                                    </div>
-                                  );
-                                })}
-                              </>
-                            ))}
-                          </div>
-                          <p className="text-center text-[9px] text-gray-400 mt-1">Impact Severity →</p>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })()}
-
-              {/* Plan Readiness vs Computed Risk Scatter Plot */}
-              {(() => {
-                const planMap = new Map(planResults.map(p => [p.cr.number, p.overallScore]));
-                const scatterData = riskResults.map((r) => ({
-                  planReadiness: planMap.get(r.cr.number) ?? 0,
-                  riskScore: r.score,
-                  name: r.cr.number,
-                  desc: r.cr.short_description.slice(0, 40),
-                }));
-                return (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-teal-500" /> Plan Readiness vs Computed Risk</CardTitle>
-                      <CardDescription>Bottom-right quadrant = high risk + weak plans → highest concern.</CardDescription>
-                    </CardHeader>
-                    <div className="h-72 px-2">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ScatterChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis type="number" dataKey="planReadiness" name="Plan Readiness" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" label={{ value: "Plan Readiness →", position: "insideBottom", offset: -5, fontSize: 10, fill: "#94a3b8" }} />
-                          <YAxis type="number" dataKey="riskScore" name="Computed Risk" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" label={{ value: "Risk →", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "#94a3b8" }} />
-                          <ZAxis range={[40, 200]} />
-                          <Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} labelFormatter={(_, payload) => payload?.[0]?.payload?.name || ""} />
-                          <Scatter name="Change Requests" data={scatterData} fill="#8b5cf6">
-                            {scatterData.map((d, i) => <Cell key={i} fill={d.riskScore >= 75 ? "#ef4444" : d.riskScore >= 50 ? "#f97316" : d.riskScore >= 25 ? "#eab308" : "#22c55e"} />)}
-                          </Scatter>
-                          {/* Quadrant reference lines */}
-                        </ScatterChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="flex justify-center gap-4 px-4 pb-3 text-[10px] text-gray-400">
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-500" /> Critical (≥75)</span>
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" /> High (50-74)</span>
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" /> Medium (25-49)</span>
-                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-500" /> Low (&lt;25)</span>
-                    </div>
-                  </Card>
-                );
-              })()}
-            </div>
-
-            {/* Search bar + filters */}
+            {/* Search bar + filters at top */}
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[200px] max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={riskSearch} onChange={(e) => setRiskSearch(e.target.value)} /></div>
               <select value={riskFilterRisk} onChange={(e) => setRiskFilterRisk(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
@@ -623,32 +434,246 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                 <option value="all">All Groups</option>
                 {uniqueGroups.map((g) => <option key={g} value={g}>{g}</option>)}
               </select>
+              {selectedRiskCR && (
+                <button onClick={() => setSelectedRiskCR(null)} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">← Back to List</button>
+              )}
             </div>
 
             {/* CR Selection List */}
-            <Card>
-              <CardHeader>
-                <CardTitle>All Change Requests — Risk Assessment ({filteredRisk.length}{rq ? ` of ${n}` : ""})</CardTitle>
-                <CardDescription>Computed score vs ServiceNow risk field. Click a row to view plan details. Delta shows how much the computed score differs.</CardDescription>
-              </CardHeader>
-              <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
-                    <tr className="border-b border-gray-100 dark:border-gray-800">
-                      <th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Computed</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Level</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">SN Risk</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">SN Score</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Delta</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">State</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Likelihood">L</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Impact Severity">I</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Velocity Modifier">V</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Control Credit">C</th>
-                    </tr>
-                  </thead>
-                  <tbody>{filteredRisk.map((r) => (<tr key={r.cr.number} className="cursor-pointer border-b border-gray-50 dark:border-gray-800 hover:bg-blue-50 dark:hover:bg-blue-950/30" onClick={() => { setSelectedPlanCR(r.cr.number); setActiveTab("plans"); }}><td className="py-2.5"><span className="font-mono text-[11px] text-gray-400">{r.cr.number}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{r.cr.short_description}</p><p className="text-[11px] text-gray-400">{r.cr.assignment_group || "Unassigned"}</p></td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${riskBgCls(r.score)}`}>{r.score}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-semibold capitalize ${riskColor(r.score)}`}>{riskLbl(r.score)}</span></td><td className="py-2.5 text-center text-xs text-gray-600 dark:text-gray-400">{r.snRisk}</td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${riskBgCls(r.snScore)}`}>{r.snScore}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-bold ${r.delta > 10 ? "text-red-600" : r.delta < -10 ? "text-green-600" : "text-gray-500"}`}>{r.delta > 0 ? "+" : ""}{r.delta}</span></td><td className="py-2.5 text-center"><span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{r.cr.state}</span></td><td className="py-2.5 text-center text-xs font-mono">{r.L}</td><td className="py-2.5 text-center text-xs font-mono">{r.I}</td><td className="py-2.5 text-center text-xs font-mono">{r.V}</td><td className="py-2.5 text-center text-xs font-mono">{r.C}</td></tr>))}</tbody></table></div></Card>
+            {!selectedRiskCR && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>All Change Requests — Risk Assessment ({filteredRisk.length}{rq ? ` of ${n}` : ""})</CardTitle>
+                  <CardDescription>Click a row to view risk variable breakdown. Delta shows computed vs SN risk difference.</CardDescription>
+                </CardHeader>
+                <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
+                      <tr className="border-b border-gray-100 dark:border-gray-800">
+                        <th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Computed</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Level</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">SN Risk</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Delta</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">State</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Likelihood">L</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Impact Severity">I</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Velocity Modifier">V</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Control Credit">C</th>
+                      </tr>
+                    </thead>
+                    <tbody>{filteredRisk.map((r) => (<tr key={r.cr.number} className={`cursor-pointer border-b border-gray-50 dark:border-gray-800 hover:bg-blue-50 dark:hover:bg-blue-950/30 ${selectedRiskCR === r.cr.number ? "bg-blue-50 dark:bg-blue-950/30" : ""}`} onClick={() => setSelectedRiskCR(r.cr.number)}><td className="py-2.5"><span className="font-mono text-[11px] text-gray-400">{r.cr.number}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{r.cr.short_description}</p><p className="text-[11px] text-gray-400">{r.cr.assignment_group || "Unassigned"}</p></td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${riskBgCls(r.score)}`}>{r.score}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-semibold capitalize ${riskColor(r.score)}`}>{riskLbl(r.score)}</span></td><td className="py-2.5 text-center text-xs text-gray-600 dark:text-gray-400">{r.snRisk}</td><td className="py-2.5 text-center"><span className={`text-xs font-bold ${r.delta > 10 ? "text-red-600" : r.delta < -10 ? "text-green-600" : "text-gray-500"}`}>{r.delta > 0 ? "+" : ""}{r.delta}</span></td><td className="py-2.5 text-center"><span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{r.cr.state}</span></td><td className="py-2.5 text-center text-xs font-mono">{r.L}</td><td className="py-2.5 text-center text-xs font-mono">{r.I}</td><td className="py-2.5 text-center text-xs font-mono">{r.V}</td><td className="py-2.5 text-center text-xs font-mono">{r.C}</td></tr>))}</tbody></table></div></Card>
+            )}
+
+            {/* ── Selected CR Detail View ── */}
+            {selectedRiskItem && (() => {
+              const r = selectedRiskItem;
+              const planP = planResults.find(p => p.cr.number === r.cr.number);
+              const planReadiness = planP?.overallScore ?? 0;
+              const radarData = [
+                { variable: "Likelihood (L)", value: r.L * 20, fullMark: 100 },
+                { variable: "Impact Severity (I)", value: r.I * 20, fullMark: 100 },
+                { variable: "Velocity (V)", value: r.V * 100, fullMark: 100 },
+                { variable: "Control Credit (C)", value: r.C * 4, fullMark: 100 },
+                { variable: "SN Risk Score", value: r.snScore, fullMark: 100 },
+                { variable: "Computed Risk", value: r.score, fullMark: 100 },
+                { variable: "Plan Readiness", value: planReadiness, fullMark: 100 },
+              ];
+              const barData = [
+                { name: "Likelihood (L)", raw: r.L, scaled: r.L * 20, max: 5, fill: "#6366f1" },
+                { name: "Impact (I)", raw: r.I, scaled: r.I * 20, max: 5, fill: "#8b5cf6" },
+                { name: "Velocity (V)", raw: r.V, scaled: r.V * 100, max: 0.8, fill: "#a855f7" },
+                { name: "Control (C)", raw: r.C, scaled: r.C * 4, max: 25, fill: "#14b8a6" },
+                { name: "Computed Risk", raw: r.score, scaled: r.score, max: 100, fill: "#ef4444" },
+                { name: "SN Risk Score", raw: r.snScore, scaled: r.snScore, max: 100, fill: "#f97316" },
+                { name: "Plan Readiness", raw: planReadiness, scaled: planReadiness, max: 100, fill: "#22c55e" },
+              ];
+              return (
+                <div className="space-y-6">
+                  <Card className="border-purple-200 bg-purple-50/30 dark:border-purple-900 dark:bg-purple-950/20">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-purple-600" />{r.cr.number} — Risk Variable Breakdown</CardTitle>
+                          <CardDescription className="mt-1">{r.cr.short_description}</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-center">
+                            <span className={`inline-block rounded-full px-4 py-1.5 text-lg font-bold ${riskBgCls(r.score)}`}>{r.score}</span>
+                            <p className={`text-xs font-semibold mt-1 capitalize ${riskColor(r.score)}`}>{riskLbl(r.score)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <div className="grid grid-cols-4 gap-3 text-center px-4 pb-4">
+                      <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-purple-100 dark:border-purple-900">
+                        <p className="text-xs text-gray-500">Likelihood (L)</p>
+                        <p className="text-xl font-bold text-indigo-600">{r.L}</p>
+                      </div>
+                      <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-purple-100 dark:border-purple-900">
+                        <p className="text-xs text-gray-500">Impact (I)</p>
+                        <p className="text-xl font-bold text-purple-600">{r.I}</p>
+                      </div>
+                      <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-purple-100 dark:border-purple-900">
+                        <p className="text-xs text-gray-500">Velocity (V)</p>
+                        <p className="text-xl font-bold text-violet-600">{r.V}</p>
+                      </div>
+                      <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-purple-100 dark:border-purple-900">
+                        <p className="text-xs text-gray-500">Control (C)</p>
+                        <p className="text-xl font-bold text-teal-600">{r.C}</p>
+                      </div>
+                    </div>
+                  </Card>
+
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    {/* Radar Chart */}
+                    <Card>
+                      <CardHeader><CardTitle className="text-sm">Risk Variable Radar — {r.cr.number}</CardTitle><CardDescription>All variables normalized to 0–100 scale for comparison</CardDescription></CardHeader>
+                      <div className="h-96">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart data={radarData}>
+                            <PolarGrid stroke="#e2e8f0" />
+                            <PolarAngleAxis dataKey="variable" tick={{ fontSize: 12, fontWeight: 600 }} />
+                            <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
+                            <Radar name="Value" dataKey="value" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.2} strokeWidth={2} />
+                          </RadarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </Card>
+
+                    {/* Bar Chart */}
+                    <Card>
+                      <CardHeader><CardTitle className="text-sm">Variable Values — {r.cr.number}</CardTitle><CardDescription>Raw and normalized scores for each risk dimension</CardDescription></CardHeader>
+                      <div className="h-96">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={barData} layout="vertical" barCategoryGap="20%">
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                            <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} stroke="#94a3b8" width={110} />
+                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} // eslint-disable-next-line @typescript-eslint/no-explicit-any
+formatter={(_value: any, _name: any, props: any) => [`${props.payload.raw} (scaled: ${props.payload.scaled})`, props.payload.name]} />
+                            <Bar dataKey="scaled" name="Scaled (0-100)" radius={[0, 4, 4, 0]}>
+                              {barData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* Formula breakdown */}
+                  <Card>
+                    <CardHeader><CardTitle className="text-sm">Formula Breakdown</CardTitle></CardHeader>
+                    <div className="px-4 pb-4 space-y-2 text-sm">
+                      <p className="font-mono text-purple-700 dark:text-purple-400">Risk = (L × I / 25 × 100) × (1 + V) − C</p>
+                      <p className="font-mono text-gray-600 dark:text-gray-400">= ({r.L} × {r.I} / 25 × 100) × (1 + {r.V}) − {r.C}</p>
+                      <p className="font-mono text-gray-600 dark:text-gray-400">= {(r.L * r.I / 25 * 100).toFixed(1)} × {(1 + r.V).toFixed(1)} − {r.C}</p>
+                      <p className="font-mono font-bold text-gray-900 dark:text-gray-100">= {r.score} ({riskLbl(r.score)})</p>
+                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+                        <span>SN Risk: <strong>{r.snRisk}</strong> ({r.snScore})</span>
+                        <span>Delta: <strong className={r.delta > 10 ? "text-red-600" : r.delta < -10 ? "text-green-600" : ""}>{r.delta > 0 ? "+" : ""}{r.delta}</strong></span>
+                        <span>Plan Readiness: <strong className={pColor(planReadiness)}>{planReadiness}</strong></span>
+                        <span>State: <strong>{r.cr.state}</strong></span>
+                        <span>Type: <strong>{r.cr.type || "—"}</strong></span>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              );
+            })()}
+
+            {/* ── Charts below (when no CR selected) ── */}
+            {!selectedRiskCR && (<>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Avg Risk Score</p><p className={`mt-1 text-3xl font-bold ${riskColor(avgScore)}`}>{avgScore}</p><p className="text-xs text-gray-400">{riskLbl(avgScore)}</p></Card>
+                <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Max Risk Score</p><p className={`mt-1 text-3xl font-bold ${riskColor(maxScore)}`}>{maxScore}</p></Card>
+                <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Critical (≥75)</p><p className="mt-1 text-3xl font-bold text-red-600">{critCount}</p></Card>
+                <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">High (50-74)</p><p className="mt-1 text-3xl font-bold text-orange-600">{highCount}</p></Card>
+              </div>
+
+              <Card className="border-purple-200 bg-purple-50/30 dark:border-purple-900 dark:bg-purple-950/20">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2"><Info className="h-5 w-5 text-purple-600" />Risk Assessment Formula (ISO 31000 / NIST SP 800-30)</CardTitle>
+                    <button onClick={() => setRiskFormulaOpen(!riskFormulaOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900">{riskFormulaOpen ? "▲ Collapse" : "▼ Expand"}</button>
+                  </div>
+                  <CardDescription className="text-sm">Risk = (L × I / 25 × 100) × (1 + V) − C. Industry-standard 5×5 risk matrix approach.</CardDescription>
+                </CardHeader>
+                {riskFormulaOpen && (<>
+                  <div className="rounded-lg bg-white dark:bg-gray-900 border border-purple-100 dark:border-purple-900 p-5 space-y-4">
+                    <p className="text-lg font-bold font-mono text-purple-700 dark:text-purple-400">Risk Score = (L × I / 25 × 100) × (1 + V) − C</p>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      <div className="rounded-lg border border-purple-100 dark:border-purple-800 p-3 space-y-1"><p className="text-sm font-bold text-purple-700 dark:text-purple-300">L — Likelihood (1–5)</p><p className="text-xs text-gray-600 dark:text-gray-400">Average of Priority and Urgency scores, each mapped to 1–5.</p></div>
+                      <div className="rounded-lg border border-purple-100 dark:border-purple-800 p-3 space-y-1"><p className="text-sm font-bold text-purple-700 dark:text-purple-300">I — Impact Severity (1–5)</p><p className="text-xs text-gray-600 dark:text-gray-400">Average of Impact, Risk, and Scope fields, each mapped to 1–5.</p></div>
+                      <div className="rounded-lg border border-purple-100 dark:border-purple-800 p-3 space-y-1"><p className="text-sm font-bold text-purple-700 dark:text-purple-300">V — Velocity Modifier (0–0.8)</p><p className="text-xs text-gray-600 dark:text-gray-400">Emergency → 0.8, Normal → 0.3, Standard → 0.1.</p></div>
+                      <div className="rounded-lg border border-purple-100 dark:border-purple-800 p-3 space-y-1"><p className="text-sm font-bold text-purple-700 dark:text-purple-300">C — Control Credit (0–25)</p><p className="text-xs text-gray-600 dark:text-gray-400">Backout → −10, Test → −8, Implementation → −7.</p></div>
+                    </div>
+                  </div>
+                </>)}
+              </Card>
+
+              {/* ── Score Comparison + Heatmap + Scatter in 2-col grid ── */}
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                {(() => {
+                  const planMap = new Map(planResults.map(p => [p.cr.number, p.overallScore]));
+                  const chartData = riskResults.slice(0, 30).map((r2) => ({
+                    name: r2.cr.number.replace("CHG", ""),
+                    snScore: r2.snScore,
+                    planScore: planMap.get(r2.cr.number) ?? 0,
+                    riskScore: r2.score,
+                  }));
+                  return (
+                    <Card>
+                      <CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-purple-500" /> Score Comparison — Top 30</CardTitle><CardDescription>SN Risk vs Plan Readiness vs Computed Risk</CardDescription></CardHeader>
+                      <div className="h-72"><ResponsiveContainer width="100%" height="100%"><BarChart data={chartData} barGap={1} barCategoryGap="15%"><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis dataKey="name" tick={{ fontSize: 9 }} stroke="#94a3b8" angle={-45} textAnchor="end" height={50} /><YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" domain={[0, 100]} /><Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }} /><Legend wrapperStyle={{ fontSize: "12px" }} /><Bar dataKey="snScore" name="SN Risk" fill="#6366f1" radius={[2, 2, 0, 0]} /><Bar dataKey="planScore" name="Plan Readiness" fill="#14b8a6" radius={[2, 2, 0, 0]} /><Bar dataKey="riskScore" name="Computed Risk" fill="#ef4444" radius={[2, 2, 0, 0]} /></BarChart></ResponsiveContainer></div>
+                    </Card>
+                  );
+                })()}
+
+                {/* Plan Readiness vs Computed Risk Scatter Plot */}
+                {(() => {
+                  const planMap = new Map(planResults.map(p => [p.cr.number, p.overallScore]));
+                  const scatterData = riskResults.map((r2) => ({
+                    planReadiness: planMap.get(r2.cr.number) ?? 0,
+                    riskScore: r2.score,
+                    name: r2.cr.number,
+                    desc: r2.cr.short_description.slice(0, 40),
+                  }));
+                  return (
+                    <Card>
+                      <CardHeader><CardTitle className="flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-teal-500" /> Plan Readiness vs Computed Risk</CardTitle><CardDescription>Bottom-right = high risk + weak plans.</CardDescription></CardHeader>
+                      <div className="h-72 px-2"><ResponsiveContainer width="100%" height="100%"><ScatterChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis type="number" dataKey="planReadiness" name="Plan Readiness" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" label={{ value: "Plan Readiness →", position: "insideBottom", offset: -5, fontSize: 10, fill: "#94a3b8" }} /><YAxis type="number" dataKey="riskScore" name="Computed Risk" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" label={{ value: "Risk →", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "#94a3b8" }} /><ZAxis range={[40, 200]} /><Tooltip cursor={{ strokeDasharray: "3 3" }} contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} labelFormatter={(_, payload) => payload?.[0]?.payload?.name || ""} /><Scatter name="Change Requests" data={scatterData} fill="#8b5cf6">{scatterData.map((d, i) => <Cell key={i} fill={d.riskScore >= 75 ? "#ef4444" : d.riskScore >= 50 ? "#f97316" : d.riskScore >= 25 ? "#eab308" : "#22c55e"} />)}</Scatter></ScatterChart></ResponsiveContainer></div>
+                    </Card>
+                  );
+                })()}
+
+                {/* 5×5 Likelihood × Impact Heatmap */}
+                {(() => {
+                  const matrix: Record<string, typeof riskResults> = {};
+                  for (let l = 1; l <= 5; l++) for (let ii = 1; ii <= 5; ii++) matrix[`${l}-${ii}`] = [];
+                  riskResults.forEach((r2) => {
+                    const lBucket = Math.max(1, Math.min(5, Math.round(r2.L)));
+                    const iBucket = Math.max(1, Math.min(5, Math.round(r2.I)));
+                    matrix[`${lBucket}-${iBucket}`]?.push(r2);
+                  });
+                  const cellColor = (l: number, ii: number) => { const v = l * ii; if (v >= 16) return "bg-red-500 text-white"; if (v >= 10) return "bg-orange-400 text-white"; if (v >= 5) return "bg-amber-300 text-gray-900"; return "bg-green-300 text-gray-900"; };
+                  const impLabels = ["", "1-Low", "2", "3", "4", "5-High"];
+                  const likLabels = ["", "1-Low", "2", "3", "4", "5-High"];
+                  return (
+                    <Card>
+                      <CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-purple-500" /> 5×5 Risk Heatmap</CardTitle><CardDescription>Likelihood × Impact matrix. Numbers = CR count per cell.</CardDescription></CardHeader>
+                      <div className="px-4 pb-4"><div className="flex"><div className="flex flex-col items-center justify-center mr-1 w-6"><span className="text-[9px] text-gray-400 [writing-mode:vertical-lr] rotate-180">Likelihood →</span></div><div className="flex-1"><div className="grid grid-cols-6 gap-0.5"><div className="h-8" />{[1,2,3,4,5].map(ii => <div key={ii} className="h-8 flex items-center justify-center text-[10px] font-semibold text-gray-500">{impLabels[ii]}</div>)}{[5,4,3,2,1].map(l => (<><div key={`l-${l}`} className="h-14 flex items-center justify-center text-[10px] font-semibold text-gray-500">{likLabels[l]}</div>{[1,2,3,4,5].map(ii => { const items = matrix[`${l}-${ii}`] || []; return (<div key={`${l}-${ii}`} className={`h-14 rounded flex flex-col items-center justify-center ${cellColor(l, ii)} transition-all hover:scale-105`} title={items.map(r2 => r2.cr.number).join(", ") || "No CRs"}><span className="text-lg font-bold">{items.length || ""}</span>{items.length > 0 && <span className="text-[8px] opacity-75">{items.length === 1 ? "CR" : "CRs"}</span>}</div>); })}</>))}</div><p className="text-center text-[9px] text-gray-400 mt-1">Impact Severity →</p></div></div></div>
+                    </Card>
+                  );
+                })()}
+
+                {/* Risk Distribution Pie */}
+                <Card>
+                  <CardHeader><CardTitle className="flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-purple-500" /> Risk Score Distribution</CardTitle></CardHeader>
+                  <div className="h-64"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={[{ name: "Critical (≥75)", value: critCount, fill: "#ef4444" },{ name: "High (50-74)", value: highCount, fill: "#f97316" },{ name: "Medium (25-49)", value: riskResults.filter(r2 => r2.score>=25 && r2.score<50).length, fill: "#eab308" },{ name: "Low (<25)", value: riskResults.filter(r2 => r2.score<25).length, fill: "#22c55e" }].filter(d => d.value > 0)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`} /><Legend /><Tooltip /></PieChart></ResponsiveContainer></div>
+                </Card>
+              </div>
+            </>)}
           </div>
         );
       })()}
@@ -829,32 +854,31 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
               </CardHeader>
               {planScoringOpen && (<>
                 <div className="rounded-lg bg-white dark:bg-gray-900 border border-teal-100 dark:border-teal-900 p-5 space-y-4">
-                  <p className="text-lg font-bold font-mono text-teal-700 dark:text-teal-400">Readiness = Impl×0.25 + Backout×0.25 + Test×0.20 + Risk×0.15 + Change×0.10 + Justification×0.05</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold font-mono text-teal-700 dark:text-teal-400">Readiness = {PLAN_DIMS.map(d => `${d.label.split(" ")[0]}×${(planWeights[d.key]*100).toFixed(0)}%`).join(" + ")}</p>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-mono ${Math.abs(planWeightTotal - 1) > 0.01 ? "text-red-600 font-bold" : "text-gray-400"}`}>Total: {(planWeightTotal*100).toFixed(0)}%</span>
+                      <button onClick={resetPlanWeights} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-teal-600 hover:bg-teal-100 dark:hover:bg-teal-900"><RotateCcw className="h-3 w-3" /> Reset</button>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                    <div className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-1">
-                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300">Implementation Plan (25%)</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Scored by length, structured steps, and keyword coverage for: step, deploy, install, configure, verify, validate, monitor, rollout, pre-check, post-check, approval, schedule.</p>
-                    </div>
-                    <div className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-1">
-                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300">Backout Plan (25%)</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Scored by length, structured steps, and keyword coverage for: revert, rollback, restore, undo, previous, snapshot, backup, recovery, failover, downtime.</p>
-                    </div>
-                    <div className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-1">
-                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300">Test Plan (20%)</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Scored by length, structured steps, and keyword coverage for: test, verify, validate, smoke, regression, acceptance, integration, unit, performance, security, coverage.</p>
-                    </div>
-                    <div className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-1">
-                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300">Risk/Impact Analysis (15%)</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Scored by length, structured steps, and keyword coverage for: risk, impact, mitigation, contingency, fallback, probability, severity, exposure, vulnerability, dependency.</p>
-                    </div>
-                    <div className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-1">
-                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300">Change Plan (10%)</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Uses the same keyword set as Implementation Plan. Evaluates the overall change execution strategy.</p>
-                    </div>
-                    <div className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-1">
-                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300">Justification (5%)</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">Scored by length, structured steps, and keyword coverage for: business, requirement, need, value, benefit, compliance, security, improvement.</p>
-                    </div>
+                    {[
+                      { key: "implementation" as const, label: "Implementation Plan", desc: "step, deploy, install, configure, verify, validate, monitor, rollout, pre-check, post-check, approval, schedule" },
+                      { key: "backout" as const, label: "Backout Plan", desc: "revert, rollback, restore, undo, previous, snapshot, backup, recovery, failover, downtime" },
+                      { key: "testPlan" as const, label: "Test Plan", desc: "test, verify, validate, smoke, regression, acceptance, integration, unit, performance, security, coverage" },
+                      { key: "riskAnalysis" as const, label: "Risk/Impact Analysis", desc: "risk, impact, mitigation, contingency, fallback, probability, severity, exposure, vulnerability, dependency" },
+                      { key: "changePlan" as const, label: "Change Plan", desc: "Same keywords as Implementation. Overall change execution strategy." },
+                      { key: "justification" as const, label: "Justification", desc: "business, requirement, need, value, benefit, compliance, security, improvement" },
+                    ].map(dim => (
+                      <div key={dim.key} className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-bold text-teal-700 dark:text-teal-300">{dim.label}</p>
+                          <span className="text-sm font-mono font-bold text-teal-600 dark:text-teal-400">{(planWeights[dim.key]*100).toFixed(0)}%</span>
+                        </div>
+                        <input type="range" min="0" max="50" value={Math.round(planWeights[dim.key]*100)} onChange={(e) => setPlanWeight(dim.key, Number(e.target.value)/100)} className="w-full h-1.5 accent-teal-600" />
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400">Keywords: {dim.desc}</p>
+                      </div>
+                    ))}
                   </div>
                   <div className="space-y-2">
                     <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Scoring Factors (each plan scored 0–100):</p>
@@ -911,24 +935,30 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                       </div>
                     </div>
                   </CardHeader>
-                  <div className="grid grid-cols-4 gap-3 text-center">
-                    <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
-                      <p className="text-xs text-gray-500">Readiness</p>
-                      <p className={`text-xl font-bold ${pColor(selectedPlan.overallScore)}`}>{selectedPlan.overallScore}/100</p>
-                    </div>
-                    <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
-                      <p className="text-xs text-gray-500">Missing Plans</p>
-                      <p className={`text-xl font-bold ${selectedPlan.gapCount > 0 ? "text-red-600" : "text-green-600"}`}>{selectedPlan.gapCount}</p>
-                    </div>
-                    <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
-                      <p className="text-xs text-gray-500">State</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{selectedPlan.cr.state}</p>
-                    </div>
-                    <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
-                      <p className="text-xs text-gray-500">SN Risk</p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{selectedPlan.cr.risk || "—"}</p>
-                    </div>
-                  </div>
+                  {(() => {
+                    const dimScores = PLAN_DIMS.map(d => selectedPlan[d.key].quality);
+                    const avgDim = Math.round(dimScores.reduce((a, b) => a + b, 0) / dimScores.length);
+                    return (
+                      <div className="grid grid-cols-4 gap-3 text-center">
+                        <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
+                          <p className="text-xs text-gray-500">Readiness</p>
+                          <p className={`text-xl font-bold ${pColor(selectedPlan.overallScore)}`}>{selectedPlan.overallScore}/100</p>
+                        </div>
+                        <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
+                          <p className="text-xs text-gray-500">Avg Dimension</p>
+                          <p className={`text-xl font-bold ${pColor(avgDim)}`}>{avgDim}/100</p>
+                        </div>
+                        <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
+                          <p className="text-xs text-gray-500">Missing Plans</p>
+                          <p className={`text-xl font-bold ${selectedPlan.gapCount > 0 ? "text-red-600" : "text-green-600"}`}>{selectedPlan.gapCount}</p>
+                        </div>
+                        <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
+                          <p className="text-xs text-gray-500">SN Risk</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{selectedPlan.cr.risk || "—"}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </Card>
 
                 {/* ── Two-column layout: Left = Radar + Plan Content, Right = Dimensions & Impact ── */}
