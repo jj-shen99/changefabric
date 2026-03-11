@@ -10,6 +10,7 @@ import {
   CheckCircle2, XCircle, Pause, Play, RotateCcw, Radar as RadarIcon, ShieldCheck,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/card";
+import { PageHeader } from "@/components/page-header";
 import { useAnalytics } from "@/hooks/use-analytics";
 
 const RISK_COLORS: Record<string, string> = {
@@ -75,10 +76,7 @@ export default function RiskRadarPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Risk & Confidence</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Multi-dimensional risk analysis and release confidence scoring</p>
-      </div>
+      <PageHeader title="Risk & Confidence" subtitle="Multi-dimensional risk analysis and release confidence scoring" />
 
       {/* Top-Level Tabs */}
       <div className="flex gap-1 border-b border-gray-200 pb-0.5 dark:border-gray-800">

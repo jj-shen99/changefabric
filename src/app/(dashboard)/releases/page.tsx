@@ -12,6 +12,7 @@ import {
   CartesianGrid, Legend, LineChart, Line,
 } from "recharts";
 import { Card, CardHeader, CardTitle } from "@/components/card";
+import { PageHeader } from "@/components/page-header";
 import { RiskBadge } from "@/components/risk-badge";
 import { ChangeStatusBadge, ValidationStatusBadge } from "@/components/status-badge";
 import { useData } from "@/hooks";
@@ -149,12 +150,7 @@ export default function ReleasesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Releases & Validations</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Release timeline, deployment readiness, and validation tracking</p>
-        </div>
-      </div>
+      <PageHeader title="Releases & Validations" subtitle="Release timeline, deployment readiness, and validation tracking" />
 
       {/* Top-Level Tabs */}
       <div className="flex gap-1 border-b border-gray-200 pb-0.5 dark:border-gray-800">

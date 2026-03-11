@@ -9,6 +9,7 @@ import {
   TestTube2, Play, Pause,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle } from "@/components/card";
+import { PageHeader } from "@/components/page-header";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useData } from "@/hooks/use-data";
 
@@ -81,24 +82,18 @@ export default function ExecutivePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Release Overview</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Organization-wide software delivery health — validations, risk, confidence & DORA
-          </p>
-        </div>
+      <PageHeader title="Release Overview" subtitle="Organization-wide software delivery health — validations, risk, confidence & DORA" actions={
         <div className="flex items-center gap-2">
           {blockersCount > 0 && (
             <span className="flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700 dark:bg-red-900 dark:text-red-300">
               <AlertTriangle className="h-3 w-3" /> {blockersCount} release{blockersCount > 1 ? "s" : ""} with blockers
             </span>
           )}
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-400">
+          <span className="rounded-full bg-blue-50/20 px-3 py-1 text-xs font-medium text-blue-300">
             {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
           </span>
         </div>
-      </div>
+      } />
 
       {/* Top KPI Row */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

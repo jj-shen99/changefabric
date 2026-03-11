@@ -26,6 +26,7 @@ import { Card, CardHeader, CardTitle } from "@/components/card";
 import { RiskBadge } from "@/components/risk-badge";
 import { ChangeStatusBadge } from "@/components/status-badge";
 import { RiskGauge } from "@/components/risk-gauge";
+import { PageHeader } from "@/components/page-header";
 import { useData } from "@/hooks";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
@@ -59,20 +60,12 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Dashboard Overview</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Software Change & Release Validation — {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
-            System Healthy
-          </span>
-        </div>
-      </div>
+      <PageHeader title="Dashboard Overview" subtitle={`Software Change & Release Validation — ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}`} actions={
+        <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+          System Healthy
+        </span>
+      } />
 
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4">

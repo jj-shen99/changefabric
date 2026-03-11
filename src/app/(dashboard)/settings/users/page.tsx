@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePermissions } from "@/hooks";
 import { Card, CardHeader, CardTitle } from "@/components/card";
+import { PageHeader } from "@/components/page-header";
 import { Shield, Trash2, Loader2, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -102,18 +103,12 @@ export default function UserManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">User Management</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Manage user accounts and role assignments
-          </p>
-        </div>
-        <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-400">
+      <PageHeader title="User Management" subtitle="Manage user accounts and role assignments" actions={
+        <div className="flex items-center gap-2 rounded-lg bg-blue-50/20 px-3 py-1 text-xs font-medium text-blue-300">
           <UserPlus className="h-3.5 w-3.5" />
           {users.length} users
         </div>
-      </div>
+      } />
 
       {error && (
         <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">{error}</div>

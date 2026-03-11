@@ -14,6 +14,7 @@ import {
   Users,
   Radar,
   Crown,
+  KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS } from "@/lib/constants";
@@ -53,13 +54,13 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
       className="flex w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
       aria-label="Main navigation"
     >
-      <div className="flex h-16 items-center gap-2 border-b border-gray-200 px-6 dark:border-gray-800">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
-          <GitPullRequest className="h-4 w-4 text-white" aria-hidden="true" />
+      <div className="flex h-11 items-center gap-2 bg-gradient-to-r from-slate-700 to-slate-800 px-4 dark:from-slate-800 dark:to-slate-900">
+        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-blue-500">
+          <GitPullRequest className="h-3.5 w-3.5 text-white" aria-hidden="true" />
         </div>
-        <div>
-          <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100">Change & Release</h1>
-          <p className="text-[10px] text-gray-500 dark:text-gray-400">Validation Dashboard</p>
+        <div className="flex items-baseline gap-1.5">
+          <h1 className="text-sm font-bold text-white">Change & Release</h1>
+          <p className="text-[10px] text-slate-400">Validation Dashboard</p>
         </div>
       </div>
 
@@ -102,6 +103,22 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
       </nav>
 
       <div className="border-t border-gray-200 p-3 space-y-1 dark:border-gray-800">
+        <Link
+          href="/settings/account"
+          aria-current={pathname === "/settings/account" ? "page" : undefined}
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+            pathname === "/settings/account"
+              ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
+              : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+          )}
+        >
+          <KeyRound
+            className={cn("h-4 w-4", pathname === "/settings/account" ? "text-blue-700 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")}
+            aria-hidden="true"
+          />
+          Account
+        </Link>
         {permissions.canManageUsers && (
           <Link
             href="/settings/users"

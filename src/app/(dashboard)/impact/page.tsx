@@ -108,6 +108,13 @@ export default function ImpactPage() {
   const [planSearch, setPlanSearch] = useState("");
   const [selectedPlanCR, setSelectedPlanCR] = useState<string | null>(null);
   const [expandedPlanContent, setExpandedPlanContent] = useState<string | null>(null);
+  const [filterRisk, setFilterRisk] = useState<string>("all");
+  const [filterState, setFilterState] = useState<string>("all");
+  const [filterGroup, setFilterGroup] = useState<string>("all");
+  const [planFilterRisk, setPlanFilterRisk] = useState<string>("all");
+  const [planFilterState, setPlanFilterState] = useState<string>("all");
+  const [planFilterGroup, setPlanFilterGroup] = useState<string>("all");
+  const [planEvalOpen, setPlanEvalOpen] = useState(true);
   const [overrides, setOverrides] = useState<Record<string, Partial<DimensionScores>>>({});
 
   const setWeight = useCallback((key: keyof Weights, val: number) => { setWeights((p) => ({ ...p, [key]: val })); }, []);
@@ -119,11 +126,18 @@ export default function ImpactPage() {
     return { cr, dims, baseDims, overall: computeOverall(dims, weights) };
   }), [changeRequests, weights, overrides]);
 
+  const uniqueStates = useMemo(() => [...new Set(changeRequests.map((c) => c.state).filter(Boolean))].sort(), [changeRequests]);
+  const uniqueGroups = useMemo(() => [...new Set(changeRequests.map((c) => c.assignment_group).filter(Boolean))].sort(), [changeRequests]);
+  const uniqueRiskLevels = useMemo(() => [...new Set(changeRequests.map((c) => c.risk).filter(Boolean))].sort(), [changeRequests]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    const list = q ? scored.filter((s) => s.cr.number.toLowerCase().includes(q) || s.cr.short_description.toLowerCase().includes(q) || s.cr.assignment_group.toLowerCase().includes(q)) : scored;
+    let list = q ? scored.filter((s) => s.cr.number.toLowerCase().includes(q) || s.cr.short_description.toLowerCase().includes(q) || s.cr.assignment_group.toLowerCase().includes(q)) : scored;
+    if (filterRisk !== "all") list = list.filter((s) => s.cr.risk === filterRisk);
+    if (filterState !== "all") list = list.filter((s) => s.cr.state === filterState);
+    if (filterGroup !== "all") list = list.filter((s) => s.cr.assignment_group === filterGroup);
     return [...list].sort((a, b) => b.overall - a.overall);
-  }, [scored, search]);
+  }, [scored, search, filterRisk, filterState, filterGroup]);
 
   const planResults = useMemo(() => changeRequests.map((c) => {
     const implementation = scorePlan(c.implementation_plan, IMPL_KW, "implementation plan");
@@ -193,10 +207,8 @@ export default function ImpactPage() {
   }
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader title="Impact Analysis" subtitle="Computed impact scores from ServiceNow fields — click a row for details, adjust weights for what-if analysis" />
-      <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6 dark:bg-gray-950">
-      <div className="space-y-6">
 
       {/* ═══ Tabs ═══ */}
       <div className="flex gap-1 border-b border-gray-200 pb-0.5 dark:border-gray-800 overflow-x-auto">
@@ -257,7 +269,21 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
       {/* ═══ ANALYSIS TAB ═══ */}
       {activeTab === "analysis" && (
       <div className="space-y-6">
-      <div className="flex items-center gap-3"><div className="relative flex-1 max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={search} onChange={(e) => setSearch(e.target.value)} /></div></div>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+        <select value={filterRisk} onChange={(e) => setFilterRisk(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+          <option value="all">All Risk Levels</option>
+          {uniqueRiskLevels.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+          <option value="all">All States</option>
+          {uniqueStates.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+          <option value="all">All Groups</option>
+          {uniqueGroups.map((g) => <option key={g} value={g}>{g}</option>)}
+        </select>
+      </div>
       <Card><CardHeader><CardTitle>Risk Heatmap — All Change Requests ({filtered.length})</CardTitle><CardDescription>Click a row to view detailed impact analysis and what-if recalculation</CardDescription></CardHeader><div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-white dark:bg-gray-900 z-10"><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Overall</th>{DIMS.map((d) => (<th key={d.key} className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">{d.label}</th>))}<th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">State</th></tr></thead><tbody>{filtered.map((s) => (<tr key={s.cr.number} className={`cursor-pointer border-b border-gray-50 dark:border-gray-800 transition-colors hover:bg-blue-50 dark:hover:bg-blue-950/30 ${activeNum === s.cr.number ? "bg-blue-50 dark:bg-blue-950/30" : ""}`} onClick={() => setSelectedCR(s.cr.number)}><td className="py-2.5"><span className="font-mono text-[10px] text-gray-400">{s.cr.number}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{s.cr.short_description}</p><p className="text-[10px] text-gray-400">{s.cr.assignment_group || "Unassigned"}</p></td><td className="py-2.5 text-center"><RiskBadge score={s.overall} size="sm" /></td>{DIMS.map((d) => (<td key={d.key} className="py-2.5 text-center"><span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${getRiskBg(s.dims[d.key])}`}>{s.dims[d.key]}</span></td>))}<td className="py-2.5 text-center"><span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{s.cr.state}</span></td></tr>))}</tbody></table></div></Card>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card><CardHeader><CardTitle className="text-sm">Impact Radar — {cr.number}</CardTitle><CardDescription className="line-clamp-1">{cr.short_description}</CardDescription></CardHeader><div className="h-72"><ResponsiveContainer width="100%" height="100%"><RadarChart data={radarData}><PolarGrid stroke="#e2e8f0" /><PolarAngleAxis dataKey="dimension" tick={{ fontSize: 11 }} /><PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} /><Radar name="Score" dataKey="score" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} strokeWidth={2} /></RadarChart></ResponsiveContainer></div><div className="flex justify-center"><RiskGauge score={overall} label="Overall Impact" size="lg" /></div></Card>
@@ -322,7 +348,10 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
       {/* ═══ PLAN ANALYSIS TAB ═══ */}
       {activeTab === "plans" && (() => {
         const pq = planSearch.toLowerCase();
-        const filteredPlans = pq ? planResults.filter((p) => p.cr.number.toLowerCase().includes(pq) || p.cr.short_description.toLowerCase().includes(pq) || p.cr.assignment_group.toLowerCase().includes(pq)) : planResults;
+        let filteredPlans = pq ? planResults.filter((p) => p.cr.number.toLowerCase().includes(pq) || p.cr.short_description.toLowerCase().includes(pq) || p.cr.assignment_group.toLowerCase().includes(pq)) : planResults;
+        if (planFilterRisk !== "all") filteredPlans = filteredPlans.filter((p) => p.cr.risk === planFilterRisk);
+        if (planFilterState !== "all") filteredPlans = filteredPlans.filter((p) => p.cr.state === planFilterState);
+        if (planFilterGroup !== "all") filteredPlans = filteredPlans.filter((p) => p.cr.assignment_group === planFilterGroup);
         const selectedPlan = selectedPlanCR ? planResults.find((p) => p.cr.number === selectedPlanCR) : null;
         const n = planResults.length;
         const avgScore = n>0?Math.round(planResults.reduce((a, p) => a+p.overallScore, 0)/n):0;
@@ -345,12 +374,24 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
 
         return (
           <div className="space-y-6">
-            {/* Search bar */}
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1 max-w-md">
+            {/* Search bar + filters */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px] max-w-md">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input type="text" placeholder="Search CR by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={planSearch} onChange={(e) => setPlanSearch(e.target.value)} />
               </div>
+              <select value={planFilterRisk} onChange={(e) => setPlanFilterRisk(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <option value="all">All Risk Levels</option>
+                {uniqueRiskLevels.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <select value={planFilterState} onChange={(e) => setPlanFilterState(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <option value="all">All States</option>
+                {uniqueStates.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={planFilterGroup} onChange={(e) => setPlanFilterGroup(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <option value="all">All Groups</option>
+                {uniqueGroups.map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
               {selectedPlanCR && (
                 <button onClick={() => { setSelectedPlanCR(null); setExpandedPlanContent(null); }} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">← Back to Overview</button>
               )}
@@ -526,7 +567,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
             ) : (
             /* ── Overview Mode ── */
             <div className="space-y-6">
-            <Card className="border-teal-200 bg-teal-50/30 dark:border-teal-900 dark:bg-teal-950/20"><CardHeader><CardTitle className="text-base flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-teal-600" />Plan Quality &amp; Risk Evaluation</CardTitle><CardDescription className="text-sm">Evaluates each change request&apos;s plans for completeness, structure, and keyword coverage. A low readiness score indicates higher deployment risk.</CardDescription></CardHeader><div className="grid grid-cols-3 gap-3 md:grid-cols-6">{PLAN_DIMS.map((d) => (<div key={d.key} className="rounded-lg border border-teal-100 bg-white p-3 dark:border-teal-900 dark:bg-gray-900"><div className="flex items-center gap-1.5 mb-1"><d.icon className="h-3.5 w-3.5 text-teal-500" /><span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{d.label}</span></div><span className="text-xs text-gray-400">Weight: {d.weight}</span></div>))}</div></Card>
+            <Card className="border-teal-200 bg-teal-50/30 dark:border-teal-900 dark:bg-teal-950/20"><CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><ClipboardCheck className="h-5 w-5 text-teal-600" />Plan Quality &amp; Risk Evaluation</CardTitle><button onClick={() => setPlanEvalOpen(!planEvalOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-teal-600 hover:bg-teal-100 dark:hover:bg-teal-900">{planEvalOpen ? "▲ Collapse" : "▼ Expand"}</button></div><CardDescription className="text-sm">Evaluates each change request&apos;s plans for completeness, structure, and keyword coverage. A low readiness score indicates higher deployment risk.</CardDescription></CardHeader>{planEvalOpen && <div className="grid grid-cols-3 gap-3 md:grid-cols-6">{PLAN_DIMS.map((d) => (<div key={d.key} className="rounded-lg border border-teal-100 bg-white p-3 dark:border-teal-900 dark:bg-gray-900"><div className="flex items-center gap-1.5 mb-1"><d.icon className="h-3.5 w-3.5 text-teal-500" /><span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{d.label}</span></div><span className="text-xs text-gray-400">Weight: {d.weight}</span></div>))}</div>}</Card>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
               <Card className="p-4"><div className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-teal-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Avg Readiness</span></div><p className={`mt-1 text-2xl font-bold ${pColor(avgScore)}`}>{avgScore}</p><p className="text-[11px] text-gray-400">{pLabel(avgScore)}</p></Card>
               <Card className="p-4"><div className="flex items-center gap-2"><XCircle className="h-4 w-4 text-red-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Critical / High Risk</span></div><p className="mt-1 text-2xl font-bold text-red-600">{critCount+highCount}</p><p className="text-[11px] text-gray-400">{critCount} critical, {highCount} high</p></Card>
@@ -583,7 +624,5 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
       })()}
 
     </div>
-    </main>
-    </>
   );
 }

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useDebounce, useData, usePermissions } from "@/hooks";
 import { PAGINATION } from "@/lib/constants";
 import { Card, CardHeader, CardTitle } from "@/components/card";
+import { PageHeader } from "@/components/page-header";
 import { RiskBadge } from "@/components/risk-badge";
 import { ChangeStatusBadge, ValidationStatusBadge } from "@/components/status-badge";
 import { formatDate } from "@/lib/utils";
@@ -63,11 +64,7 @@ export default function ChangesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Change Requests</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Track and manage all software change requests</p>
-        </div>
+      <PageHeader title="Change Requests" subtitle="Track and manage all software change requests" actions={
         <button
           onClick={async () => {
             setSyncing(true);
@@ -87,12 +84,12 @@ export default function ChangesPage() {
             }
           }}
           disabled={syncing}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-lg bg-blue-500/80 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
         >
-          {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           {syncing ? "Syncing..." : "Refresh Data"}
         </button>
-      </div>
+      } />
 
       {showCreate && canManageChanges && <CreateChangeForm onCreated={() => { setShowCreate(false); refetch(); }} onCancel={() => setShowCreate(false)} />}
 

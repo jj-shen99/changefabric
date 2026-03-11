@@ -2,6 +2,7 @@
 
 import { Bell, Shield, Users, Database } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
+import { PageHeader } from "@/components/page-header";
 
 const settingSections = [
   {
@@ -52,10 +53,7 @@ const settingSections = [
 export default function SettingsPage() {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">Configure dashboard policies, alert thresholds, and validation requirements</p>
-      </div>
+      <PageHeader title="Settings" subtitle="Configure dashboard policies, alert thresholds, and validation requirements" />
 
       <div className="space-y-6">
         {settingSections.map((section) => (
