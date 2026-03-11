@@ -9,7 +9,7 @@ import {
 import {
   Shield, AlertTriangle, Gauge, Zap, Layers, Settings2, RotateCcw, Search,
   LayoutDashboard, BarChart3, PieChart as PieChartIcon, ShieldAlert, Info,
-  Brain, GitCommitHorizontal, RefreshCw, ExternalLink, FileCode2, User,
+  Brain, GitCommitHorizontal, RefreshCw, ExternalLink, FileCode2, User, Calendar,
   ClipboardCheck, FileText, CheckCircle2, XCircle, AlertCircle,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
@@ -93,10 +93,10 @@ function scorePlan(text: string, keywords: string[], planName: string): PlanScor
 /* ═══════════════════════════════════════════════════════════════════ */
 
 export default function ImpactPage() {
-  const { changeRequests, loading, error } = useData();
+  const [days, setDays] = useState(7);
+  const { changeRequests, loading, error } = useData(days);
   const [selectedCR, setSelectedCR] = useState<string | null>(null);
   const [weights, setWeights] = useState<Weights>({ ...DEFAULT_WEIGHTS });
-  const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"overview"|"analysis"|"risk"|"ml"|"plans">("overview");
   const [weightsOpen, setWeightsOpen] = useState(false);
   const [gitData, setGitData] = useState<GitAnalysisData | null>(null);
@@ -108,9 +108,6 @@ export default function ImpactPage() {
   const [planSearch, setPlanSearch] = useState("");
   const [selectedPlanCR, setSelectedPlanCR] = useState<string | null>(null);
   const [expandedPlanContent, setExpandedPlanContent] = useState<string | null>(null);
-  const [filterRisk, setFilterRisk] = useState<string>("all");
-  const [filterState, setFilterState] = useState<string>("all");
-  const [filterGroup, setFilterGroup] = useState<string>("all");
   const [planFilterRisk, setPlanFilterRisk] = useState<string>("all");
   const [planFilterState, setPlanFilterState] = useState<string>("all");
   const [planFilterGroup, setPlanFilterGroup] = useState<string>("all");
@@ -136,14 +133,6 @@ export default function ImpactPage() {
   const uniqueGroups = useMemo(() => [...new Set(changeRequests.map((c) => c.assignment_group).filter(Boolean))].sort(), [changeRequests]);
   const uniqueRiskLevels = useMemo(() => [...new Set(changeRequests.map((c) => c.risk).filter(Boolean))].sort(), [changeRequests]);
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    let list = q ? scored.filter((s) => s.cr.number.toLowerCase().includes(q) || s.cr.short_description.toLowerCase().includes(q) || s.cr.assignment_group.toLowerCase().includes(q)) : scored;
-    if (filterRisk !== "all") list = list.filter((s) => s.cr.risk === filterRisk);
-    if (filterState !== "all") list = list.filter((s) => s.cr.state === filterState);
-    if (filterGroup !== "all") list = list.filter((s) => s.cr.assignment_group === filterGroup);
-    return [...list].sort((a, b) => b.overall - a.overall);
-  }, [scored, search, filterRisk, filterState, filterGroup]);
 
   const planResults = useMemo(() => changeRequests.map((c) => {
     const implementation = scorePlan(c.implementation_plan, IMPL_KW, "implementation plan");
@@ -239,19 +228,27 @@ export default function ImpactPage() {
           { name: "Medium (40-59)", value: scored.filter((s) => s.overall >= 40 && s.overall < 60).length, fill: "#eab308" },
           { name: "Low (<40)", value: lowCount, fill: "#22c55e" },
         ].filter((d) => d.value > 0);
-        const topRisk = [...scored].sort((a, b) => b.overall - a.overall).slice(0, 5);
         return (
           <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-gray-500">Showing change requests from the last {days} days</h3>
+              <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 dark:border-gray-700 dark:bg-gray-800">
+                <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="bg-transparent text-xs font-medium text-gray-700 outline-none dark:text-gray-300">
+                  <option value={7}>Last 7 days</option>
+                  <option value={14}>Last 14 days</option>
+                  <option value={30}>Last 30 days</option>
+                  <option value={90}>Last 90 days</option>
+                </select>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Changes Analyzed</p><p className="mt-1 text-3xl font-bold text-gray-900 dark:text-gray-100">{totalCRs}</p></Card>
               <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Avg Impact Score</p><p className="mt-1 text-3xl font-bold text-gray-900 dark:text-gray-100">{avgOverall}</p><p className="text-xs text-gray-400">{getRiskLabel(avgOverall)}</p></Card>
               <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Critical / High Risk</p><p className="mt-1 text-3xl font-bold text-red-600">{criticalCount + highCount}</p><p className="text-xs text-gray-400">{criticalCount} critical, {highCount} high</p></Card>
               <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Low Risk</p><p className="mt-1 text-3xl font-bold text-green-600">{lowCount}</p><p className="text-xs text-gray-400">Score below 40</p></Card>
             </div>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <Card><CardHeader><CardTitle className="flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-blue-500" /> Impact Score Distribution</CardTitle></CardHeader><div className="h-72"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={riskDistData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, value }) => `${name}: ${value}`} /><Legend /><Tooltip /></PieChart></ResponsiveContainer></div></Card>
-              <Card><CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-500" /> Top 5 Highest Impact Changes</CardTitle></CardHeader><div className="space-y-3">{topRisk.map((s) => (<div key={s.cr.number} className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-950/20" onClick={() => { setSelectedCR(s.cr.number); setActiveTab("analysis"); }}><div className="flex-1 min-w-0"><div className="flex items-center gap-2"><span className="text-xs font-mono text-gray-400">{s.cr.number}</span><span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{s.cr.short_description}</span></div><p className="text-xs text-gray-400 mt-0.5">{s.cr.assignment_group || "Unassigned"} · {s.cr.state}</p></div><RiskBadge score={s.overall} /></div>))}</div></Card>
-            </div>
+            <Card><CardHeader><CardTitle className="flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-blue-500" /> Impact Score Distribution</CardTitle></CardHeader><div className="h-72"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={riskDistData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, value }) => `${name}: ${value}`} /><Legend /><Tooltip /></PieChart></ResponsiveContainer></div></Card>
             <Card><CardHeader><CardTitle>Average Impact Score by Category</CardTitle><CardDescription>Based on computed overall scores with current weights</CardDescription></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={categoryData} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#94a3b8" /><YAxis type="category" dataKey="category" tick={{ fontSize: 12 }} stroke="#94a3b8" width={100} /><Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }} // eslint-disable-next-line @typescript-eslint/no-explicit-any
 formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Impact"]} /><Bar dataKey="avgRisk" radius={[0, 4, 4, 0]}>{categoryData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.avgRisk >= 80 ? "#ef4444" : entry.avgRisk >= 60 ? "#f97316" : entry.avgRisk >= 40 ? "#eab308" : "#22c55e"} />))}</Bar></BarChart></ResponsiveContainer></div></Card>
 
@@ -416,22 +413,6 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
         </>)}
       </Card>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
-        <select value={filterRisk} onChange={(e) => setFilterRisk(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
-          <option value="all">All Risk Levels</option>
-          {uniqueRiskLevels.map((r) => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <select value={filterState} onChange={(e) => setFilterState(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
-          <option value="all">All States</option>
-          {uniqueStates.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select value={filterGroup} onChange={(e) => setFilterGroup(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
-          <option value="all">All Groups</option>
-          {uniqueGroups.map((g) => <option key={g} value={g}>{g}</option>)}
-        </select>
-      </div>
-      <Card><CardHeader><CardTitle>Risk Heatmap — All Change Requests ({filtered.length})</CardTitle><CardDescription>Click a row to view detailed impact analysis and what-if recalculation</CardDescription></CardHeader><div className="overflow-x-auto max-h-[420px] overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-white dark:bg-gray-900 z-10"><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Overall</th>{DIMS.map((d) => (<th key={d.key} className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">{d.label}</th>))}<th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">State</th></tr></thead><tbody>{filtered.map((s) => (<tr key={s.cr.number} className={`cursor-pointer border-b border-gray-50 dark:border-gray-800 transition-colors hover:bg-blue-50 dark:hover:bg-blue-950/30 ${activeNum === s.cr.number ? "bg-blue-50 dark:bg-blue-950/30" : ""}`} onClick={() => setSelectedCR(s.cr.number)}><td className="py-2.5"><span className="font-mono text-[10px] text-gray-400">{s.cr.number}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{s.cr.short_description}</p><p className="text-[10px] text-gray-400">{s.cr.assignment_group || "Unassigned"}</p></td><td className="py-2.5 text-center"><RiskBadge score={s.overall} size="sm" /></td>{DIMS.map((d) => (<td key={d.key} className="py-2.5 text-center"><span className={`inline-block rounded px-2 py-0.5 text-xs font-semibold ${getRiskBg(s.dims[d.key])}`}>{s.dims[d.key]}</span></td>))}<td className="py-2.5 text-center"><span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{s.cr.state}</span></td></tr>))}</tbody></table></div></Card>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* ── Column 1: Plan Readiness ── */}
         {(() => {
