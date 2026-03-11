@@ -97,7 +97,7 @@ export default function ImpactPage() {
   const { changeRequests, loading, error } = useData(days);
   const [selectedCR, setSelectedCR] = useState<string | null>(null);
   const [weights, setWeights] = useState<Weights>({ ...DEFAULT_WEIGHTS });
-  const [activeTab, setActiveTab] = useState<"overview"|"analysis"|"risk"|"ml"|"plans">("overview");
+  const [activeTab, setActiveTab] = useState<"overview"|"analysis"|"risk"|"ml"|"plans"|"mlTab">("overview");
   const [weightsOpen, setWeightsOpen] = useState(false);
   const [gitData, setGitData] = useState<GitAnalysisData | null>(null);
   const [gitLoading, setGitLoading] = useState(false);
@@ -114,6 +114,11 @@ export default function ImpactPage() {
   const [riskFormulaOpen, setRiskFormulaOpen] = useState(false);
   const [riskSearch, setRiskSearch] = useState("");
   const [planScoringOpen, setPlanScoringOpen] = useState(false);
+  const [mlSearch, setMlSearch] = useState("");
+  const [mlFilterRisk, setMlFilterRisk] = useState<string>("all");
+  const [mlFilterState, setMlFilterState] = useState<string>("all");
+  const [mlFilterGroup, setMlFilterGroup] = useState<string>("all");
+  const [selectedMlCR, setSelectedMlCR] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [mlAnalysis, setMlAnalysis] = useState<Record<string, any> | null>(null);
   const [mlLoading, setMlLoading] = useState(false);
@@ -131,7 +136,11 @@ export default function ImpactPage() {
 
   const uniqueStates = useMemo(() => [...new Set(changeRequests.map((c) => c.state).filter(Boolean))].sort(), [changeRequests]);
   const uniqueGroups = useMemo(() => [...new Set(changeRequests.map((c) => c.assignment_group).filter(Boolean))].sort(), [changeRequests]);
-  const uniqueRiskLevels = useMemo(() => [...new Set(changeRequests.map((c) => c.risk).filter(Boolean))].sort(), [changeRequests]);
+  const uniqueRiskLevels = useMemo(() => {
+    const fromData = changeRequests.map((c) => c.risk).filter(Boolean);
+    const standard = ["None", "Low", "Moderate", "High", "Very High"];
+    return [...new Set([...standard, ...fromData])].sort();
+  }, [changeRequests]);
 
 
   const planResults = useMemo(() => changeRequests.map((c) => {
@@ -211,6 +220,7 @@ export default function ImpactPage() {
         <button onClick={() => setActiveTab("overview")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="overview" ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><LayoutDashboard className="h-4 w-4" />Overview</button>
         <button onClick={() => setActiveTab("analysis")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="analysis" ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><BarChart3 className="h-4 w-4" />Detailed Analysis</button>
         <button onClick={() => setActiveTab("plans")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="plans" ? "border-b-2 border-teal-600 text-teal-600 bg-teal-50 dark:bg-teal-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><ClipboardCheck className="h-4 w-4" />Plan Analysis</button>
+        <button onClick={() => setActiveTab("mlTab")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="mlTab" ? "border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><Brain className="h-4 w-4" />ML Analysis</button>
         <button onClick={() => setActiveTab("risk")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="risk" ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><ShieldAlert className="h-4 w-4" />Risk Analysis</button>
         <button onClick={() => setActiveTab("ml")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="ml" ? "border-b-2 border-purple-600 text-purple-600 bg-purple-50 dark:bg-purple-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><Brain className="h-4 w-4" />Code Change Analysis</button>
       </div>
@@ -1102,197 +1112,6 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                   </div>
                 </Card>
 
-                {/* ── ML-Powered Content Analysis ── */}
-                {(() => {
-                  // Auto-fetch ML analysis when a plan CR is selected
-                  const crNum = selectedPlan.cr.number;
-                  const needsFetch = !mlAnalysis || mlAnalysis.number !== crNum;
-
-                  if (needsFetch && !mlLoading && !mlError) {
-                    // Trigger fetch (will re-render)
-                    setTimeout(() => {
-                      setMlLoading(true);
-                      setMlError(null);
-                      fetch(`/api/data/plan-analysis?number=${encodeURIComponent(crNum)}`)
-                        .then(r => r.ok ? r.json() : r.json().then(b => { throw new Error(b.error || `HTTP ${r.status}`); }))
-                        .then(data => { setMlAnalysis(data); setMlLoading(false); })
-                        .catch(err => { setMlError(err.message); setMlLoading(false); });
-                    }, 0);
-                  }
-
-                  if (mlLoading) return (
-                    <Card className="border-indigo-200 bg-indigo-50/30 dark:border-indigo-900 dark:bg-indigo-950/20">
-                      <CardHeader><CardTitle className="text-base flex items-center gap-2"><Brain className="h-5 w-5 text-indigo-600 animate-pulse" />Analyzing Implementation Plan…</CardTitle></CardHeader>
-                      <div className="space-y-3 p-4">{[1,2,3].map(i => <div key={i} className="h-16 animate-pulse rounded-lg bg-indigo-100/50 dark:bg-indigo-900/20" />)}</div>
-                    </Card>
-                  );
-
-                  if (mlError) return (
-                    <Card className="border-red-200 bg-red-50/30 dark:border-red-900 dark:bg-red-950/20">
-                      <CardHeader><CardTitle className="text-base flex items-center gap-2"><XCircle className="h-5 w-5 text-red-600" />Analysis Error</CardTitle></CardHeader>
-                      <p className="px-6 pb-4 text-sm text-red-600">{mlError}</p>
-                    </Card>
-                  );
-
-                  if (!mlAnalysis || mlAnalysis.number !== crNum) return null;
-
-                  const a = mlAnalysis;
-                  const pa = a.planAnalysis;
-                  const cp = a.changeProfile;
-                  const ap = a.appProfile;
-                  const recs = a.recommendations as { severity: string; category: string; title: string; detail: string }[];
-                  const asmt = a.assessment;
-
-                  const verdictColor = asmt.verdict === "approve" ? "bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-300 dark:border-green-700"
-                    : asmt.verdict === "approve-with-conditions" ? "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900 dark:text-amber-300 dark:border-amber-700"
-                    : asmt.verdict === "needs-rework" ? "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900 dark:text-orange-300 dark:border-orange-700"
-                    : "bg-red-100 text-red-700 border-red-300 dark:bg-red-900 dark:text-red-300 dark:border-red-700";
-
-                  const sevColor = (s: string) => s === "critical" ? "text-red-600 bg-red-50 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800"
-                    : s === "high" ? "text-orange-600 bg-orange-50 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800"
-                    : s === "medium" ? "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800"
-                    : "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800";
-
-                  const qualityScoreData = [
-                    { name: "Structure", score: pa.structureScore, fill: "#6366f1" },
-                    { name: "Completeness", score: pa.completenessScore, fill: "#0d9488" },
-                    { name: "Clarity", score: pa.clarityScore, fill: "#2563eb" },
-                    { name: "Risk Awareness", score: pa.riskAwarenessScore, fill: "#dc2626" },
-                  ];
-
-                  return (
-                    <Card className="border-indigo-200 bg-indigo-50/30 dark:border-indigo-900 dark:bg-indigo-950/20">
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <CardTitle className="text-base flex items-center gap-2"><Brain className="h-5 w-5 text-indigo-600" />ML Content Analysis &amp; Recommendations</CardTitle>
-                            <CardDescription className="text-sm mt-1">Deep analysis of implementation plan content, application profile, and change nature</CardDescription>
-                          </div>
-                          <div className={`rounded-lg border px-4 py-2 text-center ${verdictColor}`}>
-                            <p className="text-xs font-semibold uppercase tracking-wide">Assessment</p>
-                            <p className="text-sm font-bold">{asmt.verdictLabel}</p>
-                            <p className="text-[10px] mt-0.5">Confidence: {asmt.confidencePercent}%</p>
-                          </div>
-                        </div>
-                      </CardHeader>
-
-                      <div className="space-y-5 px-6 pb-6">
-                        {/* Assessment Summary */}
-                        <div className={`rounded-lg border p-4 ${verdictColor}`}>
-                          <p className="text-sm leading-relaxed">{asmt.summary}</p>
-                          {asmt.riskFactors.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {asmt.riskFactors.map((f: string, i: number) => <span key={i} className="rounded-full bg-white/50 dark:bg-black/20 px-2 py-0.5 text-[10px] font-semibold">{f}</span>)}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Profile Cards */}
-                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                          {/* Change Nature */}
-                          <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-2">
-                            <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5"><Zap className="h-4 w-4" />Change Nature</p>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <div><span className="text-gray-400">Type:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{cp.changeType}</span></div>
-                              <div><span className="text-gray-400">Risk Tier:</span> <span className={`font-semibold ${cp.riskTier==="critical"?"text-red-600":cp.riskTier==="high"?"text-orange-600":cp.riskTier==="medium"?"text-amber-600":"text-green-600"}`}>{cp.riskTier}</span></div>
-                              <div><span className="text-gray-400">Complexity:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{cp.complexity}</span></div>
-                              <div><span className="text-gray-400">Category:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{cp.natureCategory}</span></div>
-                            </div>
-                            <div className="flex flex-wrap gap-1">{cp.natureTags.map((t: string, i: number) => <span key={i} className="rounded-full bg-indigo-100 dark:bg-indigo-900 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300">{t}</span>)}</div>
-                          </div>
-
-                          {/* Application Profile */}
-                          <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-2">
-                            <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5"><Layers className="h-4 w-4" />Application Profile</p>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <div className="col-span-2"><span className="text-gray-400">Application:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{ap.applicationName}</span></div>
-                              <div><span className="text-gray-400">Service:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{ap.serviceCategory}</span></div>
-                              <div><span className="text-gray-400">Criticality:</span> <span className={`font-semibold ${ap.criticality==="mission-critical"?"text-red-600":ap.criticality==="business-critical"?"text-orange-600":"text-gray-600"}`}>{ap.criticality}</span></div>
-                            </div>
-                            <div className="flex flex-wrap gap-1">
-                              {ap.environmentTags.map((t: string, i: number) => <span key={i} className="rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300">{t}</span>)}
-                              {ap.technologyStack.map((t: string, i: number) => <span key={i} className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:text-gray-400">{t}</span>)}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Quality Scores */}
-                        <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">Plan Quality Breakdown</p>
-                            <span className={`rounded-full px-3 py-1 text-sm font-bold ${pa.overallQuality>=65?"bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300":pa.overallQuality>=40?"bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300":"bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"}`}>Overall: {pa.overallQuality}/100</span>
-                          </div>
-                          <div className="h-40">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={qualityScoreData} layout="vertical" barCategoryGap="20%">
-                                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} stroke="#94a3b8" width={100} />
-                                <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }} />
-                                <Bar dataKey="score" radius={[0, 4, 4, 0]}>{qualityScoreData.map((d, i) => <Cell key={i} fill={d.fill} />)}</Bar>
-                              </BarChart>
-                            </ResponsiveContainer>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 text-xs text-center">
-                            <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Words</span><p className="font-bold text-gray-700 dark:text-gray-300">{pa.wordCount}</p></div>
-                            <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Steps</span><p className="font-bold text-gray-700 dark:text-gray-300">{pa.stepCount}</p></div>
-                            <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Tech Depth</span><p className="font-bold text-gray-700 dark:text-gray-300 capitalize">{pa.technicalDepth}</p></div>
-                            <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Confidence</span><p className="font-bold text-gray-700 dark:text-gray-300 capitalize">{pa.confidenceLevel}</p></div>
-                          </div>
-                          {/* Element checklist */}
-                          <div className="grid grid-cols-2 gap-1 md:grid-cols-4 text-[11px]">
-                            {[
-                              ["Pre-checks", pa.hasPreChecks], ["Post-checks", pa.hasPostChecks],
-                              ["Verification", pa.hasVerificationSteps], ["Timeline", pa.hasTimeline],
-                              ["Contacts", pa.hasContactInfo], ["Rollback Ref", pa.hasRollbackReference],
-                              ["Approval Gates", pa.hasApprovalGates], ["Monitoring", pa.hasMonitoringSteps],
-                            ].map(([label, val]) => (
-                              <div key={label as string} className="flex items-center gap-1.5">
-                                {val ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <XCircle className="h-3.5 w-3.5 text-red-400" />}
-                                <span className={val ? "text-green-700 dark:text-green-400" : "text-red-500 dark:text-red-400"}>{label as string}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Detected Actions & Risks */}
-                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                          {pa.detectedActions.length > 0 && (
-                            <div className="rounded-lg border border-blue-100 dark:border-blue-800 bg-white dark:bg-gray-900 p-4 space-y-2">
-                              <p className="text-sm font-bold text-blue-700 dark:text-blue-300">Detected Actions</p>
-                              <div className="flex flex-wrap gap-1">{pa.detectedActions.map((a: string, i: number) => <span key={i} className="rounded bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-2 py-0.5 text-[11px] text-blue-700 dark:text-blue-300">{a}</span>)}</div>
-                            </div>
-                          )}
-                          {pa.detectedRisks.length > 0 && (
-                            <div className="rounded-lg border border-red-100 dark:border-red-800 bg-white dark:bg-gray-900 p-4 space-y-2">
-                              <p className="text-sm font-bold text-red-700 dark:text-red-300">Detected Risks &amp; Gaps</p>
-                              <ul className="space-y-1">{pa.detectedRisks.map((r: string, i: number) => <li key={i} className="flex items-start gap-1.5 text-[11px] text-red-600 dark:text-red-400"><AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />{r}</li>)}</ul>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Recommendations */}
-                        {recs.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">Recommendations ({recs.filter((r: { severity: string }) => r.severity !== "info").length} action items)</p>
-                            <div className="space-y-2">
-                              {recs.map((r: { severity: string; category: string; title: string; detail: string }, i: number) => (
-                                <div key={i} className={`rounded-lg border p-3 ${sevColor(r.severity)}`}>
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase">{r.severity}</span>
-                                    <span className="text-[10px] text-gray-400">{r.category}</span>
-                                  </div>
-                                  <p className="text-xs font-semibold">{r.title}</p>
-                                  <p className="text-[11px] mt-0.5 opacity-80">{r.detail}</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  );
-                })()}
               </div>
             ) : (
             /* ── Overview Mode ── */
@@ -1302,7 +1121,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                 <CardTitle>Change Requests — Plan Risk Assessment ({filteredPlans.length}{pq ? ` of ${n}` : ""})</CardTitle>
                 <CardDescription>Click a row to view full plan details and content. {pq ? "Filtered by search." : "Sorted by readiness (lowest first = highest risk)."}</CardDescription>
               </CardHeader>
-              <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
+              <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
                     <tr className="border-b border-gray-100 dark:border-gray-800">
@@ -1337,6 +1156,271 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
             </Card>
             </div>
             )}
+          </div>
+        );
+      })()}
+
+      {/* ═══ ML ANALYSIS TAB ═══ */}
+      {activeTab === "mlTab" && (() => {
+        const mq = mlSearch.toLowerCase();
+        let mlFiltered = mq ? planResults.filter((p) => p.cr.number.toLowerCase().includes(mq) || p.cr.short_description.toLowerCase().includes(mq) || p.cr.assignment_group.toLowerCase().includes(mq)) : planResults;
+        if (mlFilterRisk !== "all") mlFiltered = mlFiltered.filter((p) => p.cr.risk === mlFilterRisk);
+        if (mlFilterState !== "all") mlFiltered = mlFiltered.filter((p) => p.cr.state === mlFilterState);
+        if (mlFilterGroup !== "all") mlFiltered = mlFiltered.filter((p) => p.cr.assignment_group === mlFilterGroup);
+        const selectedMlPlan = selectedMlCR ? planResults.find((p) => p.cr.number === selectedMlCR) : null;
+
+        const sevColor = (s: string) => s === "critical" ? "text-red-600 bg-red-50 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800"
+          : s === "high" ? "text-orange-600 bg-orange-50 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800"
+          : s === "medium" ? "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800"
+          : "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800";
+
+        return (
+          <div className="space-y-6">
+            {/* Search bar + filters */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative flex-1 min-w-[200px] max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input type="text" placeholder="Search CR by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={mlSearch} onChange={(e) => setMlSearch(e.target.value)} />
+              </div>
+              <select value={mlFilterRisk} onChange={(e) => setMlFilterRisk(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <option value="all">All Risk Levels</option>
+                {uniqueRiskLevels.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <select value={mlFilterState} onChange={(e) => setMlFilterState(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <option value="all">All States</option>
+                {uniqueStates.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={mlFilterGroup} onChange={(e) => setMlFilterGroup(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <option value="all">All Groups</option>
+                {uniqueGroups.map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+              {selectedMlCR && (
+                <button onClick={() => { setSelectedMlCR(null); setMlAnalysis(null); setMlError(null); }} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">← Back to List</button>
+              )}
+            </div>
+
+            {/* ── CR Selection Table ── */}
+            {!selectedMlCR && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Brain className="h-4 w-4 text-indigo-500" /> Select a Change Request for ML Analysis ({mlFiltered.length})</CardTitle>
+                  <CardDescription>Click a row to run deep ML content analysis on its implementation plan</CardDescription>
+                </CardHeader>
+                <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
+                      <tr className="border-b border-gray-100 dark:border-gray-800">
+                        <th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Readiness</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Risk</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Gaps</th>
+                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">State</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mlFiltered.map((p) => (
+                        <tr key={p.cr.number} className="cursor-pointer border-b border-gray-50 dark:border-gray-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/20" onClick={() => { setSelectedMlCR(p.cr.number); setMlAnalysis(null); setMlError(null); }}>
+                          <td className="py-2.5">
+                            <span className="font-mono text-[11px] text-gray-400">{p.cr.number}</span>
+                            <p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{p.cr.short_description}</p>
+                            <p className="text-[11px] text-gray-400">{p.cr.assignment_group || "Unassigned"}</p>
+                          </td>
+                          <td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${pBg(p.overallScore)}`}>{p.overallScore}</span></td>
+                          <td className="py-2.5 text-center"><span className={`text-xs font-semibold ${pColor(p.overallScore)}`}>{planRiskLabel(p.overallScore)}</span></td>
+                          <td className="py-2.5 text-center">{p.gapCount > 0 ? <span className="rounded bg-red-100 px-1.5 py-0.5 text-xs font-bold text-red-700 dark:bg-red-900 dark:text-red-300">{p.gapCount} missing</span> : <span className="text-xs text-green-600">None</span>}</td>
+                          <td className="py-2.5 text-center"><span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{p.cr.state}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
+
+            {/* ── ML Analysis Result ── */}
+            {selectedMlPlan && (() => {
+              const crNum = selectedMlPlan.cr.number;
+              const needsFetch = !mlAnalysis || mlAnalysis.number !== crNum;
+
+              if (needsFetch && !mlLoading && !mlError) {
+                setTimeout(() => {
+                  setMlLoading(true);
+                  setMlError(null);
+                  fetch(`/api/data/plan-analysis?number=${encodeURIComponent(crNum)}`)
+                    .then(r => r.ok ? r.json() : r.json().then(b => { throw new Error(b.error || `HTTP ${r.status}`); }))
+                    .then(data => { setMlAnalysis(data); setMlLoading(false); })
+                    .catch(err => { setMlError(err.message); setMlLoading(false); });
+                }, 0);
+              }
+
+              if (mlLoading) return (
+                <Card className="border-indigo-200 bg-indigo-50/30 dark:border-indigo-900 dark:bg-indigo-950/20">
+                  <CardHeader><CardTitle className="text-base flex items-center gap-2"><Brain className="h-5 w-5 text-indigo-600 animate-pulse" />Analyzing {crNum}…</CardTitle></CardHeader>
+                  <div className="space-y-3 p-4">{[1,2,3].map(i => <div key={i} className="h-16 animate-pulse rounded-lg bg-indigo-100/50 dark:bg-indigo-900/20" />)}</div>
+                </Card>
+              );
+
+              if (mlError) return (
+                <Card className="border-red-200 bg-red-50/30 dark:border-red-900 dark:bg-red-950/20">
+                  <CardHeader><CardTitle className="text-base flex items-center gap-2"><XCircle className="h-5 w-5 text-red-600" />Analysis Error</CardTitle></CardHeader>
+                  <p className="px-6 pb-4 text-sm text-red-600">{mlError}</p>
+                </Card>
+              );
+
+              if (!mlAnalysis || mlAnalysis.number !== crNum) return null;
+
+              const a = mlAnalysis;
+              const pa = a.planAnalysis;
+              const cp = a.changeProfile;
+              const ap = a.appProfile;
+              const recs = a.recommendations as { severity: string; category: string; title: string; detail: string }[];
+              const asmt = a.assessment;
+
+              const verdictColor = asmt.verdict === "approve" ? "bg-green-100 text-green-700 border-green-300 dark:bg-green-900 dark:text-green-300 dark:border-green-700"
+                : asmt.verdict === "approve-with-conditions" ? "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900 dark:text-amber-300 dark:border-amber-700"
+                : asmt.verdict === "needs-rework" ? "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900 dark:text-orange-300 dark:border-orange-700"
+                : "bg-red-100 text-red-700 border-red-300 dark:bg-red-900 dark:text-red-300 dark:border-red-700";
+
+              const qualityScoreData = [
+                { name: "Structure", score: pa.structureScore, fill: "#6366f1" },
+                { name: "Completeness", score: pa.completenessScore, fill: "#0d9488" },
+                { name: "Clarity", score: pa.clarityScore, fill: "#2563eb" },
+                { name: "Risk Awareness", score: pa.riskAwarenessScore, fill: "#dc2626" },
+              ];
+
+              return (
+                <Card className="border-indigo-200 bg-indigo-50/30 dark:border-indigo-900 dark:bg-indigo-950/20">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-base flex items-center gap-2"><Brain className="h-5 w-5 text-indigo-600" />ML Content Analysis — {crNum}</CardTitle>
+                        <CardDescription className="text-sm mt-1">{selectedMlPlan.cr.short_description}</CardDescription>
+                      </div>
+                      <div className={`rounded-lg border px-4 py-2 text-center ${verdictColor}`}>
+                        <p className="text-xs font-semibold uppercase tracking-wide">Assessment</p>
+                        <p className="text-sm font-bold">{asmt.verdictLabel}</p>
+                        <p className="text-[10px] mt-0.5">Confidence: {asmt.confidencePercent}%</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <div className="space-y-5 px-6 pb-6">
+                    {/* Assessment Summary */}
+                    <div className={`rounded-lg border p-4 ${verdictColor}`}>
+                      <p className="text-sm leading-relaxed">{asmt.summary}</p>
+                      {asmt.riskFactors.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {asmt.riskFactors.map((f: string, i: number) => <span key={i} className="rounded-full bg-white/50 dark:bg-black/20 px-2 py-0.5 text-[10px] font-semibold">{f}</span>)}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Profile Cards */}
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      {/* Change Nature */}
+                      <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-2">
+                        <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5"><Zap className="h-4 w-4" />Change Nature</p>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div><span className="text-gray-400">Type:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{cp.changeType}</span></div>
+                          <div><span className="text-gray-400">Risk Tier:</span> <span className={`font-semibold ${cp.riskTier==="critical"?"text-red-600":cp.riskTier==="high"?"text-orange-600":cp.riskTier==="medium"?"text-amber-600":"text-green-600"}`}>{cp.riskTier}</span></div>
+                          <div><span className="text-gray-400">Complexity:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{cp.complexity}</span></div>
+                          <div><span className="text-gray-400">Category:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{cp.natureCategory}</span></div>
+                        </div>
+                        <div className="flex flex-wrap gap-1">{cp.natureTags.map((t: string, i: number) => <span key={i} className="rounded-full bg-indigo-100 dark:bg-indigo-900 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300">{t}</span>)}</div>
+                      </div>
+
+                      {/* Application Profile */}
+                      <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-2">
+                        <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5"><Layers className="h-4 w-4" />Application Profile</p>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="col-span-2"><span className="text-gray-400">Application:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{ap.applicationName}</span></div>
+                          <div><span className="text-gray-400">Service:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{ap.serviceCategory}</span></div>
+                          <div><span className="text-gray-400">Criticality:</span> <span className={`font-semibold ${ap.criticality==="mission-critical"?"text-red-600":ap.criticality==="business-critical"?"text-orange-600":"text-gray-600"}`}>{ap.criticality}</span></div>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {ap.environmentTags.map((t: string, i: number) => <span key={i} className="rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300">{t}</span>)}
+                          {ap.technologyStack.map((t: string, i: number) => <span key={i} className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:text-gray-400">{t}</span>)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Quality Scores */}
+                    <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">Plan Quality Breakdown</p>
+                        <span className={`rounded-full px-3 py-1 text-sm font-bold ${pa.overallQuality>=65?"bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300":pa.overallQuality>=40?"bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300":"bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"}`}>Overall: {pa.overallQuality}/100</span>
+                      </div>
+                      <div className="h-40">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={qualityScoreData} layout="vertical" barCategoryGap="20%">
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                            <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} stroke="#94a3b8" width={100} />
+                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }} />
+                            <Bar dataKey="score" radius={[0, 4, 4, 0]}>{qualityScoreData.map((d, i) => <Cell key={i} fill={d.fill} />)}</Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 text-xs text-center">
+                        <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Words</span><p className="font-bold text-gray-700 dark:text-gray-300">{pa.wordCount}</p></div>
+                        <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Steps</span><p className="font-bold text-gray-700 dark:text-gray-300">{pa.stepCount}</p></div>
+                        <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Tech Depth</span><p className="font-bold text-gray-700 dark:text-gray-300 capitalize">{pa.technicalDepth}</p></div>
+                        <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Confidence</span><p className="font-bold text-gray-700 dark:text-gray-300 capitalize">{pa.confidenceLevel}</p></div>
+                      </div>
+                      {/* Element checklist */}
+                      <div className="grid grid-cols-2 gap-1 md:grid-cols-4 text-[11px]">
+                        {[
+                          ["Pre-checks", pa.hasPreChecks], ["Post-checks", pa.hasPostChecks],
+                          ["Verification", pa.hasVerificationSteps], ["Timeline", pa.hasTimeline],
+                          ["Contacts", pa.hasContactInfo], ["Rollback Ref", pa.hasRollbackReference],
+                          ["Approval Gates", pa.hasApprovalGates], ["Monitoring", pa.hasMonitoringSteps],
+                        ].map(([label, val]) => (
+                          <div key={label as string} className="flex items-center gap-1.5">
+                            {val ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <XCircle className="h-3.5 w-3.5 text-red-400" />}
+                            <span className={val ? "text-green-700 dark:text-green-400" : "text-red-500 dark:text-red-400"}>{label as string}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Detected Actions & Risks */}
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      {pa.detectedActions.length > 0 && (
+                        <div className="rounded-lg border border-blue-100 dark:border-blue-800 bg-white dark:bg-gray-900 p-4 space-y-2">
+                          <p className="text-sm font-bold text-blue-700 dark:text-blue-300">Detected Actions</p>
+                          <div className="flex flex-wrap gap-1">{pa.detectedActions.map((act: string, i: number) => <span key={i} className="rounded bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-2 py-0.5 text-[11px] text-blue-700 dark:text-blue-300">{act}</span>)}</div>
+                        </div>
+                      )}
+                      {pa.detectedRisks.length > 0 && (
+                        <div className="rounded-lg border border-red-100 dark:border-red-800 bg-white dark:bg-gray-900 p-4 space-y-2">
+                          <p className="text-sm font-bold text-red-700 dark:text-red-300">Detected Risks &amp; Gaps</p>
+                          <ul className="space-y-1">{pa.detectedRisks.map((r: string, i: number) => <li key={i} className="flex items-start gap-1.5 text-[11px] text-red-600 dark:text-red-400"><AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />{r}</li>)}</ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Recommendations */}
+                    {recs.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">Recommendations ({recs.filter((r: { severity: string }) => r.severity !== "info").length} action items)</p>
+                        <div className="space-y-2">
+                          {recs.map((r: { severity: string; category: string; title: string; detail: string }, i: number) => (
+                            <div key={i} className={`rounded-lg border p-3 ${sevColor(r.severity)}`}>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase">{r.severity}</span>
+                                <span className="text-[10px] text-gray-400">{r.category}</span>
+                              </div>
+                              <p className="text-xs font-semibold">{r.title}</p>
+                              <p className="text-[11px] mt-0.5 opacity-80">{r.detail}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              );
+            })()}
           </div>
         );
       })()}
