@@ -7,10 +7,10 @@ import { PrismaClient } from "@prisma/client";
 import { getSecret } from "@/lib/crypto";
 
 /* ─── Configuration ─── */
-const SNOW_INSTANCE = getSecret("SNOW_INSTANCE", "https://surf.servicenow.com");
-const SNOW_USER = getSecret("SNOW_USER", "admin");
-const SNOW_PASSWORD = getSecret("SNOW_PASSWORD", "admin");
 const PAGE_SIZE = 100;
+function snowInstance() { return getSecret("SNOW_INSTANCE", "https://k8s0863044-node1.thunder.devsnc.com"); }
+function snowUser() { return getSecret("SNOW_USER", "admin"); }
+function snowPassword() { return getSecret("SNOW_PASSWORD", "admin"); }
 
 /** Extract display_value from a ServiceNow reference field (string | { display_value, link } | null) */
 function displayVal(field: unknown): string {
@@ -30,24 +30,20 @@ export async function fetchChangeRequests(): Promise<Record<string, any>[]> {
   const all: Record<string, any>[] = [];
   let offset = 0;
 
-  // Only pull records created in the last 14 days
-  const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-
   while (true) {
     const url =
-      `${SNOW_INSTANCE}/api/now/table/change_request` +
+      `${snowInstance()}/api/now/table/change_request` +
       `?sysparm_display_value=true` +
       `&sysparm_limit=${PAGE_SIZE}` +
       `&sysparm_offset=${offset}` +
-      `&sysparm_orderby=number` +
-      `&sysparm_query=sys_created_on>=${since}`;
+      `&sysparm_orderby=number`;
 
     const res = await fetch(url, {
       headers: {
         Accept: "application/json",
         Authorization:
           "Basic " +
-          Buffer.from(`${SNOW_USER}:${SNOW_PASSWORD}`).toString("base64"),
+          Buffer.from(`${snowUser()}:${snowPassword()}`).toString("base64"),
       },
     });
 
