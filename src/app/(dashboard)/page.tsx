@@ -11,6 +11,10 @@ import {
   TrendingDown,
   XCircle,
   Calendar,
+  Shield,
+  ClipboardCheck,
+  Zap,
+  FileText,
 } from "lucide-react";
 import {
   BarChart,
@@ -23,6 +27,9 @@ import {
   LineChart,
   Line,
   Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import { Card, CardHeader, CardTitle } from "@/components/card";
 import { RiskBadge } from "@/components/risk-badge";
@@ -263,6 +270,105 @@ export default function OverviewPage() {
           </table>
         </div>
       </Card>
+
+      {/* ServiceNow Change Health */}
+      {(() => {
+        // State distribution
+        const stateMap: Record<string, number> = {};
+        changeRequests.forEach(cr => { const s = cr.status || "Unknown"; stateMap[s] = (stateMap[s] || 0) + 1; });
+        const stateData = Object.entries(stateMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+        const stateColors = ["#6366f1", "#8b5cf6", "#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#94a3b8", "#06b6d4"];
+
+        // Risk distribution
+        const riskBuckets = [
+          { name: "Critical (≥80)", value: changeRequests.filter(c => c.impact?.overallRisk >= 80).length, fill: "#ef4444" },
+          { name: "High (60-79)", value: changeRequests.filter(c => c.impact?.overallRisk >= 60 && c.impact?.overallRisk < 80).length, fill: "#f97316" },
+          { name: "Medium (40-59)", value: changeRequests.filter(c => c.impact?.overallRisk >= 40 && c.impact?.overallRisk < 60).length, fill: "#eab308" },
+          { name: "Low (<40)", value: changeRequests.filter(c => c.impact?.overallRisk < 40).length, fill: "#22c55e" },
+        ].filter(d => d.value > 0);
+
+        // Type distribution
+        const typeMap: Record<string, number> = {};
+        changeRequests.forEach(cr => { const t = cr.category || "Other"; typeMap[t] = (typeMap[t] || 0) + 1; });
+        const typeData = Object.entries(typeMap).map(([name, value]) => ({ name: name.length > 18 ? name.slice(0, 16) + "…" : name, value })).sort((a, b) => b.value - a.value).slice(0, 8);
+        const typeColors = ["#3b82f6", "#8b5cf6", "#f59e0b", "#22c55e", "#ef4444", "#06b6d4", "#ec4899", "#6366f1"];
+
+        // Team risk
+        const teamMap: Record<string, { count: number; riskSum: number }> = {};
+        changeRequests.forEach(cr => {
+          const team = cr.team || "Unassigned";
+          if (!teamMap[team]) teamMap[team] = { count: 0, riskSum: 0 };
+          teamMap[team].count++;
+          teamMap[team].riskSum += cr.impact?.overallRisk || 0;
+        });
+        const teamData = Object.entries(teamMap).map(([team, d]) => ({
+          team: team.length > 18 ? team.slice(0, 16) + "…" : team,
+          avgRisk: Math.round(d.riskSum / d.count),
+          count: d.count,
+        })).sort((a, b) => b.avgRisk - a.avgRisk).slice(0, 8);
+
+        return (
+          <>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* State Distribution */}
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-indigo-500" /> Change Status Distribution</CardTitle></CardHeader>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart><Pie data={stateData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>{stateData.map((_, i) => <Cell key={i} fill={stateColors[i % stateColors.length]} />)}</Pie><Legend /><Tooltip /></PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              {/* Risk Level Distribution */}
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-4 w-4 text-red-500" /> Risk Level Distribution</CardTitle></CardHeader>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart><Pie data={riskBuckets} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>{riskBuckets.map((d, i) => <Cell key={i} fill={d.fill} />)}</Pie><Legend /><Tooltip /></PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              {/* Category Breakdown */}
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><Zap className="h-4 w-4 text-blue-500" /> Changes by Category</CardTitle></CardHeader>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={typeData} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis type="number" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                      <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} stroke="#94a3b8" width={100} />
+                      <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                      <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]}>
+                        {typeData.map((_, i) => <Cell key={i} fill={typeColors[i % typeColors.length]} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              {/* Avg Risk by Team */}
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4 text-amber-500" /> Avg Risk Score by Team</CardTitle></CardHeader>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={teamData} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                      <YAxis type="category" dataKey="team" tick={{ fontSize: 10 }} stroke="#94a3b8" width={110} />
+                      <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                      <Bar dataKey="avgRisk" name="Avg Risk" radius={[0, 4, 4, 0]}>
+                        {teamData.map((d, i) => <Cell key={i} fill={d.avgRisk >= 80 ? "#ef4444" : d.avgRisk >= 60 ? "#f97316" : d.avgRisk >= 40 ? "#eab308" : "#22c55e"} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
+          </>
+        );
+      })()}
     </div>
     </>
   );

@@ -3,11 +3,11 @@
 import { useState } from "react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, PieChart, Pie, Legend,
-  LineChart, Line, AreaChart, Area,
+  LineChart, Line, AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from "recharts";
 import {
   AlertTriangle, TrendingDown, RotateCcw, XCircle, Target, Zap, Clock, Users,
-  GitPullRequest, TrendingUp, Timer, BarChart3, Calendar,
+  GitPullRequest, TrendingUp, Timer, BarChart3, Calendar, Shield, CheckCircle2, FileText,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
@@ -21,7 +21,7 @@ function riskColor(score: number) {
   return "#22c55e";
 }
 
-type AnalyticsTab = "failures" | "velocity" | "metrics";
+type AnalyticsTab = "failures" | "velocity" | "metrics" | "health";
 
 /* ─── Tab Button ─── */
 function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: React.ElementType; label: string }) {
@@ -98,6 +98,7 @@ export default function AnalyticsPage() {
           <TabButton active={activeTab === "failures"} onClick={() => setActiveTab("failures")} icon={AlertTriangle} label="Failure Analysis" />
           <TabButton active={activeTab === "velocity"} onClick={() => setActiveTab("velocity")} icon={Zap} label="Velocity" />
           <TabButton active={activeTab === "metrics"} onClick={() => setActiveTab("metrics")} icon={BarChart3} label="Metrics & Trends" />
+          <TabButton active={activeTab === "health"} onClick={() => setActiveTab("health")} icon={Shield} label="Change Health" />
         </div>
         <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 dark:border-gray-700 dark:bg-gray-800">
           <Calendar className="h-3.5 w-3.5 text-gray-400" />
@@ -531,6 +532,128 @@ export default function AnalyticsPage() {
           </Card>
         </div>
       )}
+      {/* ═══ TAB: CHANGE HEALTH ═══ */}
+      {activeTab === "health" && (() => {
+        // Team health radar data
+        const radarData = teamVelocity.slice(0, 6).map(tv => ({
+          team: tv.team.length > 12 ? tv.team.slice(0, 10) + "…" : tv.team,
+          deployRate: tv.deployRate,
+          avgRisk: tv.avgRisk,
+          velocity: Math.min(100, tv.totalChanges * 10),
+        }));
+
+        // Process health scores
+        const avgDeployRate = teamVelocity.length > 0 ? Math.round(teamVelocity.reduce((s, t) => s + t.deployRate, 0) / teamVelocity.length) : 0;
+        const avgTeamRisk = teamVelocity.length > 0 ? Math.round(teamVelocity.reduce((s, t) => s + t.avgRisk, 0) / teamVelocity.length) : 0;
+        const healthScore = Math.round(avgDeployRate * 0.4 + (100 - avgTeamRisk) * 0.3 + (100 - changeFailureRate) * 0.3);
+        const healthLabel = healthScore >= 80 ? "Excellent" : healthScore >= 60 ? "Good" : healthScore >= 40 ? "Fair" : "Needs Attention";
+        const healthColor = healthScore >= 80 ? "text-green-600" : healthScore >= 60 ? "text-blue-600" : healthScore >= 40 ? "text-amber-600" : "text-red-600";
+
+        return (
+          <div className="space-y-6">
+            {/* Health KPIs */}
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+              {[
+                { label: "Overall Health", value: `${healthScore}/100`, sub: healthLabel, icon: Shield, color: healthColor },
+                { label: "Avg Deploy Rate", value: `${avgDeployRate}%`, sub: avgDeployRate >= 80 ? "On Target" : "Below Target", icon: CheckCircle2, color: avgDeployRate >= 80 ? "text-green-600" : "text-amber-600" },
+                { label: "Avg Team Risk", value: `${avgTeamRisk}`, sub: avgTeamRisk < 40 ? "Low" : avgTeamRisk < 60 ? "Medium" : "High", icon: AlertTriangle, color: avgTeamRisk < 40 ? "text-green-600" : avgTeamRisk < 60 ? "text-amber-600" : "text-red-600" },
+                { label: "Failure Rate", value: `${changeFailureRate}%`, sub: changeFailureRate < 5 ? "Excellent" : changeFailureRate < 15 ? "Acceptable" : "High", icon: XCircle, color: changeFailureRate < 5 ? "text-green-600" : changeFailureRate < 15 ? "text-amber-600" : "text-red-600" },
+                { label: "Active Teams", value: `${teamVelocity.length}`, sub: `${totalDeployed} deployed`, icon: Users, color: "text-blue-600" },
+              ].map((kpi) => (
+                <Card key={kpi.label} className="p-4">
+                  <div className="flex items-center gap-2"><kpi.icon className={`h-4 w-4 ${kpi.color}`} /><span className="text-xs text-gray-500 dark:text-gray-400">{kpi.label}</span></div>
+                  <p className={`mt-1 text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
+                  <p className="text-[10px] text-gray-400">{kpi.sub}</p>
+                </Card>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* Team Risk Radar */}
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-4 w-4 text-purple-500" /> Team Performance Radar</CardTitle><CardDescription>Deploy rate vs risk vs velocity per team</CardDescription></CardHeader>
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={radarData}>
+                      <PolarGrid stroke="#e2e8f0" />
+                      <PolarAngleAxis dataKey="team" tick={{ fontSize: 10 }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                      <Radar name="Deploy Rate" dataKey="deployRate" stroke="#22c55e" fill="#22c55e" fillOpacity={0.15} />
+                      <Radar name="Risk" dataKey="avgRisk" stroke="#ef4444" fill="#ef4444" fillOpacity={0.1} />
+                      <Legend /><Tooltip />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              {/* Risk Distribution by Team */}
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-red-500" /> Team Risk Ranking</CardTitle><CardDescription>Average risk score per team</CardDescription></CardHeader>
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={failureByTeam.slice().sort((a, b) => b.avgRisk - a.avgRisk).slice(0, 8)} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                      <YAxis type="category" dataKey="team" tick={{ fontSize: 10 }} stroke="#94a3b8" width={100} />
+                      <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                      <Bar dataKey="avgRisk" name="Avg Risk" radius={[0, 4, 4, 0]}>
+                        {failureByTeam.slice().sort((a, b) => b.avgRisk - a.avgRisk).slice(0, 8).map((entry, idx) => <Cell key={idx} fill={riskColor(entry.avgRisk)} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
+
+            {/* Health Formula */}
+            <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20">
+              <CardHeader><CardTitle className="flex items-center gap-2 text-sm"><FileText className="h-4 w-4 text-blue-600" /> Health Score Formula</CardTitle></CardHeader>
+              <div className="px-4 pb-4 space-y-2">
+                <p className="text-xs font-mono font-bold text-blue-700 dark:text-blue-400">Health = DeployRate×40% + (100−AvgRisk)×30% + (100−FailureRate)×30%</p>
+                <div className="grid grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-400">
+                  <div className="rounded bg-white dark:bg-gray-900 p-2 border border-blue-100 dark:border-blue-900"><strong className="text-blue-700 dark:text-blue-300">Deploy Rate (40%)</strong><p className="mt-0.5">Higher deploy rates indicate smooth change execution</p></div>
+                  <div className="rounded bg-white dark:bg-gray-900 p-2 border border-blue-100 dark:border-blue-900"><strong className="text-blue-700 dark:text-blue-300">Risk Inverse (30%)</strong><p className="mt-0.5">Lower average risk = higher health</p></div>
+                  <div className="rounded bg-white dark:bg-gray-900 p-2 border border-blue-100 dark:border-blue-900"><strong className="text-blue-700 dark:text-blue-300">Failure Inverse (30%)</strong><p className="mt-0.5">Lower failure rate = higher health</p></div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Detailed Team Health Table */}
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-green-500" /> Team Health Summary</CardTitle></CardHeader>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead><tr className="border-b border-gray-100 dark:border-gray-800">
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Team</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Changes</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Deployed</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Deploy Rate</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Avg Risk</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Health</th>
+                  </tr></thead>
+                  <tbody>
+                    {teamVelocity.map(tv => {
+                      const th = Math.round(tv.deployRate * 0.4 + (100 - tv.avgRisk) * 0.3 + (100 - changeFailureRate) * 0.3);
+                      const thLabel = th >= 80 ? "Excellent" : th >= 60 ? "Good" : th >= 40 ? "Fair" : "Poor";
+                      const thColor = th >= 80 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : th >= 60 ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300" : th >= 40 ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
+                      return (
+                        <tr key={tv.team} className="border-b border-gray-50 dark:border-gray-800">
+                          <td className="py-3 font-medium text-gray-900 dark:text-gray-100">{tv.team}</td>
+                          <td className="py-3 text-gray-600 dark:text-gray-400">{tv.totalChanges}</td>
+                          <td className="py-3 text-gray-600 dark:text-gray-400">{tv.deployed}</td>
+                          <td className="py-3"><div className="flex items-center gap-2"><div className="h-2 w-16 rounded-full bg-gray-100 dark:bg-gray-800"><div className="h-2 rounded-full bg-green-500" style={{ width: `${tv.deployRate}%` }} /></div><span className="text-xs text-gray-500">{tv.deployRate}%</span></div></td>
+                          <td className="py-3"><span className="rounded px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: riskColor(tv.avgRisk) + "20", color: riskColor(tv.avgRisk) }}>{tv.avgRisk}</span></td>
+                          <td className="py-3"><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${thColor}`}>{thLabel} ({th})</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        );
+      })()}
     </div>
     </>
   );
