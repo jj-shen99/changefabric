@@ -113,6 +113,9 @@ export default function ImpactPage() {
   const [planFilterGroup, setPlanFilterGroup] = useState<string>("all");
   const [riskFormulaOpen, setRiskFormulaOpen] = useState(false);
   const [riskSearch, setRiskSearch] = useState("");
+  const [riskFilterRisk, setRiskFilterRisk] = useState<string>("all");
+  const [riskFilterState, setRiskFilterState] = useState<string>("all");
+  const [riskFilterGroup, setRiskFilterGroup] = useState<string>("all");
   const [planScoringOpen, setPlanScoringOpen] = useState(false);
   const [mlSearch, setMlSearch] = useState("");
   const [mlFilterRisk, setMlFilterRisk] = useState<string>("all");
@@ -134,8 +137,15 @@ export default function ImpactPage() {
     return { cr, dims, baseDims, overall: computeOverall(dims, weights) };
   }), [changeRequests, weights, overrides]);
 
-  const uniqueStates = useMemo(() => [...new Set(changeRequests.map((c) => c.state).filter(Boolean))].sort(), [changeRequests]);
-  const uniqueGroups = useMemo(() => [...new Set(changeRequests.map((c) => c.assignment_group).filter(Boolean))].sort(), [changeRequests]);
+  const uniqueStates = useMemo(() => {
+    const fromData = changeRequests.map((c) => c.state).filter(Boolean);
+    const standard = ["New", "Open", "In Progress", "Pending", "Closed", "Canceled", "Review", "Scheduled", "Implement", "Assess", "Authorize"];
+    return [...new Set([...standard, ...fromData])].sort();
+  }, [changeRequests]);
+  const uniqueGroups = useMemo(() => {
+    const fromData = changeRequests.map((c) => c.assignment_group).filter(Boolean);
+    return [...new Set(fromData)].sort();
+  }, [changeRequests]);
   const uniqueRiskLevels = useMemo(() => {
     const fromData = changeRequests.map((c) => c.risk).filter(Boolean);
     const standard = ["None", "Low", "Moderate", "High", "Very High"];
@@ -161,18 +171,6 @@ export default function ImpactPage() {
   if (changeRequests.length === 0) return <div className="text-gray-500">No change requests found</div>;
 
   const activeNum = selectedCR || changeRequests[0].number;
-  const selected = scored.find((s) => s.cr.number === activeNum) || scored[0];
-  const cr = selected.cr;
-  const dims = selected.dims;
-  const overall = selected.overall;
-  const hasOverrides = !!overrides[activeNum] && Object.keys(overrides[activeNum]).length > 0;
-
-  const radarData = [
-    { dimension: "Risk", score: dims.risk, fullMark: 100 }, { dimension: "Impact", score: dims.impact, fullMark: 100 },
-    { dimension: "Urgency", score: dims.urgency, fullMark: 100 }, { dimension: "Priority", score: dims.priority, fullMark: 100 },
-    { dimension: "Type", score: dims.type, fullMark: 100 }, { dimension: "Scope", score: dims.scope, fullMark: 100 },
-  ];
-
   const catMap: Record<string, { total: number; count: number }> = {};
   scored.forEach((s) => { const cat = s.cr.category || "Other"; if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 }; catMap[cat].total += s.overall; catMap[cat].count++; });
   const categoryData = Object.entries(catMap).map(([category, d]) => ({ category, avgRisk: Math.round(d.total / d.count), count: d.count })).sort((a, b) => b.avgRisk - a.avgRisk);
@@ -186,8 +184,7 @@ export default function ImpactPage() {
     { key: "scope", label: "Scope", snField: "scope", icon: Settings2, formula: "Large→80, Medium→50, Small→25" },
   ];
 
-  function handleOverride(dim: keyof DimensionScores, val: number) { setOverrides((p) => ({ ...p, [activeNum]: { ...(p[activeNum]||{}), [dim]: Math.max(0, Math.min(100, val)) } })); }
-  function resetOverrides() { setOverrides((p) => { const n = { ...p }; delete n[activeNum]; return n; }); }
+  function handleOverride(dim: keyof DimensionScores, val: number, crNumber?: string) { const num = crNumber || activeNum; setOverrides((p) => ({ ...p, [num]: { ...(p[num]||{}), [dim]: Math.max(0, Math.min(100, val)) } })); }
 
   /* ═══ Plan Analysis Data ═══ */
   const PLAN_DIMS = [
@@ -218,7 +215,6 @@ export default function ImpactPage() {
       {/* ═══ Tabs ═══ */}
       <div className="flex gap-1 border-b border-gray-200 pb-0.5 dark:border-gray-800 overflow-x-auto">
         <button onClick={() => setActiveTab("overview")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="overview" ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><LayoutDashboard className="h-4 w-4" />Overview</button>
-        <button onClick={() => setActiveTab("analysis")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="analysis" ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><BarChart3 className="h-4 w-4" />Detailed Analysis</button>
         <button onClick={() => setActiveTab("plans")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="plans" ? "border-b-2 border-teal-600 text-teal-600 bg-teal-50 dark:bg-teal-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><ClipboardCheck className="h-4 w-4" />Plan Analysis</button>
         <button onClick={() => setActiveTab("mlTab")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="mlTab" ? "border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><Brain className="h-4 w-4" />ML Analysis</button>
         <button onClick={() => setActiveTab("risk")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="risk" ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><ShieldAlert className="h-4 w-4" />Risk Analysis</button>
@@ -408,111 +404,6 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
         );
       })()}
 
-      {/* ═══ ANALYSIS TAB ═══ */}
-      {activeTab === "analysis" && (
-      <div className="space-y-6">
-      {/* ── Weights & Formulas (collapsible) ── */}
-      <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20">
-        <CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Settings2 className="h-5 w-5 text-blue-600" />Weights &amp; Formulas</CardTitle><div className="flex items-center gap-2"><button onClick={resetWeights} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button><button onClick={() => setWeightsOpen(!weightsOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900">{weightsOpen ? "▲ Collapse" : "▼ Expand"}</button></div></div><CardDescription className="text-sm">Overall = Σ (dimension_score × weight). Adjust weights below.</CardDescription></CardHeader>
-        {weightsOpen && (<>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-            {DIMS.map((d) => (<div key={d.key} className="rounded-lg border border-blue-100 bg-white p-3 dark:border-blue-900 dark:bg-gray-900"><div className="flex items-center gap-1.5 mb-2"><d.icon className="h-4 w-4 text-blue-500" /><span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{d.label}</span></div><p className="text-xs text-gray-500 dark:text-gray-400 mb-2 leading-snug">{d.formula}</p><label className="text-xs text-gray-500">Weight</label><input type="range" min="0" max="100" value={Math.round(weights[d.key]*100)} onChange={(e) => setWeight(d.key, Number(e.target.value)/100)} className="w-full h-1.5 accent-blue-600" /><span className="text-sm font-mono font-semibold text-blue-700 dark:text-blue-400">{(weights[d.key]*100).toFixed(0)}%</span></div>))}
-          </div>
-          <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Total weight: {((weights.risk+weights.impact+weights.urgency+weights.priority+weights.type+weights.scope)*100).toFixed(0)}%</p>
-          <div className="mt-4 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Dimension</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">SN Field</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Mapping</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Current Weight</th></tr></thead><tbody>{DIMS.map((d) => (<tr key={d.key} className="border-b border-gray-50 dark:border-gray-800"><td className="py-3"><div className="flex items-center gap-2"><d.icon className="h-4 w-4 text-blue-500" /><span className="font-medium text-gray-900 dark:text-gray-100">{d.label}</span></div></td><td className="py-3 font-mono text-xs text-gray-500">{d.snField}</td><td className="py-3 text-xs text-gray-600 dark:text-gray-400">{d.formula}</td><td className="py-3 text-center"><span className="rounded bg-blue-100 px-2 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">{(weights[d.key]*100).toFixed(0)}%</span></td></tr>))}</tbody></table></div>
-        </>)}
-      </Card>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* ── Column 1: Plan Readiness ── */}
-        {(() => {
-          const planResult = planResults.find(p => p.cr.number === activeNum);
-          if (!planResult) return <Card className="border-teal-200 bg-teal-50/20 dark:border-teal-900 dark:bg-teal-950/10"><CardHeader><CardTitle className="text-sm flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-teal-500" />Plan Readiness</CardTitle></CardHeader><p className="px-6 pb-4 text-sm text-gray-400">No plan data available</p></Card>;
-          const planRadarData = PLAN_DIMS.map((d) => ({ dimension: d.label.replace(" Plan", "").replace("/Impact Analysis", ""), score: planResult[d.key].quality, fullMark: 100 }));
-          return (
-            <Card className="border-teal-200 bg-teal-50/20 dark:border-teal-900 dark:bg-teal-950/10">
-              <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-teal-500" />Plan Readiness — {cr.number}</CardTitle>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${pBg(planResult.overallScore)}`}>{planResult.overallScore}/100</span>
-                  <span className={`text-xs font-semibold ${pColor(planResult.overallScore)}`}>{pLabel(planResult.overallScore)}</span>
-                  {planResult.gapCount > 0 && <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700 dark:bg-red-900 dark:text-red-300">{planResult.gapCount} missing</span>}
-                </div>
-              </CardHeader>
-              <div className="h-52">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart data={planRadarData}><PolarGrid stroke="#e2e8f0" /><PolarAngleAxis dataKey="dimension" tick={{ fontSize: 9 }} /><PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9 }} /><Radar name="Quality" dataKey="score" stroke="#0d9488" fill="#0d9488" fillOpacity={0.2} strokeWidth={2} /></RadarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="space-y-1.5 px-4 pb-4">
-                {PLAN_DIMS.map((d) => {
-                  const ps = planResult[d.key];
-                  return (
-                    <div key={d.key} className="flex items-center gap-2">
-                      <d.icon className="h-3 w-3 text-teal-500 shrink-0" />
-                      <span className="text-[11px] text-gray-600 dark:text-gray-400 flex-1 truncate">{d.label}</span>
-                      {ps.present ? (
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${pBg(ps.quality)}`}>{ps.quality}</span>
-                      ) : (
-                        <span className="flex items-center gap-0.5 text-[10px] text-red-500"><XCircle className="h-3 w-3" />Missing</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          );
-        })()}
-        {/* ── Column 2: Dimensions & Impact ── */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2"><Gauge className="h-4 w-4 text-blue-500" />Dimensions &amp; Impact — {cr.number}</CardTitle>
-              {hasOverrides && (<button onClick={resetOverrides} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button>)}
-            </div>
-          </CardHeader>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarData}><PolarGrid stroke="#e2e8f0" /><PolarAngleAxis dataKey="dimension" tick={{ fontSize: 10 }} /><PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9 }} /><Radar name="Score" dataKey="score" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} strokeWidth={2} /></RadarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex justify-center mb-3"><RiskBadge score={overall} /></div>
-          <div className="space-y-1.5 px-4 pb-4">
-            {DIMS.map((d) => {
-              const current = dims[d.key];
-              const snValue = d.key==="risk"?cr.risk:d.key==="impact"?cr.sn_impact:d.key==="urgency"?cr.urgency:d.key==="priority"?cr.priority:d.key==="type"?cr.type:cr.scope;
-              const isOverridden = overrides[activeNum]?.[d.key] !== undefined;
-              return (
-                <div key={d.key} className="rounded border border-gray-100 dark:border-gray-800 p-2">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <d.icon className="h-3 w-3 text-gray-400" />
-                      <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{d.label}</span>
-                      <span className="text-[9px] text-gray-400">SN: &quot;{snValue || "—"}&quot;</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className={`text-[10px] font-mono font-bold ${getRiskBg(current)} rounded px-1 py-0.5`}>{current}</span>
-                      {isOverridden && <span className="text-[9px] text-amber-500">(was {selected.baseDims[d.key]})</span>}
-                    </div>
-                  </div>
-                  <input type="range" min="0" max="100" value={current} onChange={(e) => handleOverride(d.key, Number(e.target.value))} className="w-full h-1 accent-blue-600" />
-                  <div className="flex justify-between text-[9px] text-gray-400"><span>0</span><span>{(weights[d.key]*100).toFixed(0)}% → {Math.round(current * weights[d.key])} pts</span><span>100</span></div>
-                </div>
-              );
-            })}
-            <div className="rounded bg-gray-50 dark:bg-gray-800 p-2 mt-1">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Overall Impact</span>
-                <RiskBadge score={overall} size="sm" />
-              </div>
-              <p className="text-[9px] text-gray-400 mt-0.5 font-mono">= {DIMS.map((d) => `${dims[d.key]}×${(weights[d.key]*100).toFixed(0)}%`).join(" + ")} = {overall}</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-      <Card><CardHeader><CardTitle className="text-sm">Change Details — {cr.number}</CardTitle></CardHeader><div className="space-y-3 text-sm">{[{ label: "State", value: cr.state },{ label: "Type", value: cr.type },{ label: "Category", value: cr.category },{ label: "Priority", value: cr.priority },{ label: "Risk", value: cr.risk },{ label: "Impact", value: cr.sn_impact },{ label: "Urgency", value: cr.urgency },{ label: "Scope", value: cr.scope },{ label: "Approval", value: cr.approval },{ label: "Opened By", value: cr.opened_by },{ label: "Assigned To", value: cr.assigned_to },{ label: "Assignment Group", value: cr.assignment_group },{ label: "Config Item", value: cr.cmdb_ci },{ label: "Business Service", value: cr.business_service },{ label: "Close Code", value: cr.close_code }].map((row) => row.value ? (<div key={row.label} className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">{row.label}</span><span className="font-medium text-gray-700 dark:text-gray-300 text-right max-w-[200px] truncate">{row.value}</span></div>) : null)}</div></Card>
-      </div>
-      )}
 
       {/* ═══ RISK ANALYSIS TAB ═══ */}
       {activeTab === "risk" && (() => {
@@ -523,7 +414,10 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
         function snRiskNumeric(r: string): number { const l = (r||"").toLowerCase(); if (l==="very high") return 90; if (l==="high") return 70; if (l==="moderate") return 50; if (l==="low") return 25; if (l==="none") return 5; return 40; }
         const riskResults = changeRequests.map((c) => { const L = likelihoodScore(c); const I = impactSeverity(c); const V = velocityMod(c); const C = controlCredit(c); const raw = Math.max(0, Math.min(100, Math.round((L*I/25)*100*(1+V) - C))); const snScore = snRiskNumeric(c.risk); const delta = raw - snScore; return { cr: c, L, I, V, C, score: raw, snRisk: c.risk || "—", snScore, delta }; }).sort((a, b) => b.score - a.score);
         const rq = riskSearch.toLowerCase();
-        const filteredRisk = rq ? riskResults.filter((r) => r.cr.number.toLowerCase().includes(rq) || r.cr.short_description.toLowerCase().includes(rq) || r.cr.assignment_group.toLowerCase().includes(rq)) : riskResults;
+        let filteredRisk = rq ? riskResults.filter((r) => r.cr.number.toLowerCase().includes(rq) || r.cr.short_description.toLowerCase().includes(rq) || r.cr.assignment_group.toLowerCase().includes(rq)) : riskResults;
+        if (riskFilterRisk !== "all") filteredRisk = filteredRisk.filter((r) => r.cr.risk === riskFilterRisk);
+        if (riskFilterState !== "all") filteredRisk = filteredRisk.filter((r) => r.cr.state === riskFilterState);
+        if (riskFilterGroup !== "all") filteredRisk = filteredRisk.filter((r) => r.cr.assignment_group === riskFilterGroup);
         const n = riskResults.length;
         const avgScore = n>0?Math.round(riskResults.reduce((a, r) => a+r.score, 0)/n):0;
         const maxScore = n>0?riskResults[0].score:0;
@@ -714,6 +608,18 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
 
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[200px] max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={riskSearch} onChange={(e) => setRiskSearch(e.target.value)} /></div>
+              <select value={riskFilterRisk} onChange={(e) => setRiskFilterRisk(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <option value="all">All Risk Levels</option>
+                {uniqueRiskLevels.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <select value={riskFilterState} onChange={(e) => setRiskFilterState(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <option value="all">All States</option>
+                {uniqueStates.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <select value={riskFilterGroup} onChange={(e) => setRiskFilterGroup(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                <option value="all">All Groups</option>
+                {uniqueGroups.map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
             </div>
             <Card><CardHeader><CardTitle>All Change Requests — Risk Assessment ({filteredRisk.length}{rq ? ` of ${n}` : ""})</CardTitle><CardDescription>Computed score vs ServiceNow risk field. Delta shows how much the computed score differs.</CardDescription></CardHeader><div className="overflow-x-auto max-h-[480px] overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-white dark:bg-gray-900 z-10"><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Computed</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Level</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">SN Risk</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">SN Score</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Delta</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Likelihood">L</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Impact Severity">I</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Velocity Modifier">V</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title="Control Credit">C</th></tr></thead><tbody>{filteredRisk.map((r) => (<tr key={r.cr.number} className="cursor-pointer border-b border-gray-50 dark:border-gray-800 hover:bg-blue-50 dark:hover:bg-blue-950/30" onClick={() => { setSelectedCR(r.cr.number); setActiveTab("analysis"); }}><td className="py-2.5"><span className="font-mono text-[11px] text-gray-400">{r.cr.number}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{r.cr.short_description}</p></td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${riskBgCls(r.score)}`}>{r.score}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-semibold capitalize ${riskColor(r.score)}`}>{riskLbl(r.score)}</span></td><td className="py-2.5 text-center text-xs text-gray-600 dark:text-gray-400">{r.snRisk}</td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${riskBgCls(r.snScore)}`}>{r.snScore}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-bold ${r.delta > 10 ? "text-red-600" : r.delta < -10 ? "text-green-600" : "text-gray-500"}`}>{r.delta > 0 ? "+" : ""}{r.delta}</span></td><td className="py-2.5 text-center text-xs font-mono">{r.L}</td><td className="py-2.5 text-center text-xs font-mono">{r.I}</td><td className="py-2.5 text-center text-xs font-mono">{r.V}</td><td className="py-2.5 text-center text-xs font-mono">{r.C}</td></tr>))}</tbody></table></div></Card>
           </div>
@@ -994,8 +900,8 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                       <ResponsiveContainer width="100%" height="100%">
                         <RadarChart data={planRadarData}>
                           <PolarGrid stroke="#e2e8f0" />
-                          <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 10 }} />
-                          <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
+                          <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 13, fontWeight: 600 }} />
+                          <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 11 }} />
                           <Radar name="Quality" dataKey="score" stroke="#0d9488" fill="#0d9488" fillOpacity={0.2} strokeWidth={2} />
                         </RadarChart>
                       </ResponsiveContainer>
@@ -1111,6 +1017,83 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                     })}
                   </div>
                 </Card>
+
+                {/* ── Weights & Formulas (from Detailed Analysis) ── */}
+                <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20">
+                  <CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Settings2 className="h-5 w-5 text-blue-600" />Weights &amp; Formulas</CardTitle><div className="flex items-center gap-2"><button onClick={resetWeights} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button><button onClick={() => setWeightsOpen(!weightsOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900">{weightsOpen ? "▲ Collapse" : "▼ Expand"}</button></div></div><CardDescription className="text-sm">Overall = Σ (dimension_score × weight). Adjust weights below.</CardDescription></CardHeader>
+                  {weightsOpen && (<>
+                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+                      {DIMS.map((d) => (<div key={d.key} className="rounded-lg border border-blue-100 bg-white p-3 dark:border-blue-900 dark:bg-gray-900"><div className="flex items-center gap-1.5 mb-2"><d.icon className="h-4 w-4 text-blue-500" /><span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{d.label}</span></div><p className="text-xs text-gray-500 dark:text-gray-400 mb-2 leading-snug">{d.formula}</p><label className="text-xs text-gray-500">Weight</label><input type="range" min="0" max="100" value={Math.round(weights[d.key]*100)} onChange={(e) => setWeight(d.key, Number(e.target.value)/100)} className="w-full h-1.5 accent-blue-600" /><span className="text-sm font-mono font-semibold text-blue-700 dark:text-blue-400">{(weights[d.key]*100).toFixed(0)}%</span></div>))}
+                    </div>
+                    <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Total weight: {((weights.risk+weights.impact+weights.urgency+weights.priority+weights.type+weights.scope)*100).toFixed(0)}%</p>
+                    <div className="mt-4 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Dimension</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">SN Field</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Mapping</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Current Weight</th></tr></thead><tbody>{DIMS.map((d) => (<tr key={d.key} className="border-b border-gray-50 dark:border-gray-800"><td className="py-3"><div className="flex items-center gap-2"><d.icon className="h-4 w-4 text-blue-500" /><span className="font-medium text-gray-900 dark:text-gray-100">{d.label}</span></div></td><td className="py-3 font-mono text-xs text-gray-500">{d.snField}</td><td className="py-3 text-xs text-gray-600 dark:text-gray-400">{d.formula}</td><td className="py-3 text-center"><span className="rounded bg-blue-100 px-2 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">{(weights[d.key]*100).toFixed(0)}%</span></td></tr>))}</tbody></table></div>
+                  </>)}
+                </Card>
+
+                {/* ── Dimensions & Impact ── */}
+                {(() => {
+                  const planScored = scored.find((s) => s.cr.number === selectedPlan.cr.number) || scored[0];
+                  const planDims = planScored.dims;
+                  const planOverall = planScored.overall;
+                  const planCr = planScored.cr;
+                  const planNum = planCr.number;
+                  const planHasOverrides = !!overrides[planNum] && Object.keys(overrides[planNum]).length > 0;
+                  const planRadarDims = [
+                    { dimension: "Risk", score: planDims.risk, fullMark: 100 }, { dimension: "Impact", score: planDims.impact, fullMark: 100 },
+                    { dimension: "Urgency", score: planDims.urgency, fullMark: 100 }, { dimension: "Priority", score: planDims.priority, fullMark: 100 },
+                    { dimension: "Type", score: planDims.type, fullMark: 100 }, { dimension: "Scope", score: planDims.scope, fullMark: 100 },
+                  ];
+                  return (
+                    <Card>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm flex items-center gap-2"><Gauge className="h-4 w-4 text-blue-500" />Dimensions &amp; Impact — {planNum}</CardTitle>
+                          {planHasOverrides && (<button onClick={() => { setOverrides((p) => { const n = { ...p }; delete n[planNum]; return n; }); }} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button>)}
+                        </div>
+                      </CardHeader>
+                      <div className="h-56">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart data={planRadarDims}><PolarGrid stroke="#e2e8f0" /><PolarAngleAxis dataKey="dimension" tick={{ fontSize: 13, fontWeight: 600 }} /><PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 11 }} /><Radar name="Score" dataKey="score" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} strokeWidth={2} /></RadarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex justify-center mb-3"><RiskBadge score={planOverall} /></div>
+                      <div className="space-y-1.5 px-4 pb-4">
+                        {DIMS.map((d) => {
+                          const current = planDims[d.key];
+                          const snValue = d.key==="risk"?planCr.risk:d.key==="impact"?planCr.sn_impact:d.key==="urgency"?planCr.urgency:d.key==="priority"?planCr.priority:d.key==="type"?planCr.type:planCr.scope;
+                          const isOverridden = overrides[planNum]?.[d.key] !== undefined;
+                          return (
+                            <div key={d.key} className="rounded border border-gray-100 dark:border-gray-800 p-2">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <d.icon className="h-3 w-3 text-gray-400" />
+                                  <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{d.label}</span>
+                                  <span className="text-[9px] text-gray-400">SN: &quot;{snValue || "—"}&quot;</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className={`text-[10px] font-mono font-bold ${getRiskBg(current)} rounded px-1 py-0.5`}>{current}</span>
+                                  {isOverridden && <span className="text-[9px] text-amber-500">(was {planScored.baseDims[d.key]})</span>}
+                                </div>
+                              </div>
+                              <input type="range" min="0" max="100" value={current} onChange={(e) => handleOverride(d.key, Number(e.target.value))} className="w-full h-1 accent-blue-600" />
+                              <div className="flex justify-between text-[9px] text-gray-400"><span>0</span><span>{(weights[d.key]*100).toFixed(0)}% → {Math.round(current * weights[d.key])} pts</span><span>100</span></div>
+                            </div>
+                          );
+                        })}
+                        <div className="rounded bg-gray-50 dark:bg-gray-800 p-2 mt-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Overall Impact</span>
+                            <RiskBadge score={planOverall} size="sm" />
+                          </div>
+                          <p className="text-[9px] text-gray-400 mt-0.5 font-mono">= {DIMS.map((d) => `${planDims[d.key]}×${(weights[d.key]*100).toFixed(0)}%`).join(" + ")} = {planOverall}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })()}
+
+                {/* ── Change Details ── */}
+                <Card><CardHeader><CardTitle className="text-sm">Change Details — {selectedPlan.cr.number}</CardTitle></CardHeader><div className="space-y-3 text-sm">{[{ label: "State", value: selectedPlan.cr.state },{ label: "Type", value: selectedPlan.cr.type },{ label: "Category", value: selectedPlan.cr.category },{ label: "Priority", value: selectedPlan.cr.priority },{ label: "Risk", value: selectedPlan.cr.risk },{ label: "Impact", value: selectedPlan.cr.sn_impact },{ label: "Urgency", value: selectedPlan.cr.urgency },{ label: "Scope", value: selectedPlan.cr.scope },{ label: "Approval", value: selectedPlan.cr.approval },{ label: "Opened By", value: selectedPlan.cr.opened_by },{ label: "Assigned To", value: selectedPlan.cr.assigned_to },{ label: "Assignment Group", value: selectedPlan.cr.assignment_group },{ label: "Config Item", value: selectedPlan.cr.cmdb_ci },{ label: "Business Service", value: selectedPlan.cr.business_service },{ label: "Close Code", value: selectedPlan.cr.close_code }].map((row) => row.value ? (<div key={row.label} className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">{row.label}</span><span className="font-medium text-gray-700 dark:text-gray-300 text-right max-w-[200px] truncate">{row.value}</span></div>) : null)}</div></Card>
 
               </div>
             ) : (
