@@ -3,8 +3,8 @@
 import { useState, useMemo, useCallback } from "react";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
-  PieChart, Pie, Legend,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend,
+  PieChart, Pie,
 } from "recharts";
 import {
   Shield, AlertTriangle, Gauge, Zap, Layers, Settings2, RotateCcw, Search,
@@ -118,6 +118,7 @@ export default function ImpactPage() {
   const [planEvalOpen, setPlanEvalOpen] = useState(true);
   const [riskFormulaOpen, setRiskFormulaOpen] = useState(false);
   const [riskSearch, setRiskSearch] = useState("");
+  const [planScoringOpen, setPlanScoringOpen] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, Partial<DimensionScores>>>({});
 
   const setWeight = useCallback((key: keyof Weights, val: number) => { setWeights((p) => ({ ...p, [key]: val })); }, []);
@@ -218,9 +219,9 @@ export default function ImpactPage() {
       <div className="flex gap-1 border-b border-gray-200 pb-0.5 dark:border-gray-800 overflow-x-auto">
         <button onClick={() => setActiveTab("overview")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="overview" ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><LayoutDashboard className="h-4 w-4" />Overview</button>
         <button onClick={() => setActiveTab("analysis")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="analysis" ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><BarChart3 className="h-4 w-4" />Detailed Analysis</button>
+        <button onClick={() => setActiveTab("plans")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="plans" ? "border-b-2 border-teal-600 text-teal-600 bg-teal-50 dark:bg-teal-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><ClipboardCheck className="h-4 w-4" />Plan Analysis</button>
         <button onClick={() => setActiveTab("risk")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="risk" ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><ShieldAlert className="h-4 w-4" />Risk Analysis</button>
         <button onClick={() => setActiveTab("ml")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="ml" ? "border-b-2 border-purple-600 text-purple-600 bg-purple-50 dark:bg-purple-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><Brain className="h-4 w-4" />Code Change Analysis</button>
-        <button onClick={() => setActiveTab("plans")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="plans" ? "border-b-2 border-teal-600 text-teal-600 bg-teal-50 dark:bg-teal-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><ClipboardCheck className="h-4 w-4" />Plan Analysis</button>
       </div>
 
       {/* ═══ OVERVIEW TAB ═══ */}
@@ -384,6 +385,38 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
               <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">Critical (≥75)</p><p className="mt-1 text-3xl font-bold text-red-600">{critCount}</p></Card>
               <Card className="p-5"><p className="text-sm font-medium text-gray-500 dark:text-gray-400">High (50-74)</p><p className="mt-1 text-3xl font-bold text-orange-600">{highCount}</p></Card>
             </div>
+            {/* ── Score Comparison Chart ── */}
+            {(() => {
+              const planMap = new Map(planResults.map(p => [p.cr.number, p.overallScore]));
+              const chartData = riskResults.slice(0, 30).map((r) => ({
+                name: r.cr.number.replace("CHG", ""),
+                snScore: r.snScore,
+                planScore: planMap.get(r.cr.number) ?? 0,
+                riskScore: r.score,
+              }));
+              return (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-purple-500" /> Score Comparison — SN Risk vs Plan Readiness vs Computed Risk</CardTitle>
+                    <CardDescription>Top 30 change requests by computed risk score. Lower plan readiness + higher risk = more concern.</CardDescription>
+                  </CardHeader>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={chartData} barGap={1} barCategoryGap="15%">
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="name" tick={{ fontSize: 9 }} stroke="#94a3b8" angle={-45} textAnchor="end" height={50} />
+                        <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" domain={[0, 100]} />
+                        <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }} />
+                        <Legend wrapperStyle={{ fontSize: "12px" }} />
+                        <Bar dataKey="snScore" name="SN Risk Score" fill="#6366f1" radius={[2, 2, 0, 0]} />
+                        <Bar dataKey="planScore" name="Plan Readiness" fill="#14b8a6" radius={[2, 2, 0, 0]} />
+                        <Bar dataKey="riskScore" name="Computed Risk" fill="#ef4444" radius={[2, 2, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </Card>
+              );
+            })()}
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[200px] max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={riskSearch} onChange={(e) => setRiskSearch(e.target.value)} /></div>
             </div>
@@ -460,6 +493,66 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                 <button onClick={() => { setSelectedPlanCR(null); setExpandedPlanContent(null); }} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">← Back to Overview</button>
               )}
             </div>
+
+            {/* ── Plan Scoring Methodology (collapsible) ── */}
+            <Card className="border-teal-200 bg-teal-50/30 dark:border-teal-900 dark:bg-teal-950/20">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2"><Info className="h-5 w-5 text-teal-600" />Plan Scoring Methodology</CardTitle>
+                  <button onClick={() => setPlanScoringOpen(!planScoringOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-teal-600 hover:bg-teal-100 dark:hover:bg-teal-900">{planScoringOpen ? "▲ Collapse" : "▼ Expand"}</button>
+                </div>
+                <CardDescription className="text-sm">Overall = Σ (dimension_quality × weight). Each plan is scored 0–100 based on content analysis.</CardDescription>
+              </CardHeader>
+              {planScoringOpen && (<>
+                <div className="rounded-lg bg-white dark:bg-gray-900 border border-teal-100 dark:border-teal-900 p-5 space-y-4">
+                  <p className="text-lg font-bold font-mono text-teal-700 dark:text-teal-400">Readiness = Impl×0.25 + Backout×0.25 + Test×0.20 + Risk×0.15 + Change×0.10 + Justification×0.05</p>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-1">
+                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300">Implementation Plan (25%)</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Scored by length, structured steps, and keyword coverage for: step, deploy, install, configure, verify, validate, monitor, rollout, pre-check, post-check, approval, schedule.</p>
+                    </div>
+                    <div className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-1">
+                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300">Backout Plan (25%)</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Scored by length, structured steps, and keyword coverage for: revert, rollback, restore, undo, previous, snapshot, backup, recovery, failover, downtime.</p>
+                    </div>
+                    <div className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-1">
+                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300">Test Plan (20%)</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Scored by length, structured steps, and keyword coverage for: test, verify, validate, smoke, regression, acceptance, integration, unit, performance, security, coverage.</p>
+                    </div>
+                    <div className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-1">
+                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300">Risk/Impact Analysis (15%)</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Scored by length, structured steps, and keyword coverage for: risk, impact, mitigation, contingency, fallback, probability, severity, exposure, vulnerability, dependency.</p>
+                    </div>
+                    <div className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-1">
+                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300">Change Plan (10%)</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Uses the same keyword set as Implementation Plan. Evaluates the overall change execution strategy.</p>
+                    </div>
+                    <div className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-1">
+                      <p className="text-sm font-bold text-teal-700 dark:text-teal-300">Justification (5%)</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Scored by length, structured steps, and keyword coverage for: business, requirement, need, value, benefit, compliance, security, improvement.</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Scoring Factors (each plan scored 0–100):</p>
+                    <div className="grid grid-cols-2 gap-2 md:grid-cols-4 text-xs text-gray-600 dark:text-gray-400">
+                      <div className="rounded bg-teal-50 dark:bg-teal-950/30 p-2"><strong>Base:</strong> 20 pts if any content provided</div>
+                      <div className="rounded bg-teal-50 dark:bg-teal-950/30 p-2"><strong>Length:</strong> +5 (brief), +12 (moderate), +20 (detailed 500+ chars)</div>
+                      <div className="rounded bg-teal-50 dark:bg-teal-950/30 p-2"><strong>Structure:</strong> +15 for numbered/bulleted steps, +5 for 5+ lines</div>
+                      <div className="rounded bg-teal-50 dark:bg-teal-950/30 p-2"><strong>Keywords:</strong> +5 (minimal), +10 (partial ≥25%), +20 (good ≥50%)</div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 md:grid-cols-4 text-xs text-gray-600 dark:text-gray-400">
+                      <div className="rounded bg-teal-50 dark:bg-teal-950/30 p-2"><strong>Bonus:</strong> +5 for time references, +5 for contact info</div>
+                    </div>
+                  </div>
+                  <div className="mt-2 grid grid-cols-4 gap-2 text-center text-xs">
+                    <div className="rounded bg-green-100 dark:bg-green-900 p-2"><span className="font-bold text-green-700 dark:text-green-300">75-100</span><p className="text-green-600 dark:text-green-400">Well Prepared</p></div>
+                    <div className="rounded bg-amber-100 dark:bg-amber-900 p-2"><span className="font-bold text-amber-700 dark:text-amber-300">50-74</span><p className="text-amber-600 dark:text-amber-400">Adequate</p></div>
+                    <div className="rounded bg-orange-100 dark:bg-orange-900 p-2"><span className="font-bold text-orange-700 dark:text-orange-300">25-49</span><p className="text-orange-600 dark:text-orange-400">Gaps Found</p></div>
+                    <div className="rounded bg-red-100 dark:bg-red-900 p-2"><span className="font-bold text-red-700 dark:text-red-300">0-24</span><p className="text-red-600 dark:text-red-400">Critical Gaps</p></div>
+                  </div>
+                </div>
+              </>)}
+            </Card>
 
             {/* ── Single CR Detail View ── */}
             {selectedPlan ? (
