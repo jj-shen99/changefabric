@@ -927,17 +927,15 @@ formatter={(_value: any, _name: any, props: any) => [`${props.payload.raw} (scal
                         </CardTitle>
                         <CardDescription className="mt-1">{selectedPlan.cr.short_description}</CardDescription>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-center">
-                          <span className={`inline-block rounded-full px-4 py-1.5 text-lg font-bold ${pBg(selectedPlan.overallScore)}`}>{selectedPlan.overallScore}</span>
-                          <p className={`text-xs font-semibold mt-1 ${pColor(selectedPlan.overallScore)}`}>{planRiskLabel(selectedPlan.overallScore)}</p>
-                        </div>
-                      </div>
+                      <p className={`text-xs font-semibold ${pColor(selectedPlan.overallScore)}`}>{planRiskLabel(selectedPlan.overallScore)}</p>
                     </div>
                   </CardHeader>
                   {(() => {
                     const dimScores = PLAN_DIMS.map(d => selectedPlan[d.key].quality);
                     const avgDim = Math.round(dimScores.reduce((a, b) => a + b, 0) / dimScores.length);
+                    const cachedMl = mlAnalysis && mlAnalysis.number === selectedPlan.cr.number ? mlAnalysis : null;
+                    const mlScore = cachedMl ? cachedMl.planAnalysis.overallQuality : null;
+                    const mlColor = (s: number) => s >= 65 ? "text-green-600" : s >= 40 ? "text-amber-600" : "text-red-600";
                     return (
                       <div className="grid grid-cols-4 gap-3 text-center">
                         <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
@@ -949,8 +947,12 @@ formatter={(_value: any, _name: any, props: any) => [`${props.payload.raw} (scal
                           <p className={`text-xl font-bold ${pColor(avgDim)}`}>{avgDim}/100</p>
                         </div>
                         <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
-                          <p className="text-xs text-gray-500">Missing Plans</p>
-                          <p className={`text-xl font-bold ${selectedPlan.gapCount > 0 ? "text-red-600" : "text-green-600"}`}>{selectedPlan.gapCount}</p>
+                          <p className="text-xs text-gray-500">ML Quality Score</p>
+                          {mlScore !== null ? (
+                            <p className={`text-xl font-bold ${mlColor(mlScore)}`}>{mlScore}/100</p>
+                          ) : (
+                            <button onClick={() => { setSelectedMlCR(selectedPlan.cr.number); setMlAnalysis(null); setMlError(null); setMlLoading(true); fetch(`/api/data/plan-analysis?number=${encodeURIComponent(selectedPlan.cr.number)}`).then(r => r.ok ? r.json() : r.json().then(b => { throw new Error(b.error); })).then(data => { setMlAnalysis(data); setMlLoading(false); }).catch(err => { setMlError(err.message); setMlLoading(false); }); }} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium mt-1">{mlLoading ? "Analyzing…" : "Run Analysis"}</button>
+                          )}
                         </div>
                         <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
                           <p className="text-xs text-gray-500">SN Risk</p>
@@ -1387,6 +1389,18 @@ formatter={(_value: any, _name: any, props: any) => [`${props.payload.raw} (scal
                           {ap.environmentTags.map((t: string, i: number) => <span key={i} className="rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300">{t}</span>)}
                           {ap.technologyStack.map((t: string, i: number) => <span key={i} className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:text-gray-400">{t}</span>)}
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Score Methodology */}
+                    <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 p-4 space-y-2">
+                      <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5"><Info className="h-4 w-4" />ML Overall Score Calculation</p>
+                      <p className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400">Overall = Structure×25% + Completeness×30% + Clarity×25% + RiskAwareness×20%</p>
+                      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 text-[11px] text-gray-600 dark:text-gray-400">
+                        <div className="rounded bg-white dark:bg-gray-900 p-2 border border-indigo-50 dark:border-indigo-900"><strong className="text-indigo-700 dark:text-indigo-300">Structure (25%)</strong><p className="mt-0.5">Numbered steps, bullets, line count, pre/post checks</p></div>
+                        <div className="rounded bg-white dark:bg-gray-900 p-2 border border-indigo-50 dark:border-indigo-900"><strong className="text-indigo-700 dark:text-indigo-300">Completeness (30%)</strong><p className="mt-0.5">Element checklist coverage (8 elements), word count depth</p></div>
+                        <div className="rounded bg-white dark:bg-gray-900 p-2 border border-indigo-50 dark:border-indigo-900"><strong className="text-indigo-700 dark:text-indigo-300">Clarity (25%)</strong><p className="mt-0.5">Words-per-line ratio, sequence words, conditionals, numbered steps</p></div>
+                        <div className="rounded bg-white dark:bg-gray-900 p-2 border border-indigo-50 dark:border-indigo-900"><strong className="text-indigo-700 dark:text-indigo-300">Risk Awareness (20%)</strong><p className="mt-0.5">Rollback refs, risk keywords, monitoring, backups, communication</p></div>
                       </div>
                     </div>
 
