@@ -40,11 +40,27 @@ function computeOverall(dims: DimensionScores, w: Weights): number {
 }
 
 /* ═══ Git Analysis Types ═══ */
+interface FeatureImpact {
+  feature: string; impactScore: number; impactLevel: "critical" | "high" | "medium" | "low";
+  filesAffected: number; churn: number; commits: number; riskFactors: string[]; description: string;
+}
+interface ProductionConcern {
+  type: "outage" | "performance" | "data_integrity" | "security" | "availability";
+  severity: "critical" | "high" | "medium" | "low"; title: string; description: string;
+  evidence: string[]; mitigation: string;
+}
+interface PerformanceInsight {
+  category: string; score: number; level: "critical" | "high" | "medium" | "low";
+  description: string; files: string[];
+}
 interface GitAnalysisData {
   repoUrl: string; owner: string; repo: string; sinceDate: string; days: number;
   summary: { totalCommits: number; avgRisk: number; maxRisk: number; overallRiskFactor: number; totalAdditions: number; totalDeletions: number; totalFilesChanged: number; criticalCount: number; highCount: number; mediumCount: number; lowCount: number; };
   authorBreakdown: { author: string; commits: number; avgRisk: number; additions: number; deletions: number }[];
   commits: { sha: string; shortSha: string; message: string; author: string; date: string; filesChanged: number; additions: number; deletions: number; riskScore: number; riskLevel: string; riskFactors: string[]; files: { filename: string; additions: number; deletions: number; status: string; fileRisk: number }[]; }[];
+  featureImpact: FeatureImpact[];
+  productionConcerns: ProductionConcern[];
+  performanceInsights: PerformanceInsight[];
 }
 
 /* ═══ Shared Risk Helpers ═══ */
@@ -904,6 +920,254 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                     ))}
                   </div>
                 </Card>
+              );
+            })()}
+
+            {/* ── ML Feature Impact Analysis ── */}
+            {gitData.featureImpact && gitData.featureImpact.length > 0 && (() => {
+              const impLvlColor = (l: string) => l === "critical" ? "bg-red-500" : l === "high" ? "bg-orange-400" : l === "medium" ? "bg-amber-400" : "bg-green-400";
+              const impLvlBadge = (l: string) => l === "critical" ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" : l === "high" ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300" : l === "medium" ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300" : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300";
+              const maxImpact = Math.max(...gitData.featureImpact.map(f => f.impactScore), 1);
+              const radarFeatures = gitData.featureImpact.slice(0, 8).map(f => ({ feature: f.feature.length > 18 ? f.feature.slice(0, 16) + "…" : f.feature, impact: f.impactScore, fullMark: 100 }));
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mt-2">
+                    <Brain className="h-5 w-5 text-purple-600" />
+                    <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">ML Feature Impact Analysis</h3>
+                    <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">{gitData.featureImpact.length} features detected</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    {/* Feature Impact Bar Chart */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-purple-500" /> Feature Impact Scores</CardTitle>
+                        <CardDescription>Degree of impact per application feature area. Higher = more affected by code changes.</CardDescription>
+                      </CardHeader>
+                      <div className="h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={gitData.featureImpact.slice(0, 10)} layout="vertical" margin={{ left: 10, right: 20 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                            <YAxis type="category" dataKey="feature" tick={{ fontSize: 9 }} stroke="#94a3b8" width={130} />
+                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                            <Bar dataKey="impactScore" name="Impact" radius={[0, 4, 4, 0]}>
+                              {gitData.featureImpact.slice(0, 10).map((f, i) => <Cell key={i} fill={f.impactLevel === "critical" ? "#ef4444" : f.impactLevel === "high" ? "#f97316" : f.impactLevel === "medium" ? "#eab308" : "#22c55e"} />)}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </Card>
+                    {/* Feature Impact Radar */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Shield className="h-4 w-4 text-purple-500" /> Feature Impact Radar</CardTitle>
+                        <CardDescription>Multi-dimensional view of which features are most impacted by recent code changes.</CardDescription>
+                      </CardHeader>
+                      <div className="h-72">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart data={radarFeatures}>
+                            <PolarGrid stroke="#e2e8f0" />
+                            <PolarAngleAxis dataKey="feature" tick={{ fontSize: 9 }} />
+                            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                            <Radar name="Impact" dataKey="impact" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.25} />
+                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                          </RadarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </Card>
+                  </div>
+                  {/* Feature Detail Cards */}
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {gitData.featureImpact.map((f) => (
+                      <Card key={f.feature} className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{f.feature}</p>
+                            <p className="text-[10px] text-gray-400 mt-0.5">{f.description}</p>
+                          </div>
+                          <span className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${impLvlBadge(f.impactLevel)}`}>{f.impactLevel}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden mb-2">
+                          <div className={`h-full rounded-full ${impLvlColor(f.impactLevel)} transition-all`} style={{ width: `${(f.impactScore / maxImpact) * 100}%` }} />
+                        </div>
+                        <div className="flex gap-4 text-[10px] text-gray-500 dark:text-gray-400">
+                          <span><strong>{f.filesAffected}</strong> files</span>
+                          <span><strong>±{f.churn.toLocaleString()}</strong> lines</span>
+                          <span><strong>{f.commits}</strong> commits</span>
+                          <span className="font-bold text-purple-600">{f.impactScore}/100</span>
+                        </div>
+                        {f.riskFactors.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {f.riskFactors.slice(0, 3).map((rf, i) => (
+                              <span key={i} className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">{rf}</span>
+                            ))}
+                          </div>
+                        )}
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── Production Outage & Availability Concerns ── */}
+            {gitData.productionConcerns && gitData.productionConcerns.length > 0 && (() => {
+              const typeIcon = (t: string) => t === "outage" ? "🔴" : t === "security" ? "🔒" : t === "data_integrity" ? "🗄️" : t === "availability" ? "🌐" : "⚡";
+              const sevBorder = (s: string) => s === "critical" ? "border-red-300 bg-red-50/60 dark:border-red-800 dark:bg-red-950/30" : s === "high" ? "border-orange-300 bg-orange-50/60 dark:border-orange-800 dark:bg-orange-950/30" : s === "medium" ? "border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/30" : "border-blue-300 bg-blue-50/60 dark:border-blue-800 dark:bg-blue-950/30";
+              const sevBadge = (s: string) => s === "critical" ? "bg-red-600 text-white" : s === "high" ? "bg-orange-500 text-white" : s === "medium" ? "bg-amber-500 text-white" : "bg-blue-500 text-white";
+              const critCount = gitData.productionConcerns.filter(c => c.severity === "critical").length;
+              const highCount = gitData.productionConcerns.filter(c => c.severity === "high").length;
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mt-2">
+                    <ShieldAlert className="h-5 w-5 text-red-600" />
+                    <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">Production Outage & Availability Concerns</h3>
+                    {critCount > 0 && <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-700 dark:bg-red-900 dark:text-red-300">{critCount} critical</span>}
+                    {highCount > 0 && <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold text-orange-700 dark:bg-orange-900 dark:text-orange-300">{highCount} high</span>}
+                  </div>
+                  {/* Concern summary KPIs */}
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                    {(["outage", "security", "data_integrity", "availability", "performance"] as const).map(t => {
+                      const count = gitData.productionConcerns.filter(c => c.type === t).length;
+                      const label = t === "data_integrity" ? "Data Integrity" : t.charAt(0).toUpperCase() + t.slice(1);
+                      const icon = typeIcon(t);
+                      return (
+                        <Card key={t} className="p-3 text-center">
+                          <span className="text-lg">{icon}</span>
+                          <p className="text-2xl font-bold mt-1 text-gray-900 dark:text-gray-100">{count}</p>
+                          <p className="text-[10px] text-gray-400">{label}</p>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                  {/* Concern detail cards */}
+                  <div className="space-y-3">
+                    {gitData.productionConcerns.map((c, i) => (
+                      <Card key={i} className={`border ${sevBorder(c.severity)}`}>
+                        <div className="p-4">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm">{typeIcon(c.type)}</span>
+                              <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{c.title}</p>
+                            </div>
+                            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${sevBadge(c.severity)}`}>{c.severity}</span>
+                          </div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">{c.description}</p>
+                          {c.evidence.length > 0 && (
+                            <div className="mb-2 rounded bg-gray-100 dark:bg-gray-800 p-2">
+                              <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1">Evidence:</p>
+                              {c.evidence.map((e, j) => <p key={j} className="text-[10px] text-gray-500 dark:text-gray-400 font-mono truncate">{e}</p>)}
+                            </div>
+                          )}
+                          <div className="flex items-start gap-1.5">
+                            <Shield className="h-3 w-3 text-teal-600 mt-0.5 shrink-0" />
+                            <p className="text-[11px] text-teal-700 dark:text-teal-400 font-medium">{c.mitigation}</p>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── Performance Impact Analysis ── */}
+            {gitData.performanceInsights && gitData.performanceInsights.length > 0 && (() => {
+              const perfLvlColor = (l: string) => l === "critical" ? "#ef4444" : l === "high" ? "#f97316" : l === "medium" ? "#eab308" : "#22c55e";
+              const perfBg = (l: string) => l === "critical" ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" : l === "high" ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300" : l === "medium" ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300" : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300";
+              const critPerf = gitData.performanceInsights.filter(p => p.level === "critical" || p.level === "high").length;
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mt-2">
+                    <Zap className="h-5 w-5 text-amber-600" />
+                    <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">Performance Impact Analysis</h3>
+                    {critPerf > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-900 dark:text-amber-300">{critPerf} concern{critPerf > 1 ? "s" : ""}</span>}
+                  </div>
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    {/* Performance concern bar chart */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-amber-500" /> Performance Concern Scores</CardTitle>
+                        <CardDescription>Areas where code changes may introduce performance regressions or bottlenecks.</CardDescription>
+                      </CardHeader>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={gitData.performanceInsights.slice(0, 8)} layout="vertical" margin={{ left: 10, right: 20 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                            <YAxis type="category" dataKey="category" tick={{ fontSize: 9 }} stroke="#94a3b8" width={120} />
+                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                            <Bar dataKey="score" name="Concern Score" radius={[0, 4, 4, 0]}>
+                              {gitData.performanceInsights.slice(0, 8).map((p, i) => <Cell key={i} fill={perfLvlColor(p.level)} />)}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </Card>
+                    {/* Performance insight details */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Performance Risk Details</CardTitle>
+                        <CardDescription>Detailed breakdown of detected performance-sensitive changes and affected files.</CardDescription>
+                      </CardHeader>
+                      <div className="px-4 pb-4 space-y-3 max-h-64 overflow-y-auto">
+                        {gitData.performanceInsights.map((p, i) => (
+                          <div key={i} className="rounded-lg border border-gray-100 dark:border-gray-800 p-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{p.category}</span>
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${perfBg(p.level)}`}>{p.score}/100</span>
+                            </div>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-1.5">{p.description}</p>
+                            {p.files.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {p.files.map((f, j) => (
+                                  <span key={j} className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[9px] font-mono text-gray-500 dark:text-gray-400 truncate max-w-[200px]">{f.split("/").pop()}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  </div>
+                  {/* AI Performance Intelligence Summary */}
+                  <Card className="border-amber-200 bg-amber-50/30 dark:border-amber-900 dark:bg-amber-950/20">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-amber-600" /> AI Performance Intelligence</CardTitle>
+                      <CardDescription>Automated synthesis of performance risk signals from code change patterns.</CardDescription>
+                    </CardHeader>
+                    <div className="px-4 pb-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+                      {(() => {
+                        const perfInsights: { icon: string; text: string; sev: string }[] = [];
+                        const critPerfInsights = gitData.performanceInsights.filter(p => p.level === "critical");
+                        const highPerfInsights = gitData.performanceInsights.filter(p => p.level === "high");
+                        if (critPerfInsights.length > 0) perfInsights.push({ icon: "🔴", text: `${critPerfInsights.length} critical performance area(s) affected: ${critPerfInsights.map(p => p.category).join(", ")}. Load testing strongly recommended before deployment.`, sev: "critical" });
+                        if (highPerfInsights.length > 0) perfInsights.push({ icon: "🟠", text: `${highPerfInsights.length} high-concern area(s): ${highPerfInsights.map(p => p.category).join(", ")}. Monitor response times post-deployment.`, sev: "high" });
+                        const dbPerf = gitData.performanceInsights.filter(p => p.category.toLowerCase().includes("query") || p.category.toLowerCase().includes("index") || p.category.toLowerCase().includes("pool"));
+                        if (dbPerf.length > 0) perfInsights.push({ icon: "🗄️", text: `Database performance impact: ${dbPerf.map(p => p.category).join(", ")}. Run EXPLAIN on changed queries and verify index coverage.`, sev: "high" });
+                        const cachePerf = gitData.performanceInsights.find(p => p.category.toLowerCase().includes("cach"));
+                        if (cachePerf) perfInsights.push({ icon: "⚡", text: `Caching layer modified (score: ${cachePerf.score}/100). Verify cache invalidation strategy and TTL settings to avoid stale data or cache stampedes.`, sev: "medium" });
+                        const asyncPerf = gitData.performanceInsights.find(p => p.category.toLowerCase().includes("async"));
+                        if (asyncPerf) perfInsights.push({ icon: "🔄", text: `Async processing patterns changed. Verify Promise chains, error handling, and concurrent request limits to prevent thread starvation.`, sev: "medium" });
+                        const bundlePerf = gitData.performanceInsights.find(p => p.category.toLowerCase().includes("bundle"));
+                        if (bundlePerf) perfInsights.push({ icon: "📦", text: `Bundle size may be affected. Run bundle analysis to check if initial load time has increased beyond acceptable thresholds.`, sev: "medium" });
+                        const totalPerfScore = gitData.performanceInsights.length > 0 ? Math.round(gitData.performanceInsights.reduce((a, p) => a + p.score, 0) / gitData.performanceInsights.length) : 0;
+                        if (totalPerfScore < 30) perfInsights.push({ icon: "✅", text: `Overall performance impact is low (avg: ${totalPerfScore}/100). Code changes are unlikely to cause noticeable degradation.`, sev: "info" });
+                        else if (totalPerfScore >= 60) perfInsights.push({ icon: "🔥", text: `High average performance concern (${totalPerfScore}/100). Recommend staging load test before production deployment.`, sev: "critical" });
+                        if (perfInsights.length === 0) perfInsights.push({ icon: "✅", text: "No significant performance concerns detected in this changeset.", sev: "info" });
+                        const pSevColor = (s: string) => s === "critical" ? "border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20" : s === "high" ? "border-orange-200 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20" : s === "medium" ? "border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20" : "border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20";
+                        return perfInsights.map((ins, i) => (
+                          <div key={i} className={`rounded-lg border p-3 ${pSevColor(ins.sev)}`}>
+                            <div className="flex items-start gap-2">
+                              <span className="text-sm mt-0.5">{ins.icon}</span>
+                              <p className="text-xs text-gray-700 dark:text-gray-300">{ins.text}</p>
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </Card>
+                </div>
               );
             })()}
 
