@@ -4,13 +4,13 @@ import { useState, useMemo, useCallback } from "react";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend,
-  PieChart, Pie, LineChart, Line,
+  PieChart, Pie, LineChart, Line, AreaChart, Area,
 } from "recharts";
 import {
   Shield, AlertTriangle, Gauge, Zap, Layers, Settings2, RotateCcw, Search,
   LayoutDashboard, BarChart3, PieChart as PieChartIcon, ShieldAlert, Info,
   Brain, GitCommitHorizontal, RefreshCw, ExternalLink, FileCode2, User, Calendar,
-  ClipboardCheck, FileText, CheckCircle2, XCircle, AlertCircle,
+  ClipboardCheck, FileText, CheckCircle2, XCircle, AlertCircle, TrendingUp, Sparkles,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { RiskBadge } from "@/components/risk-badge";
@@ -51,6 +51,24 @@ interface GitAnalysisData {
 function riskColor(s: number) { if (s>=75) return "text-red-600"; if (s>=50) return "text-orange-600"; if (s>=25) return "text-amber-600"; return "text-green-600"; }
 function riskBgCls(s: number) { if (s>=75) return "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"; if (s>=50) return "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300"; if (s>=25) return "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"; return "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"; }
 function riskLbl(s: number) { if (s>=75) return "Critical"; if (s>=50) return "High"; if (s>=25) return "Medium"; return "Low"; }
+
+/* ═══ Weight Redistribution Helper ═══ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function redistributeWeights(prev: any, changedKey: string, newVal: number): any {
+  const keys = Object.keys(prev);
+  const otherKeys = keys.filter(k => k !== changedKey);
+  const clamped = Math.max(0, Math.min(1, newVal));
+  const remaining = 1 - clamped;
+  const otherTotal = otherKeys.reduce((sum, k) => sum + (prev[k] as number), 0);
+  const result = { ...prev, [changedKey]: clamped };
+  if (otherTotal > 0) {
+    otherKeys.forEach(k => { result[k] = Math.max(0, (prev[k] as number) / otherTotal * remaining); });
+  } else {
+    const share = remaining / otherKeys.length;
+    otherKeys.forEach(k => { result[k] = share; });
+  }
+  return result;
+}
 
 /* ═══ Plan Scoring Helpers ═══ */
 function pColor(s: number) { if (s>=75) return "text-green-600"; if (s>=50) return "text-amber-600"; if (s>=25) return "text-orange-600"; return "text-red-600"; }
@@ -123,9 +141,11 @@ export default function ImpactPage() {
   const [mlAnalysis, setMlAnalysis] = useState<Record<string, any> | null>(null);
   const [mlLoading, setMlLoading] = useState(false);
   const [mlError, setMlError] = useState<string | null>(null);
+  const [mlWeights, setMlWeights] = useState({ structure: 0.25, completeness: 0.30, clarity: 0.25, riskAwareness: 0.20 });
+  const [mlRecalcFlash, setMlRecalcFlash] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, Partial<DimensionScores>>>({});
 
-  const setWeight = useCallback((key: keyof Weights, val: number) => { setWeights((p) => ({ ...p, [key]: val })); }, []);
+  const setWeight = useCallback((key: keyof Weights, val: number) => { setWeights((p) => redistributeWeights(p, key, val)); }, []);
   const resetWeights = useCallback(() => setWeights({ ...DEFAULT_WEIGHTS }), []);
 
   const scored = useMemo(() => changeRequests.map((cr) => {
@@ -194,7 +214,7 @@ export default function ImpactPage() {
     { key: "justification" as const, label: "Justification", icon: Info },
   ];
   const planWeightTotal = Object.values(planWeights).reduce((a, b) => a + b, 0);
-  const setPlanWeight = (key: keyof typeof planWeights, val: number) => setPlanWeights(prev => ({ ...prev, [key]: val }));
+  const setPlanWeight = (key: keyof typeof planWeights, val: number) => setPlanWeights(prev => redistributeWeights(prev, key, val));
   const resetPlanWeights = () => setPlanWeights({ implementation: 0.25, backout: 0.25, testPlan: 0.20, riskAnalysis: 0.15, changePlan: 0.10, justification: 0.05 });
 
   /* ═══ Git Analysis Fetch ═══ */
@@ -593,6 +613,300 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
               );
             })()}
 
+            {/* ── File Type Risk Breakdown ── */}
+            {(() => {
+              const extMap: Record<string, { count: number; riskSum: number; churn: number }> = {};
+              gitData.commits.forEach(c => {
+                c.files.forEach(f => {
+                  const ext = (f.filename.split(".").pop() || "other").toLowerCase();
+                  if (!extMap[ext]) extMap[ext] = { count: 0, riskSum: 0, churn: 0 };
+                  extMap[ext].count++;
+                  extMap[ext].riskSum += f.fileRisk || 0;
+                  extMap[ext].churn += f.additions + f.deletions;
+                });
+              });
+              const extData = Object.entries(extMap)
+                .map(([ext, d]) => ({ ext: `.${ext}`, files: d.count, avgRisk: Math.round(d.riskSum / d.count), churn: d.churn }))
+                .sort((a, b) => b.avgRisk - a.avgRisk)
+                .slice(0, 12);
+              if (extData.length === 0) return null;
+              return (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><FileCode2 className="h-4 w-4 text-purple-500" /> File Type Risk Breakdown</CardTitle>
+                      <CardDescription>Average risk score by file extension. Higher risk types need extra review.</CardDescription>
+                    </CardHeader>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={extData} layout="vertical">
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                          <YAxis type="category" dataKey="ext" tick={{ fontSize: 11 }} stroke="#94a3b8" width={60} />
+                          <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                          <Bar dataKey="avgRisk" name="Avg Risk" radius={[0, 4, 4, 0]}>
+                            {extData.map((e, i) => <Cell key={i} fill={e.avgRisk >= 60 ? "#ef4444" : e.avgRisk >= 40 ? "#f97316" : e.avgRisk >= 20 ? "#eab308" : "#22c55e"} />)}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+                  {/* ── Commit Message Pattern Analysis ── */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><Brain className="h-4 w-4 text-purple-500" /> Commit Message Pattern Analysis</CardTitle>
+                      <CardDescription>AI-detected patterns in commit messages indicating change intent and risk signals.</CardDescription>
+                    </CardHeader>
+                    <div className="px-4 pb-4 space-y-3">
+                      {(() => {
+                        const patterns: { label: string; regex: RegExp; color: string; severity: string }[] = [
+                          { label: "Feature / Enhancement", regex: /feat|feature|add|implement|enhance|new/i, color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300", severity: "info" },
+                          { label: "Bug Fix", regex: /fix|bug|patch|resolve|issue|defect/i, color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300", severity: "info" },
+                          { label: "Refactor / Cleanup", regex: /refactor|clean|restructure|reorganize|simplify/i, color: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300", severity: "low" },
+                          { label: "Hotfix / Emergency", regex: /hotfix|emergency|urgent|critical|asap/i, color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300", severity: "critical" },
+                          { label: "Revert / Rollback", regex: /revert|rollback|undo|back.?out/i, color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300", severity: "high" },
+                          { label: "Config / Infra", regex: /config|infra|ci|cd|deploy|docker|pipeline|build/i, color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300", severity: "medium" },
+                          { label: "Docs / Tests", regex: /doc|readme|test|spec|coverage/i, color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300", severity: "info" },
+                          { label: "WIP / Incomplete", regex: /wip|work.?in.?progress|todo|hack|fixme|temp/i, color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300", severity: "high" },
+                          { label: "Breaking Change", regex: /break|breaking|incompatible|migration|deprecat/i, color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300", severity: "critical" },
+                          { label: "Security", regex: /secur|auth|cve|vulnerab|encrypt|permission|access/i, color: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-300", severity: "high" },
+                          { label: "Performance", regex: /perf|optimi|speed|cache|latency|throughput/i, color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300", severity: "medium" },
+                          { label: "Merge Commit", regex: /^merge|merge.*branch|merge.*pull/i, color: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300", severity: "low" },
+                        ];
+                        const results = patterns.map(p => ({
+                          ...p,
+                          count: gitData.commits.filter(c => p.regex.test(c.message)).length,
+                          avgRisk: (() => { const matching = gitData.commits.filter(c => p.regex.test(c.message)); return matching.length > 0 ? Math.round(matching.reduce((s, c) => s + c.riskScore, 0) / matching.length) : 0; })(),
+                        })).filter(r => r.count > 0).sort((a, b) => b.count - a.count);
+                        return results.length > 0 ? (
+                          <div className="space-y-2">
+                            {results.map(r => (
+                              <div key={r.label} className="flex items-center gap-3">
+                                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${r.color}`}>{r.label}</span>
+                                <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                                  <div className="h-full rounded-full bg-purple-500 transition-all" style={{ width: `${Math.min(100, (r.count / gitData.commits.length) * 100)}%` }} />
+                                </div>
+                                <span className="text-xs font-mono text-gray-500 w-8 text-right">{r.count}</span>
+                                <span className={`text-xs font-bold w-6 text-right ${r.avgRisk >= 50 ? "text-red-600" : r.avgRisk >= 25 ? "text-amber-600" : "text-green-600"}`}>{r.avgRisk}</span>
+                              </div>
+                            ))}
+                            <p className="text-[10px] text-gray-400 mt-2">Count = matching commits. Score = avg risk of those commits.</p>
+                          </div>
+                        ) : <p className="text-sm text-gray-400">No recognizable patterns detected in commit messages.</p>;
+                      })()}
+                    </div>
+                  </Card>
+                </div>
+              );
+            })()}
+
+            {/* ── Cumulative Risk Trend + Directory Risk ── */}
+            {(() => {
+              // Cumulative risk trend
+              const sorted = [...gitData.commits].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+              let cumRisk = 0;
+              const cumData = sorted.map((c, i) => {
+                cumRisk += c.riskScore;
+                return { idx: i + 1, date: new Date(c.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }), cumRisk, avg: Math.round(cumRisk / (i + 1)), sha: c.shortSha };
+              });
+              // Directory risk
+              const dirMap: Record<string, { risk: number; files: number; churn: number }> = {};
+              gitData.commits.forEach(c => {
+                c.files.forEach(f => {
+                  const parts = f.filename.split("/");
+                  const dir = parts.length > 1 ? parts.slice(0, Math.min(2, parts.length - 1)).join("/") : "/";
+                  if (!dirMap[dir]) dirMap[dir] = { risk: 0, files: 0, churn: 0 };
+                  dirMap[dir].risk = Math.max(dirMap[dir].risk, f.fileRisk || 0);
+                  dirMap[dir].files++;
+                  dirMap[dir].churn += f.additions + f.deletions;
+                });
+              });
+              const dirData = Object.entries(dirMap)
+                .map(([dir, d]) => ({ dir: dir.length > 20 ? "…" + dir.slice(-18) : dir, fullDir: dir, ...d }))
+                .sort((a, b) => b.risk - a.risk)
+                .slice(0, 10);
+              return (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  {cumData.length > 1 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-purple-500" /> Cumulative Risk Trend</CardTitle>
+                        <CardDescription>Running average risk score across commits. Rising trend = increasing risk exposure.</CardDescription>
+                      </CardHeader>
+                      <div className="h-56">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={cumData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                            <defs>
+                              <linearGradient id="cumRiskGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2} />
+                                <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis dataKey="idx" tick={{ fontSize: 10 }} stroke="#94a3b8" label={{ value: "Commit #", position: "insideBottom", offset: -2, fontSize: 10 }} />
+                            <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={[0, 100]} />
+                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                            <Area type="monotone" dataKey="avg" name="Running Avg Risk" stroke="#8b5cf6" fill="url(#cumRiskGrad)" strokeWidth={2} dot={{ r: 2 }} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </Card>
+                  )}
+                  {dirData.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Layers className="h-4 w-4 text-purple-500" /> Directory Risk Heatmap</CardTitle>
+                        <CardDescription>Risk concentration by directory path. Wider bars = more file changes.</CardDescription>
+                      </CardHeader>
+                      <div className="px-4 pb-4 space-y-1.5">
+                        {dirData.map(d => {
+                          const pct = Math.min(100, (d.files / Math.max(...dirData.map(x => x.files), 1)) * 100);
+                          const bg = d.risk >= 60 ? "bg-red-500" : d.risk >= 40 ? "bg-orange-400" : d.risk >= 20 ? "bg-amber-400" : "bg-green-400";
+                          return (
+                            <div key={d.fullDir} className="flex items-center gap-2" title={`${d.fullDir} — Risk: ${d.risk}, Files: ${d.files}, Churn: ±${d.churn}`}>
+                              <span className="text-[11px] font-mono text-gray-500 dark:text-gray-400 w-36 truncate text-right">{d.dir}</span>
+                              <div className="flex-1 h-5 rounded bg-gray-100 dark:bg-gray-800 overflow-hidden relative">
+                                <div className={`h-full rounded ${bg} transition-all`} style={{ width: `${pct}%` }} />
+                                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-gray-700 dark:text-gray-300">{d.risk} risk · {d.files} files</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Card>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ── Author Activity Heatmap + Risk Factor Radar ── */}
+            {(() => {
+              // Author activity by day of week
+              const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+              const authorDayMap: Record<string, number[]> = {};
+              gitData.commits.forEach(c => {
+                if (!authorDayMap[c.author]) authorDayMap[c.author] = new Array(7).fill(0);
+                const day = new Date(c.date).getDay();
+                authorDayMap[c.author][day]++;
+              });
+              const topAuthors = Object.entries(authorDayMap)
+                .map(([author, days]) => ({ author, days, total: days.reduce((a, b) => a + b, 0) }))
+                .sort((a, b) => b.total - a.total)
+                .slice(0, 8);
+              const maxCommitsInCell = Math.max(...topAuthors.flatMap(a => a.days), 1);
+
+              // Risk factor radar for the repo
+              const totalCommits = gitData.summary.totalCommits;
+              const highRiskPct = totalCommits > 0 ? Math.round((gitData.summary.criticalCount + gitData.summary.highCount) / totalCommits * 100) : 0;
+              const avgChurnPerCommit = totalCommits > 0 ? Math.round((gitData.summary.totalAdditions + gitData.summary.totalDeletions) / totalCommits) : 0;
+              const uniqueAuthors = gitData.authorBreakdown.length;
+              const avgFilesPerCommit = totalCommits > 0 ? Math.round(gitData.summary.totalFilesChanged / totalCommits) : 0;
+              // Normalize to 0-100 scale for radar
+              const radarData = [
+                { factor: "Avg Risk", value: gitData.summary.avgRisk, fullMark: 100 },
+                { factor: "High Risk %", value: highRiskPct, fullMark: 100 },
+                { factor: "Churn Rate", value: Math.min(100, avgChurnPerCommit / 5), fullMark: 100 },
+                { factor: "File Spread", value: Math.min(100, avgFilesPerCommit * 10), fullMark: 100 },
+                { factor: "Team Size", value: Math.min(100, uniqueAuthors * 15), fullMark: 100 },
+                { factor: "Volume", value: Math.min(100, totalCommits * 3), fullMark: 100 },
+              ];
+
+              return (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  {topAuthors.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><User className="h-4 w-4 text-purple-500" /> Author Activity Heatmap</CardTitle>
+                        <CardDescription>Commit frequency by author and day of week. Darker = more commits.</CardDescription>
+                      </CardHeader>
+                      <div className="px-4 pb-4 overflow-x-auto">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr>
+                              <th className="text-left font-medium text-gray-400 pb-1 pr-2">Author</th>
+                              {dayNames.map(d => <th key={d} className="text-center font-medium text-gray-400 pb-1 w-10">{d}</th>)}
+                              <th className="text-center font-medium text-gray-400 pb-1 w-10">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {topAuthors.map(a => (
+                              <tr key={a.author}>
+                                <td className="py-0.5 pr-2 font-medium text-gray-700 dark:text-gray-300 truncate max-w-[120px]">{a.author}</td>
+                                {a.days.map((count, i) => {
+                                  const intensity = count / maxCommitsInCell;
+                                  const bg = count === 0 ? "bg-gray-50 dark:bg-gray-800" : intensity > 0.7 ? "bg-purple-600 text-white" : intensity > 0.4 ? "bg-purple-400 text-white" : intensity > 0 ? "bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200" : "";
+                                  return <td key={i} className={`text-center py-0.5 ${bg} rounded-sm`}>{count > 0 ? count : ""}</td>;
+                                })}
+                                <td className="text-center py-0.5 font-bold text-purple-600">{a.total}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
+                  )}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><Shield className="h-4 w-4 text-purple-500" /> Repository Risk Profile Radar</CardTitle>
+                      <CardDescription>Multi-dimensional risk assessment of the repository&apos;s recent activity.</CardDescription>
+                    </CardHeader>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={radarData}>
+                          <PolarGrid stroke="#e2e8f0" />
+                          <PolarAngleAxis dataKey="factor" tick={{ fontSize: 10 }} />
+                          <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                          <Radar name="Risk Profile" dataKey="value" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.2} />
+                          <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+                </div>
+              );
+            })()}
+
+            {/* ── Code Change Summary Intelligence ── */}
+            {(() => {
+              const tc = gitData.summary.totalCommits;
+              const hrc = gitData.summary.criticalCount + gitData.summary.highCount;
+              const avgChurn = tc > 0 ? Math.round((gitData.summary.totalAdditions + gitData.summary.totalDeletions) / tc) : 0;
+              const hotAuthors = gitData.authorBreakdown.filter(a => a.avgRisk >= 50);
+              const insights: { icon: string; text: string; severity: "critical" | "high" | "medium" | "info" }[] = [];
+              if (hrc > tc * 0.3) insights.push({ icon: "🔴", text: `${Math.round(hrc / tc * 100)}% of commits are high/critical risk — code review process may need strengthening`, severity: "critical" });
+              if (avgChurn > 200) insights.push({ icon: "📊", text: `High average churn (${avgChurn} lines/commit) — large changesets increase review difficulty and merge conflict risk`, severity: "high" });
+              if (hotAuthors.length > 0) insights.push({ icon: "👤", text: `${hotAuthors.length} author(s) have avg risk ≥50: ${hotAuthors.map(a => a.author).join(", ")} — may need mentoring or paired review`, severity: "high" });
+              if (gitData.commits.some(c => /wip|hack|fixme|todo/i.test(c.message))) insights.push({ icon: "⚠️", text: "WIP/hack/fixme commits detected — ensure these are resolved before production merge", severity: "medium" });
+              if (gitData.commits.some(c => /revert/i.test(c.message))) insights.push({ icon: "↩️", text: "Revert commits detected — investigate root cause of reverted changes", severity: "medium" });
+              const weekendCommits = gitData.commits.filter(c => { const d = new Date(c.date).getDay(); return d === 0 || d === 6; });
+              if (weekendCommits.length > 0) insights.push({ icon: "📅", text: `${weekendCommits.length} weekend commit(s) detected — may indicate urgent fixes or on-call activity`, severity: "info" });
+              if (gitData.summary.avgRisk < 25) insights.push({ icon: "✅", text: `Low average risk score (${gitData.summary.avgRisk}/100) — codebase changes are well-controlled`, severity: "info" });
+              if (gitData.summary.avgRisk >= 50) insights.push({ icon: "🔥", text: `Elevated average risk (${gitData.summary.avgRisk}/100) — consider adding automated gates or pre-commit hooks`, severity: "high" });
+              const addDeleteRatio = gitData.summary.totalDeletions > 0 ? (gitData.summary.totalAdditions / gitData.summary.totalDeletions).toFixed(1) : "∞";
+              insights.push({ icon: "📈", text: `Add/Delete ratio: ${addDeleteRatio}:1 — ${Number(addDeleteRatio) > 3 ? "codebase growing rapidly" : Number(addDeleteRatio) < 0.5 ? "significant code removal (cleanup or refactor)" : "balanced growth and maintenance"}`, severity: "info" });
+
+              if (insights.length === 0) return null;
+              const sevColor = (s: string) => s === "critical" ? "border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/20" : s === "high" ? "border-orange-200 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/20" : s === "medium" ? "border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20" : "border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/20";
+              return (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-purple-500" /> AI Code Change Insights</CardTitle>
+                    <CardDescription>Automated intelligence derived from commit patterns, risk signals, and code change behavior.</CardDescription>
+                  </CardHeader>
+                  <div className="px-4 pb-4 grid grid-cols-1 gap-2 md:grid-cols-2">
+                    {insights.map((ins, i) => (
+                      <div key={i} className={`rounded-lg border p-3 ${sevColor(ins.severity)}`}>
+                        <div className="flex items-start gap-2">
+                          <span className="text-sm mt-0.5">{ins.icon}</span>
+                          <p className="text-xs text-gray-700 dark:text-gray-300">{ins.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            })()}
+
             <div className="flex items-center gap-3 text-xs text-gray-400"><a href={gitData.repoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-purple-600 hover:underline"><ExternalLink className="h-3 w-3" /> {gitData.owner}/{gitData.repo}</a><span>·</span><span>Since {new Date(gitData.sinceDate).toLocaleDateString()}</span><span>·</span><span>{gitData.summary.totalFilesChanged} files touched</span></div>
             <Card><CardHeader><CardTitle>All Commits — Risk Assessment ({gitData.commits.length})</CardTitle><CardDescription>Click a row to see file-level details and risk factors.</CardDescription></CardHeader><div className="overflow-x-auto max-h-[520px] overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-white dark:bg-gray-900 z-10"><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Commit</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Risk</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Level</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Files</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">+/−</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Author</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Date</th></tr></thead><tbody>{gitData.commits.map((c) => (<><tr key={c.sha} className={`cursor-pointer border-b border-gray-50 dark:border-gray-800 hover:bg-purple-50 dark:hover:bg-purple-950/20 ${expandedCommit===c.sha?"bg-purple-50 dark:bg-purple-950/20":""}`} onClick={() => setExpandedCommit(expandedCommit===c.sha?null:c.sha)}><td className="py-2.5"><span className="font-mono text-[11px] text-purple-500">{c.shortSha}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{c.message}</p></td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${riskBgCls(c.riskScore)}`}>{c.riskScore}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-semibold capitalize ${riskColor(c.riskScore)}`}>{c.riskLevel}</span></td><td className="py-2.5 text-center text-xs">{c.filesChanged}</td><td className="py-2.5 text-center text-xs"><span className="text-green-600">+{c.additions}</span>{" / "}<span className="text-red-500">−{c.deletions}</span></td><td className="py-2.5 text-xs text-gray-600 dark:text-gray-400">{c.author}</td><td className="py-2.5 text-xs text-gray-400">{c.date ? new Date(c.date).toLocaleDateString() : "—"}</td></tr>{expandedCommit===c.sha && (<tr key={`${c.sha}-d`}><td colSpan={7} className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3"><div className="space-y-3"><div><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Risk Factors</p><div className="flex flex-wrap gap-1.5">{c.riskFactors.map((f, i) => <span key={i} className="rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">{f}</span>)}</div></div>{c.files.length > 0 && (<div><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Files Changed ({c.files.length})</p><div className="max-h-48 overflow-y-auto space-y-1">{c.files.map((f, fi) => (<div key={fi} className="flex items-center justify-between rounded bg-white dark:bg-gray-900 px-3 py-1.5 text-xs"><div className="flex items-center gap-2 min-w-0 flex-1"><FileCode2 className="h-3 w-3 text-gray-400 shrink-0" /><span className="font-mono text-gray-700 dark:text-gray-300 truncate">{f.filename}</span></div><div className="flex items-center gap-3 shrink-0 ml-3"><span className="text-green-600">+{f.additions}</span><span className="text-red-500">−{f.deletions}</span><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${riskBgCls(f.fileRisk)}`}>{f.fileRisk}</span></div></div>))}</div></div>)}</div></td></tr>)}</>))}</tbody></table></div></Card>
           </>)}
@@ -623,6 +937,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
           <div className="space-y-6">
             {/* Search bar + filters */}
             <div className="flex flex-wrap items-center gap-3">
+              {!selectedPlanCR && (<>
               <div className="relative flex-1 min-w-[200px] max-w-md">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input type="text" placeholder="Search CR by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={planSearch} onChange={(e) => setPlanSearch(e.target.value)} />
@@ -639,17 +954,25 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                 <option value="all">All Groups</option>
                 {uniqueGroups.map((g) => <option key={g} value={g}>{g}</option>)}
               </select>
+              </>)}
               {selectedPlanCR && (
-                <button onClick={() => { setSelectedPlanCR(null); setExpandedPlanContent(null); setMlAnalysis(null); setMlError(null); }} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">← Back to Overview</button>
+                <button onClick={() => { setSelectedPlanCR(null); setExpandedPlanContent(null); setMlAnalysis(null); setMlError(null); }} className="rounded-lg bg-teal-600 px-4 py-2 text-xs font-medium text-white hover:bg-teal-700 dark:bg-teal-700 dark:hover:bg-teal-600">← Back to List</button>
               )}
             </div>
 
-            {/* ── Plan Scoring Methodology (collapsible) ── */}
+            {/* ── Plan Scoring Methodology (collapsible) — only on individual CR view ── */}
+            {selectedPlanCR && (() => {
+              const planScoreBadge = selectedPlan ? selectedPlan.overallScore : (planResults.length > 0 ? Math.round(planResults.reduce((s, c) => s + c.overallScore, 0) / planResults.length) : 0);
+              const planScoreLabel = selectedPlan ? selectedPlan.cr.number : "Avg";
+              return (
             <Card className="border-teal-200 bg-teal-50/30 dark:border-teal-900 dark:bg-teal-950/20">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2"><Info className="h-5 w-5 text-teal-600" />Plan Scoring Methodology</CardTitle>
-                  <button onClick={() => setPlanScoringOpen(!planScoringOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-teal-600 hover:bg-teal-100 dark:hover:bg-teal-900">{planScoringOpen ? "▲ Collapse" : "▼ Expand"}</button>
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-3 py-1 text-sm font-bold transition-all duration-300 ${pBg(planScoreBadge)}`}>{planScoreLabel}: {planScoreBadge}/100</span>
+                    <button onClick={() => setPlanScoringOpen(!planScoringOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-teal-600 hover:bg-teal-100 dark:hover:bg-teal-900">{planScoringOpen ? "▲ Collapse" : "▼ Expand"}</button>
+                  </div>
                 </div>
                 <CardDescription className="text-sm">Overall = Σ (dimension_quality × weight). Each plan is scored 0–100 based on content analysis.</CardDescription>
               </CardHeader>
@@ -702,18 +1025,69 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                 </div>
               </>)}
             </Card>
+              );
+            })()}
 
-            {/* ── Dimension & Impact Scoring Formula (collapsible) ── */}
+            {/* ── Dimension Scoring Formula (collapsible) — only on individual CR view ── */}
+            {selectedPlanCR && (() => {
+              const dimImpactCr = selectedPlan ? scored.find(s => s.cr.number === selectedPlan.cr.number) : null;
+              const dimImpactScore = dimImpactCr ? dimImpactCr.overall : (scored.length > 0 ? Math.round(scored.reduce((s, c) => s + c.overall, 0) / scored.length) : 0);
+              const dimImpactLabel = dimImpactCr ? dimImpactCr.cr.number : "Avg";
+              const wTotal = weights.risk+weights.impact+weights.urgency+weights.priority+weights.type+weights.scope;
+              return (
             <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20">
-              <CardHeader><div className="flex items-center justify-between"><CardTitle className="text-base flex items-center gap-2"><Settings2 className="h-5 w-5 text-blue-600" />Dimension &amp; Impact Scoring Formula</CardTitle><div className="flex items-center gap-2"><button onClick={resetWeights} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button><button onClick={() => setWeightsOpen(!weightsOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900">{weightsOpen ? "▲ Collapse" : "▼ Expand"}</button></div></div><CardDescription className="text-sm">Overall = Σ (dimension_score × weight). Adjust weights below.</CardDescription></CardHeader>
-              {weightsOpen && (<>
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-                  {DIMS.map((d) => (<div key={d.key} className="rounded-lg border border-blue-100 bg-white p-3 dark:border-blue-900 dark:bg-gray-900"><div className="flex items-center gap-1.5 mb-2"><d.icon className="h-4 w-4 text-blue-500" /><span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{d.label}</span></div><p className="text-xs text-gray-500 dark:text-gray-400 mb-2 leading-snug">{d.formula}</p><label className="text-xs text-gray-500">Weight</label><input type="range" min="0" max="100" value={Math.round(weights[d.key]*100)} onChange={(e) => setWeight(d.key, Number(e.target.value)/100)} className="w-full h-1.5 accent-blue-600" /><span className="text-sm font-mono font-semibold text-blue-700 dark:text-blue-400">{(weights[d.key]*100).toFixed(0)}%</span></div>))}
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2"><Settings2 className="h-5 w-5 text-blue-600" />Dimension Scoring Formula</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-3 py-1 text-sm font-bold transition-all duration-300 ${riskBgCls(dimImpactScore)}`}>{dimImpactLabel}: {dimImpactScore}/100</span>
+                    <button onClick={() => setWeightsOpen(!weightsOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900">{weightsOpen ? "▲ Collapse" : "▼ Expand"}</button>
+                  </div>
                 </div>
-                <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">Total weight: {((weights.risk+weights.impact+weights.urgency+weights.priority+weights.type+weights.scope)*100).toFixed(0)}%</p>
-                <div className="mt-4 overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Dimension</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">SN Field</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Mapping</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Current Weight</th></tr></thead><tbody>{DIMS.map((d) => (<tr key={d.key} className="border-b border-gray-50 dark:border-gray-800"><td className="py-3"><div className="flex items-center gap-2"><d.icon className="h-4 w-4 text-blue-500" /><span className="font-medium text-gray-900 dark:text-gray-100">{d.label}</span></div></td><td className="py-3 font-mono text-xs text-gray-500">{d.snField}</td><td className="py-3 text-xs text-gray-600 dark:text-gray-400">{d.formula}</td><td className="py-3 text-center"><span className="rounded bg-blue-100 px-2 py-0.5 text-sm font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">{(weights[d.key]*100).toFixed(0)}%</span></td></tr>))}</tbody></table></div>
+                <CardDescription className="text-sm">Overall = Σ (dimension_score × weight). Each dimension is scored 0–100 based on ServiceNow field values.</CardDescription>
+              </CardHeader>
+              {weightsOpen && (<>
+                <div className="rounded-lg bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900 p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold font-mono text-blue-700 dark:text-blue-400">Dimension Score = {DIMS.map(d => `${d.label}×${(weights[d.key]*100).toFixed(0)}%`).join(" + ")}</p>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-mono ${Math.abs(wTotal - 1) > 0.01 ? "text-red-600 font-bold" : "text-gray-400"}`}>Total: {(wTotal*100).toFixed(0)}%</span>
+                      <button onClick={resetWeights} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900"><RotateCcw className="h-3 w-3" /> Reset</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    {DIMS.map((d) => (
+                      <div key={d.key} className="rounded-lg border border-blue-100 dark:border-blue-800 p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5"><d.icon className="h-4 w-4" />{d.label}</p>
+                          <span className="text-sm font-mono font-bold text-blue-600 dark:text-blue-400">{(weights[d.key]*100).toFixed(0)}%</span>
+                        </div>
+                        <input type="range" min="0" max="100" value={Math.round(weights[d.key]*100)} onChange={(e) => setWeight(d.key, Number(e.target.value)/100)} className="w-full h-1.5 accent-blue-600" />
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400">SN Field: <span className="font-mono">{d.snField}</span> — {d.formula}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Dimension Score Mapping:</p>
+                    <div className="grid grid-cols-2 gap-2 md:grid-cols-3 text-xs text-gray-600 dark:text-gray-400">
+                      <div className="rounded bg-blue-50 dark:bg-blue-950/30 p-2"><strong>Risk:</strong> Very High→95, High→75, Moderate→50, Low→25, None→5</div>
+                      <div className="rounded bg-blue-50 dark:bg-blue-950/30 p-2"><strong>Impact/Urgency:</strong> 1-High→85, 2-Medium→55, 3-Low→25</div>
+                      <div className="rounded bg-blue-50 dark:bg-blue-950/30 p-2"><strong>Priority:</strong> 1-Critical→95, 2-High→75, 3-Moderate→50, 4-Low→25</div>
+                      <div className="rounded bg-blue-50 dark:bg-blue-950/30 p-2"><strong>Type:</strong> Emergency→90, Normal→50, Standard→25</div>
+                      <div className="rounded bg-blue-50 dark:bg-blue-950/30 p-2"><strong>Scope:</strong> Large→80, Medium→50, Small→25</div>
+                    </div>
+                  </div>
+                  <div className="mt-2 grid grid-cols-4 gap-2 text-center text-xs">
+                    <div className="rounded bg-red-100 dark:bg-red-900 p-2"><span className="font-bold text-red-700 dark:text-red-300">75-100</span><p className="text-red-600 dark:text-red-400">Critical</p></div>
+                    <div className="rounded bg-orange-100 dark:bg-orange-900 p-2"><span className="font-bold text-orange-700 dark:text-orange-300">50-74</span><p className="text-orange-600 dark:text-orange-400">High</p></div>
+                    <div className="rounded bg-amber-100 dark:bg-amber-900 p-2"><span className="font-bold text-amber-700 dark:text-amber-300">25-49</span><p className="text-amber-600 dark:text-amber-400">Medium</p></div>
+                    <div className="rounded bg-green-100 dark:bg-green-900 p-2"><span className="font-bold text-green-700 dark:text-green-300">0-24</span><p className="text-green-600 dark:text-green-400">Low</p></div>
+                  </div>
+                </div>
               </>)}
             </Card>
+              );
+            })()}
 
             {/* ── Single CR Detail View ── */}
             {selectedPlan ? (
@@ -732,32 +1106,34 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                     </div>
                   </CardHeader>
                   {(() => {
-                    const dimScores = PLAN_DIMS.map(d => selectedPlan[d.key].quality);
-                    const avgDim = Math.round(dimScores.reduce((a, b) => a + b, 0) / dimScores.length);
                     const cachedMl = mlAnalysis && mlAnalysis.number === selectedPlan.cr.number ? mlAnalysis : null;
                     const mlScore = cachedMl ? cachedMl.planAnalysis.overallQuality : null;
                     const mlColor = (s: number) => s >= 65 ? "text-green-600" : s >= 40 ? "text-amber-600" : "text-red-600";
+                    const impactScored = scored.find(s => s.cr.number === selectedPlan.cr.number);
+                    const impactScore = impactScored ? impactScored.overall : 0;
                     return (
-                      <div className="grid grid-cols-4 gap-3 text-center">
-                        <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
-                          <p className="text-xs text-gray-500">Readiness</p>
-                          <p className={`text-xl font-bold ${pColor(selectedPlan.overallScore)}`}>{selectedPlan.overallScore}/100</p>
-                        </div>
-                        <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
-                          <p className="text-xs text-gray-500">Avg Dimension</p>
-                          <p className={`text-xl font-bold ${pColor(avgDim)}`}>{avgDim}/100</p>
-                        </div>
-                        <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
-                          <p className="text-xs text-gray-500">ML Quality Score</p>
-                          {mlScore !== null ? (
-                            <p className={`text-xl font-bold ${mlColor(mlScore)}`}>{mlScore}/100</p>
-                          ) : (
-                            <button onClick={() => { setSelectedMlCR(selectedPlan.cr.number); setMlAnalysis(null); setMlError(null); setMlLoading(true); fetch(`/api/data/plan-analysis?number=${encodeURIComponent(selectedPlan.cr.number)}`).then(r => r.ok ? r.json() : r.json().then(b => { throw new Error(b.error); })).then(data => { setMlAnalysis(data); setMlLoading(false); }).catch(err => { setMlError(err.message); setMlLoading(false); }); }} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium mt-1">{mlLoading ? "Analyzing…" : "Run Analysis"}</button>
-                          )}
-                        </div>
-                        <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
-                          <p className="text-xs text-gray-500">SN Risk</p>
-                          <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{selectedPlan.cr.risk || "—"}</p>
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 text-center">
+                          <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
+                            <p className="text-xs text-gray-500">Readiness</p>
+                            <p className={`text-xl font-bold ${pColor(selectedPlan.overallScore)}`}>{selectedPlan.overallScore}/100</p>
+                          </div>
+                          <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
+                            <p className="text-xs text-gray-500">Dimension</p>
+                            <p className={`text-xl font-bold ${riskColor(impactScore)}`}>{impactScore}/100</p>
+                          </div>
+                          <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
+                            <p className="text-xs text-gray-500">ML Quality</p>
+                            {mlScore !== null ? (
+                              <p className={`text-xl font-bold ${mlColor(mlScore)}`}>{mlScore}/100</p>
+                            ) : (
+                              <button onClick={() => { setSelectedMlCR(selectedPlan.cr.number); setMlAnalysis(null); setMlError(null); setMlLoading(true); fetch(`/api/data/plan-analysis?number=${encodeURIComponent(selectedPlan.cr.number)}`).then(r => r.ok ? r.json() : r.json().then(b => { throw new Error(b.error); })).then(data => { setMlAnalysis(data); setMlLoading(false); }).catch(err => { setMlError(err.message); setMlLoading(false); }); }} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium mt-1">{mlLoading ? "Analyzing…" : "Run Analysis"}</button>
+                            )}
+                          </div>
+                          <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
+                            <p className="text-xs text-gray-500">SN Risk</p>
+                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{selectedPlan.cr.risk || "—"}</p>
+                          </div>
                         </div>
                       </div>
                     );
@@ -865,6 +1241,41 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                             })}
                           </div>
                         </Card>
+                        {/* ── Change Details (ServiceNow fields) ── */}
+                        <Card>
+                          <CardHeader><CardTitle className="text-sm flex items-center gap-2"><FileText className="h-4 w-4 text-teal-500" />Change Details — {selectedPlan.cr.number}</CardTitle></CardHeader>
+                          <div className="space-y-1 text-sm px-1">
+                            {[
+                              { label: "Short Description", value: selectedPlan.cr.short_description },
+                              { label: "State", value: selectedPlan.cr.state },
+                              { label: "Type", value: selectedPlan.cr.type },
+                              { label: "Category", value: selectedPlan.cr.category },
+                              { label: "Priority", value: selectedPlan.cr.priority },
+                              { label: "Risk", value: selectedPlan.cr.risk },
+                              { label: "Impact", value: selectedPlan.cr.sn_impact },
+                              { label: "Urgency", value: selectedPlan.cr.urgency },
+                              { label: "Scope", value: selectedPlan.cr.scope },
+                              { label: "Approval", value: selectedPlan.cr.approval },
+                              { label: "Opened By", value: selectedPlan.cr.opened_by },
+                              { label: "Opened At", value: selectedPlan.cr.opened_at },
+                              { label: "Assigned To", value: selectedPlan.cr.assigned_to },
+                              { label: "Assignment Group", value: selectedPlan.cr.assignment_group },
+                              { label: "Config Item", value: selectedPlan.cr.cmdb_ci },
+                              { label: "Business Service", value: selectedPlan.cr.business_service },
+                              { label: "Close Code", value: selectedPlan.cr.close_code },
+                              { label: "Close Notes", value: selectedPlan.cr.close_notes },
+                              { label: "Closed At", value: selectedPlan.cr.closed_at },
+                              { label: "Start Date", value: selectedPlan.cr.start_date },
+                              { label: "End Date", value: selectedPlan.cr.end_date },
+                              { label: "Description", value: selectedPlan.cr.description },
+                            ].map((row) => row.value ? (
+                              <div key={row.label} className="flex gap-3 py-1.5 border-b border-gray-100 dark:border-gray-800 last:border-0">
+                                <span className="text-xs text-gray-400 dark:text-gray-500 w-28 shrink-0 pt-0.5">{row.label}</span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 break-words whitespace-pre-wrap">{row.value.length > 300 ? row.value.slice(0, 300) + "…" : row.value}</span>
+                              </div>
+                            ) : null)}
+                          </div>
+                        </Card>
                       </div>
 
                       {/* Right column: Dimensions & Impact Radar */}
@@ -916,48 +1327,6 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                     </div>
                   );
                 })()}
-
-                {/* ── Change Details (all fields including plans) ── */}
-                <Card>
-                  <CardHeader><CardTitle className="text-sm">Change Details — {selectedPlan.cr.number}</CardTitle></CardHeader>
-                  <div className="space-y-3 text-sm">
-                    {[
-                      { label: "Short Description", value: selectedPlan.cr.short_description },
-                      { label: "State", value: selectedPlan.cr.state },
-                      { label: "Type", value: selectedPlan.cr.type },
-                      { label: "Category", value: selectedPlan.cr.category },
-                      { label: "Priority", value: selectedPlan.cr.priority },
-                      { label: "Risk", value: selectedPlan.cr.risk },
-                      { label: "Impact", value: selectedPlan.cr.sn_impact },
-                      { label: "Urgency", value: selectedPlan.cr.urgency },
-                      { label: "Scope", value: selectedPlan.cr.scope },
-                      { label: "Approval", value: selectedPlan.cr.approval },
-                      { label: "Opened By", value: selectedPlan.cr.opened_by },
-                      { label: "Opened At", value: selectedPlan.cr.opened_at },
-                      { label: "Assigned To", value: selectedPlan.cr.assigned_to },
-                      { label: "Assignment Group", value: selectedPlan.cr.assignment_group },
-                      { label: "Config Item", value: selectedPlan.cr.cmdb_ci },
-                      { label: "Business Service", value: selectedPlan.cr.business_service },
-                      { label: "Close Code", value: selectedPlan.cr.close_code },
-                      { label: "Close Notes", value: selectedPlan.cr.close_notes },
-                      { label: "Closed At", value: selectedPlan.cr.closed_at },
-                      { label: "Start Date", value: selectedPlan.cr.start_date },
-                      { label: "End Date", value: selectedPlan.cr.end_date },
-                      { label: "Description", value: selectedPlan.cr.description },
-                      { label: "Implementation Plan", value: selectedPlan.cr.implementation_plan },
-                      { label: "Backout Plan", value: selectedPlan.cr.backout_plan },
-                      { label: "Test Plan", value: selectedPlan.cr.test_plan },
-                      { label: "Change Plan", value: selectedPlan.cr.change_plan },
-                      { label: "Risk/Impact Analysis", value: selectedPlan.cr.risk_impact_analysis },
-                      { label: "Justification", value: selectedPlan.cr.justification },
-                    ].map((row) => row.value ? (
-                      <div key={row.label} className="flex justify-between gap-4">
-                        <span className="text-gray-500 dark:text-gray-400 shrink-0">{row.label}</span>
-                        <span className="font-medium text-gray-700 dark:text-gray-300 text-right break-words max-w-[60%] whitespace-pre-wrap">{row.value.length > 200 ? row.value.slice(0, 200) + "…" : row.value}</span>
-                      </div>
-                    ) : null)}
-                  </div>
-                </Card>
 
               </div>
             ) : (
@@ -1027,6 +1396,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
           <div className="space-y-6">
             {/* Search bar + filters */}
             <div className="flex flex-wrap items-center gap-3">
+              {!selectedMlCR && (<>
               <div className="relative flex-1 min-w-[200px] max-w-md">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input type="text" placeholder="Search CR by number, description, group…" className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" value={mlSearch} onChange={(e) => setMlSearch(e.target.value)} />
@@ -1043,8 +1413,9 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                 <option value="all">All Groups</option>
                 {uniqueGroups.map((g) => <option key={g} value={g}>{g}</option>)}
               </select>
+              </>)}
               {selectedMlCR && (
-                <button onClick={() => { setSelectedMlCR(null); setMlAnalysis(null); setMlError(null); }} className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">← Back to List</button>
+                <button onClick={() => { setSelectedMlCR(null); setMlAnalysis(null); setMlError(null); }} className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600">← Back to List</button>
               )}
             </div>
 
@@ -1130,11 +1501,16 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                 : asmt.verdict === "needs-rework" ? "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900 dark:text-orange-300 dark:border-orange-700"
                 : "bg-red-100 text-red-700 border-red-300 dark:bg-red-900 dark:text-red-300 dark:border-red-700";
 
+              const mlWTotal = mlWeights.structure + mlWeights.completeness + mlWeights.clarity + mlWeights.riskAwareness;
+              const mlCustomOverall = Math.round(
+                (pa.structureScore * mlWeights.structure + pa.completenessScore * mlWeights.completeness + pa.clarityScore * mlWeights.clarity + pa.riskAwarenessScore * mlWeights.riskAwareness)
+                / (mlWTotal || 1)
+              );
               const qualityScoreData = [
-                { name: "Structure", score: pa.structureScore, fill: "#6366f1" },
-                { name: "Completeness", score: pa.completenessScore, fill: "#0d9488" },
-                { name: "Clarity", score: pa.clarityScore, fill: "#2563eb" },
-                { name: "Risk Awareness", score: pa.riskAwarenessScore, fill: "#dc2626" },
+                { name: "Structure", score: pa.structureScore, weight: mlWeights.structure, fill: "#6366f1" },
+                { name: "Completeness", score: pa.completenessScore, weight: mlWeights.completeness, fill: "#0d9488" },
+                { name: "Clarity", score: pa.clarityScore, weight: mlWeights.clarity, fill: "#2563eb" },
+                { name: "Risk Awareness", score: pa.riskAwarenessScore, weight: mlWeights.riskAwareness, fill: "#dc2626" },
               ];
 
               return (
@@ -1156,10 +1532,10 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                   <div className="space-y-5 px-6 pb-6">
                     {/* Assessment Summary */}
                     <div className={`rounded-lg border p-4 ${verdictColor}`}>
-                      <p className="text-sm leading-relaxed">{asmt.summary}</p>
+                      <p className="text-base leading-relaxed">{asmt.summary}</p>
                       {asmt.riskFactors.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {asmt.riskFactors.map((f: string, i: number) => <span key={i} className="rounded-full bg-white/50 dark:bg-black/20 px-2 py-0.5 text-[10px] font-semibold">{f}</span>)}
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {asmt.riskFactors.map((f: string, i: number) => <span key={i} className="rounded-full bg-white/50 dark:bg-black/20 px-2.5 py-1 text-xs font-semibold">{f}</span>)}
                         </div>
                       )}
                     </div>
@@ -1168,102 +1544,129 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                       {/* Change Nature */}
                       <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-2">
-                        <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5"><Zap className="h-4 w-4" />Change Nature</p>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
+                        <p className="text-base font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5"><Zap className="h-5 w-5" />Change Nature</p>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
                           <div><span className="text-gray-400">Type:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{cp.changeType}</span></div>
                           <div><span className="text-gray-400">Risk Tier:</span> <span className={`font-semibold ${cp.riskTier==="critical"?"text-red-600":cp.riskTier==="high"?"text-orange-600":cp.riskTier==="medium"?"text-amber-600":"text-green-600"}`}>{cp.riskTier}</span></div>
                           <div><span className="text-gray-400">Complexity:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{cp.complexity}</span></div>
                           <div><span className="text-gray-400">Category:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{cp.natureCategory}</span></div>
                         </div>
-                        <div className="flex flex-wrap gap-1">{cp.natureTags.map((t: string, i: number) => <span key={i} className="rounded-full bg-indigo-100 dark:bg-indigo-900 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300">{t}</span>)}</div>
+                        <div className="flex flex-wrap gap-1.5">{cp.natureTags.map((t: string, i: number) => <span key={i} className="rounded-full bg-indigo-100 dark:bg-indigo-900 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:text-indigo-300">{t}</span>)}</div>
                       </div>
 
                       {/* Application Profile */}
                       <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-2">
-                        <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5"><Layers className="h-4 w-4" />Application Profile</p>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
+                        <p className="text-base font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5"><Layers className="h-5 w-5" />Application Profile</p>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
                           <div className="col-span-2"><span className="text-gray-400">Application:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{ap.applicationName}</span></div>
                           <div><span className="text-gray-400">Service:</span> <span className="font-semibold text-gray-700 dark:text-gray-300">{ap.serviceCategory}</span></div>
                           <div><span className="text-gray-400">Criticality:</span> <span className={`font-semibold ${ap.criticality==="mission-critical"?"text-red-600":ap.criticality==="business-critical"?"text-orange-600":"text-gray-600"}`}>{ap.criticality}</span></div>
                         </div>
-                        <div className="flex flex-wrap gap-1">
-                          {ap.environmentTags.map((t: string, i: number) => <span key={i} className="rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300">{t}</span>)}
-                          {ap.technologyStack.map((t: string, i: number) => <span key={i} className="rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:text-gray-400">{t}</span>)}
+                        <div className="flex flex-wrap gap-1.5">
+                          {ap.environmentTags.map((t: string, i: number) => <span key={i} className="rounded-full bg-blue-100 dark:bg-blue-900 px-2.5 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300">{t}</span>)}
+                          {ap.technologyStack.map((t: string, i: number) => <span key={i} className="rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-1 text-xs font-semibold text-gray-600 dark:text-gray-400">{t}</span>)}
                         </div>
                       </div>
                     </div>
 
-                    {/* Score Methodology */}
-                    <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 p-4 space-y-2">
-                      <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5"><Info className="h-4 w-4" />ML Overall Score Calculation</p>
-                      <p className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400">Overall = Structure×25% + Completeness×30% + Clarity×25% + RiskAwareness×20%</p>
-                      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 text-[11px] text-gray-600 dark:text-gray-400">
-                        <div className="rounded bg-white dark:bg-gray-900 p-2 border border-indigo-50 dark:border-indigo-900"><strong className="text-indigo-700 dark:text-indigo-300">Structure (25%)</strong><p className="mt-0.5">Numbered steps, bullets, line count, pre/post checks</p></div>
-                        <div className="rounded bg-white dark:bg-gray-900 p-2 border border-indigo-50 dark:border-indigo-900"><strong className="text-indigo-700 dark:text-indigo-300">Completeness (30%)</strong><p className="mt-0.5">Element checklist coverage (8 elements), word count depth</p></div>
-                        <div className="rounded bg-white dark:bg-gray-900 p-2 border border-indigo-50 dark:border-indigo-900"><strong className="text-indigo-700 dark:text-indigo-300">Clarity (25%)</strong><p className="mt-0.5">Words-per-line ratio, sequence words, conditionals, numbered steps</p></div>
-                        <div className="rounded bg-white dark:bg-gray-900 p-2 border border-indigo-50 dark:border-indigo-900"><strong className="text-indigo-700 dark:text-indigo-300">Risk Awareness (20%)</strong><p className="mt-0.5">Rollback refs, risk keywords, monitoring, backups, communication</p></div>
-                      </div>
-                    </div>
-
-                    {/* Quality Scores */}
-                    <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-3">
+                    {/* Score Methodology — Editable Weights */}
+                    <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 p-5 space-y-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">Plan Quality Breakdown</p>
-                        <span className={`rounded-full px-3 py-1 text-sm font-bold ${pa.overallQuality>=65?"bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300":pa.overallQuality>=40?"bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300":"bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"}`}>Overall: {pa.overallQuality}/100</span>
+                        <p className="text-base font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5"><Info className="h-5 w-5" />ML Overall Score Calculation</p>
+                        <div className="flex items-center gap-2">
+                          <span className={`rounded-full px-4 py-1.5 text-base font-bold transition-all duration-500 ${mlRecalcFlash ? "ring-2 ring-indigo-400 scale-110" : ""} ${mlCustomOverall>=65?"bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300":mlCustomOverall>=40?"bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300":"bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"}`}>Score: {mlCustomOverall}/100</span>
+                          <button onClick={() => { setMlRecalcFlash(true); setTimeout(() => setMlRecalcFlash(false), 800); }} className="flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600"><RefreshCw className={`h-3.5 w-3.5 ${mlRecalcFlash ? "animate-spin" : ""}`} /> Re-calculate</button>
+                          <button onClick={() => setMlWeights({ structure: 0.25, completeness: 0.30, clarity: 0.25, riskAwareness: 0.20 })} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900"><RotateCcw className="h-3 w-3" /> Reset</button>
+                        </div>
                       </div>
-                      <div className="h-40">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={qualityScoreData} layout="vertical" barCategoryGap="20%">
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                            <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} stroke="#94a3b8" width={100} />
-                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "12px" }} />
-                            <Bar dataKey="score" radius={[0, 4, 4, 0]}>{qualityScoreData.map((d, i) => <Cell key={i} fill={d.fill} />)}</Bar>
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 text-xs text-center">
-                        <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Words</span><p className="font-bold text-gray-700 dark:text-gray-300">{pa.wordCount}</p></div>
-                        <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Steps</span><p className="font-bold text-gray-700 dark:text-gray-300">{pa.stepCount}</p></div>
-                        <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Tech Depth</span><p className="font-bold text-gray-700 dark:text-gray-300 capitalize">{pa.technicalDepth}</p></div>
-                        <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Confidence</span><p className="font-bold text-gray-700 dark:text-gray-300 capitalize">{pa.confidenceLevel}</p></div>
-                      </div>
-                      {/* Element checklist */}
-                      <div className="grid grid-cols-2 gap-1 md:grid-cols-4 text-[11px]">
-                        {[
-                          ["Pre-checks", pa.hasPreChecks], ["Post-checks", pa.hasPostChecks],
-                          ["Verification", pa.hasVerificationSteps], ["Timeline", pa.hasTimeline],
-                          ["Contacts", pa.hasContactInfo], ["Rollback Ref", pa.hasRollbackReference],
-                          ["Approval Gates", pa.hasApprovalGates], ["Monitoring", pa.hasMonitoringSteps],
-                        ].map(([label, val]) => (
-                          <div key={label as string} className="flex items-center gap-1.5">
-                            {val ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <XCircle className="h-3.5 w-3.5 text-red-400" />}
-                            <span className={val ? "text-green-700 dark:text-green-400" : "text-red-500 dark:text-red-400"}>{label as string}</span>
+                      <p className="text-sm font-mono font-bold text-indigo-600 dark:text-indigo-400">Overall = {qualityScoreData.map(d => `${d.name.split(" ")[0]}×${(d.weight / (mlWTotal||1) * 100).toFixed(0)}%`).join(" + ")} = {mlCustomOverall}</p>
+                      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                        {([
+                          { key: "structure" as const, label: "Structure", score: pa.structureScore, desc: "Numbered steps, bullets, line count, pre/post checks", color: "#6366f1" },
+                          { key: "completeness" as const, label: "Completeness", score: pa.completenessScore, desc: "Element checklist coverage (8 elements), word count depth", color: "#0d9488" },
+                          { key: "clarity" as const, label: "Clarity", score: pa.clarityScore, desc: "Words-per-line ratio, sequence words, conditionals", color: "#2563eb" },
+                          { key: "riskAwareness" as const, label: "Risk Awareness", score: pa.riskAwarenessScore, desc: "Rollback refs, risk keywords, monitoring, backups", color: "#dc2626" },
+                        ]).map((dim) => (
+                          <div key={dim.key} className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-indigo-100 dark:border-indigo-900 space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-bold" style={{ color: dim.color }}>{dim.label}</span>
+                              <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{dim.score}/100</span>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">{dim.desc}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-400 w-12">Weight</span>
+                              <input type="range" min="0" max="100" value={Math.round(mlWeights[dim.key] * 100)} onChange={(e) => setMlWeights(prev => redistributeWeights(prev, dim.key, Number(e.target.value) / 100))} className="flex-1 h-1.5 accent-indigo-600" />
+                              <span className="text-sm font-mono font-bold text-indigo-700 dark:text-indigo-400 w-10 text-right">{(mlWeights[dim.key] / (mlWTotal||1) * 100).toFixed(0)}%</span>
+                            </div>
+                            <p className="text-xs font-mono text-gray-400">→ {dim.score} × {(mlWeights[dim.key] / (mlWTotal||1) * 100).toFixed(0)}% = {Math.round(dim.score * mlWeights[dim.key] / (mlWTotal||1))} pts</p>
                           </div>
                         ))}
                       </div>
+                      <p className="text-xs text-gray-400">Adjust the sliders above to explore how different weight distributions affect the overall ML quality score. The score recalculates live.</p>
                     </div>
 
-                    {/* Quality Radar Chart */}
-                    <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-3">
-                      <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">Quality Dimensions Radar</p>
-                      <div className="h-56">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <RadarChart data={qualityScoreData.map(d => ({ ...d, fullMark: 100 }))}>
-                            <PolarGrid stroke="#e2e8f0" />
-                            <PolarAngleAxis dataKey="name" tick={{ fontSize: 11 }} />
-                            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
-                            <Radar name="Score" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} />
-                            <Tooltip />
-                          </RadarChart>
-                        </ResponsiveContainer>
+                    {/* Quality Scores + Radar — side by side */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {/* Bar Chart */}
+                      <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">Plan Quality Breakdown</p>
+                          <span className={`rounded-full px-3 py-1 text-sm font-bold ${mlCustomOverall>=65?"bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300":mlCustomOverall>=40?"bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300":"bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"}`}>Overall: {mlCustomOverall}/100</span>
+                        </div>
+                        <div className="h-52">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={qualityScoreData} layout="vertical" barCategoryGap="20%">
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 13, fontWeight: 600 }} stroke="#94a3b8" />
+                              <YAxis type="category" dataKey="name" tick={{ fontSize: 14, fontWeight: 700 }} stroke="#94a3b8" width={120} />
+                              <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "13px" }} />
+                              <Bar dataKey="score" radius={[0, 4, 4, 0]}>{qualityScoreData.map((d, i) => <Cell key={i} fill={d.fill} />)}</Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 text-xs text-center">
+                          <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Words</span><p className="font-bold text-gray-700 dark:text-gray-300">{pa.wordCount}</p></div>
+                          <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Steps</span><p className="font-bold text-gray-700 dark:text-gray-300">{pa.stepCount}</p></div>
+                          <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Tech Depth</span><p className="font-bold text-gray-700 dark:text-gray-300 capitalize">{pa.technicalDepth}</p></div>
+                          <div className="rounded bg-indigo-50 dark:bg-indigo-950/30 p-2"><span className="text-gray-400">Confidence</span><p className="font-bold text-gray-700 dark:text-gray-300 capitalize">{pa.confidenceLevel}</p></div>
+                        </div>
+                      </div>
+
+                      {/* Radar Chart */}
+                      <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-3">
+                        <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">Quality Dimensions Radar</p>
+                        <div className="h-52">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart data={qualityScoreData.map(d => ({ ...d, fullMark: 100 }))}>
+                              <PolarGrid stroke="#e2e8f0" />
+                              <PolarAngleAxis dataKey="name" tick={{ fontSize: 14, fontWeight: 700 }} />
+                              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 12 }} />
+                              <Radar name="Score" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} strokeWidth={2} />
+                              <Tooltip contentStyle={{ fontSize: "13px" }} />
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                        {/* Element checklist */}
+                        <div className="grid grid-cols-2 gap-1 text-[12px]">
+                          {[
+                            ["Pre-checks", pa.hasPreChecks], ["Post-checks", pa.hasPostChecks],
+                            ["Verification", pa.hasVerificationSteps], ["Timeline", pa.hasTimeline],
+                            ["Contacts", pa.hasContactInfo], ["Rollback Ref", pa.hasRollbackReference],
+                            ["Approval Gates", pa.hasApprovalGates], ["Monitoring", pa.hasMonitoringSteps],
+                          ].map(([label, val]) => (
+                            <div key={label as string} className="flex items-center gap-1.5">
+                              {val ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <XCircle className="h-3.5 w-3.5 text-red-400" />}
+                              <span className={val ? "text-green-700 dark:text-green-400" : "text-red-500 dark:text-red-400"}>{label as string}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
                     {/* ML Quality vs Plan Readiness Comparison */}
                     {(() => {
                       const planReady = selectedMlPlan.overallScore;
-                      const mlQual = pa.overallQuality;
+                      const mlQual = mlCustomOverall;
                       const gap = mlQual - planReady;
                       return (
                         <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-white dark:bg-gray-900 p-4 space-y-3">
@@ -1297,37 +1700,132 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                     {/* Detected Actions & Risks */}
                     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                       {pa.detectedActions.length > 0 && (
-                        <div className="rounded-lg border border-blue-100 dark:border-blue-800 bg-white dark:bg-gray-900 p-4 space-y-2">
-                          <p className="text-sm font-bold text-blue-700 dark:text-blue-300">Detected Actions</p>
-                          <div className="flex flex-wrap gap-1">{pa.detectedActions.map((act: string, i: number) => <span key={i} className="rounded bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-2 py-0.5 text-[11px] text-blue-700 dark:text-blue-300">{act}</span>)}</div>
+                        <div className="rounded-lg border border-blue-100 dark:border-blue-800 bg-white dark:bg-gray-900 p-5 space-y-3">
+                          <p className="text-base font-bold text-blue-700 dark:text-blue-300">Detected Actions ({pa.detectedActions.length})</p>
+                          <div className="flex flex-wrap gap-1.5">{pa.detectedActions.map((act: string, i: number) => <span key={i} className="rounded bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-2.5 py-1 text-sm text-blue-700 dark:text-blue-300">{act}</span>)}</div>
                         </div>
                       )}
                       {pa.detectedRisks.length > 0 && (
-                        <div className="rounded-lg border border-red-100 dark:border-red-800 bg-white dark:bg-gray-900 p-4 space-y-2">
-                          <p className="text-sm font-bold text-red-700 dark:text-red-300">Detected Risks &amp; Gaps</p>
-                          <ul className="space-y-1">{pa.detectedRisks.map((r: string, i: number) => <li key={i} className="flex items-start gap-1.5 text-[11px] text-red-600 dark:text-red-400"><AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />{r}</li>)}</ul>
+                        <div className="rounded-lg border border-red-100 dark:border-red-800 bg-white dark:bg-gray-900 p-5 space-y-3">
+                          <p className="text-base font-bold text-red-700 dark:text-red-300">Detected Risks &amp; Gaps ({pa.detectedRisks.length})</p>
+                          <ul className="space-y-1.5">{pa.detectedRisks.map((r: string, i: number) => <li key={i} className="flex items-start gap-2 text-sm text-red-600 dark:text-red-400"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />{r}</li>)}</ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* AI Change Nature Insights & Backout Analysis */}
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                      {pa.changeNatureInsights && pa.changeNatureInsights.length > 0 && (
+                        <div className="rounded-lg border border-purple-100 dark:border-purple-800 bg-white dark:bg-gray-900 p-5 space-y-3">
+                          <p className="text-base font-bold text-purple-700 dark:text-purple-300 flex items-center gap-2"><Sparkles className="h-4 w-4" />AI Change Nature Insights ({pa.changeNatureInsights.length})</p>
+                          <ul className="space-y-1.5">{pa.changeNatureInsights.map((insight: string, i: number) => <li key={i} className="flex items-start gap-2 text-sm text-purple-600 dark:text-purple-400"><span className="mt-0.5 shrink-0">🔍</span>{insight}</li>)}</ul>
+                        </div>
+                      )}
+                      {pa.backoutAnalysis && (
+                        <div className={`rounded-lg border ${pa.backoutAnalysis.gaps.length > 0 ? "border-amber-100 dark:border-amber-800" : "border-green-100 dark:border-green-800"} bg-white dark:bg-gray-900 p-5 space-y-3`}>
+                          <p className={`text-base font-bold ${pa.backoutAnalysis.gaps.length > 0 ? "text-amber-700 dark:text-amber-300" : "text-green-700 dark:text-green-300"} flex items-center gap-2`}><Shield className="h-4 w-4" />Backout Plan Analysis</p>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="flex items-center gap-1.5">{pa.backoutAnalysis.hasDuration ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}<span>Duration Estimate</span></div>
+                            <div className="flex items-center gap-1.5">{pa.backoutAnalysis.hasSteps ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}<span>Sequential Steps</span></div>
+                            <div className="flex items-center gap-1.5">{pa.backoutAnalysis.hasTriggerCriteria ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}<span>Trigger Criteria</span></div>
+                            <div className="flex items-center gap-1.5">{pa.backoutAnalysis.hasEscalation ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> : <AlertTriangle className="h-3.5 w-3.5 text-red-500" />}<span>Escalation Path</span></div>
+                          </div>
+                          {pa.backoutAnalysis.estimatedDuration && <p className="text-sm font-medium text-green-600 dark:text-green-400">Estimated rollback time: {pa.backoutAnalysis.estimatedDuration}</p>}
+                          {pa.backoutAnalysis.gaps.length > 0 && (
+                            <ul className="space-y-1">{pa.backoutAnalysis.gaps.map((g: string, i: number) => <li key={i} className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />{g}</li>)}</ul>
+                          )}
                         </div>
                       )}
                     </div>
 
                     {/* Recommendations */}
                     {recs.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-sm font-bold text-indigo-700 dark:text-indigo-300">Recommendations ({recs.filter((r: { severity: string }) => r.severity !== "info").length} action items)</p>
+                      <div className="space-y-3">
+                        <p className="text-base font-bold text-indigo-700 dark:text-indigo-300">Recommendations ({recs.filter((r: { severity: string }) => r.severity !== "info").length} action items)</p>
                         <div className="space-y-2">
                           {recs.map((r: { severity: string; category: string; title: string; detail: string }, i: number) => (
-                            <div key={i} className={`rounded-lg border p-3 ${sevColor(r.severity)}`}>
+                            <div key={i} className={`rounded-lg border p-4 ${sevColor(r.severity)}`}>
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase">{r.severity}</span>
-                                <span className="text-[10px] text-gray-400">{r.category}</span>
+                                <span className="rounded px-2 py-0.5 text-xs font-bold uppercase">{r.severity}</span>
+                                <span className="text-xs text-gray-400">{r.category}</span>
                               </div>
-                              <p className="text-xs font-semibold">{r.title}</p>
-                              <p className="text-[11px] mt-0.5 opacity-80">{r.detail}</p>
+                              <p className="text-sm font-semibold">{r.title}</p>
+                              <p className="text-sm mt-0.5 opacity-80">{r.detail}</p>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
+
+                    {/* CR Insights — Actionable Intelligence */}
+                    {(() => {
+                      const planReady = selectedMlPlan.overallScore;
+                      const critRecs = recs.filter((r: { severity: string }) => r.severity === "critical").length;
+                      const highRecs = recs.filter((r: { severity: string }) => r.severity === "high").length;
+                      const riskCount = pa.detectedRisks.length;
+                      const actionCount = pa.detectedActions.length;
+                      const missingElements = ["Pre-checks","Post-checks","Verification","Timeline","Contacts","Rollback Ref","Approval Gates","Monitoring"].filter((_, idx) => ![pa.hasPreChecks,pa.hasPostChecks,pa.hasVerificationSteps,pa.hasTimeline,pa.hasContactInfo,pa.hasRollbackReference,pa.hasApprovalGates,pa.hasMonitoringSteps][idx]);
+                      const strengths: string[] = [];
+                      const concerns: string[] = [];
+                      if (pa.structureScore >= 70) strengths.push("Well-structured plan with clear steps");
+                      if (pa.completenessScore >= 70) strengths.push("Comprehensive coverage of required elements");
+                      if (pa.clarityScore >= 70) strengths.push("Clear and readable plan content");
+                      if (pa.riskAwarenessScore >= 70) strengths.push("Strong risk awareness and mitigation planning");
+                      if (pa.hasRollbackReference && pa.hasPreChecks && pa.hasPostChecks) strengths.push("Good operational readiness (rollback + pre/post checks)");
+                      if (pa.structureScore < 40) concerns.push("Plan lacks clear structure — add numbered steps and sections");
+                      if (pa.completenessScore < 40) concerns.push("Significant content gaps — many required elements are missing");
+                      if (pa.clarityScore < 40) concerns.push("Plan clarity is low — simplify language and add sequence indicators");
+                      if (pa.riskAwarenessScore < 40) concerns.push("Minimal risk awareness — add rollback, monitoring, and communication plans");
+                      if (missingElements.length >= 4) concerns.push(`Missing ${missingElements.length} of 8 key elements: ${missingElements.join(", ")}`);
+                      if (critRecs > 0) concerns.push(`${critRecs} critical recommendation(s) require immediate attention`);
+                      if (riskCount > 3) concerns.push(`${riskCount} risks/gaps detected — higher than typical`);
+                      const overallVerdict = mlCustomOverall >= 65 && planReady >= 65 ? "ready" : mlCustomOverall >= 40 && planReady >= 40 ? "conditional" : "not-ready";
+                      return (
+                        <div className="rounded-lg border-2 border-indigo-200 dark:border-indigo-700 bg-gradient-to-br from-indigo-50/80 to-white dark:from-indigo-950/30 dark:to-gray-900 p-5 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <p className="text-base font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-2"><TrendingUp className="h-5 w-5" />CR Insights &amp; Readiness Summary</p>
+                            <span className={`rounded-full px-4 py-1.5 text-sm font-bold ${overallVerdict==="ready"?"bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300":overallVerdict==="conditional"?"bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300":"bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"}`}>{overallVerdict==="ready"?"Release Ready":overallVerdict==="conditional"?"Conditional Approval":"Needs Rework"}</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 md:grid-cols-5 text-center">
+                            <div className="rounded-lg bg-white dark:bg-gray-900 border border-indigo-100 dark:border-indigo-800 p-3">
+                              <p className="text-xs text-gray-500">ML Score</p>
+                              <p className={`text-xl font-bold ${mlCustomOverall>=65?"text-green-600":mlCustomOverall>=40?"text-amber-600":"text-red-600"}`}>{mlCustomOverall}</p>
+                            </div>
+                            <div className="rounded-lg bg-white dark:bg-gray-900 border border-indigo-100 dark:border-indigo-800 p-3">
+                              <p className="text-xs text-gray-500">Plan Readiness</p>
+                              <p className={`text-xl font-bold ${pColor(planReady)}`}>{planReady}</p>
+                            </div>
+                            <div className="rounded-lg bg-white dark:bg-gray-900 border border-indigo-100 dark:border-indigo-800 p-3">
+                              <p className="text-xs text-gray-500">Risks Found</p>
+                              <p className={`text-xl font-bold ${riskCount>3?"text-red-600":riskCount>0?"text-amber-600":"text-green-600"}`}>{riskCount}</p>
+                            </div>
+                            <div className="rounded-lg bg-white dark:bg-gray-900 border border-indigo-100 dark:border-indigo-800 p-3">
+                              <p className="text-xs text-gray-500">Actions</p>
+                              <p className="text-xl font-bold text-blue-600">{actionCount}</p>
+                            </div>
+                            <div className="rounded-lg bg-white dark:bg-gray-900 border border-indigo-100 dark:border-indigo-800 p-3">
+                              <p className="text-xs text-gray-500">Action Items</p>
+                              <p className={`text-xl font-bold ${critRecs+highRecs>0?"text-red-600":"text-green-600"}`}>{critRecs+highRecs}</p>
+                            </div>
+                          </div>
+                          {strengths.length > 0 && (
+                            <div>
+                              <p className="text-sm font-bold text-green-700 dark:text-green-400 mb-1.5">Strengths</p>
+                              <ul className="space-y-1">{strengths.map((s, i) => <li key={i} className="flex items-start gap-2 text-sm text-green-700 dark:text-green-400"><CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />{s}</li>)}</ul>
+                            </div>
+                          )}
+                          {concerns.length > 0 && (
+                            <div>
+                              <p className="text-sm font-bold text-red-700 dark:text-red-400 mb-1.5">Concerns &amp; Action Required</p>
+                              <ul className="space-y-1">{concerns.map((c, i) => <li key={i} className="flex items-start gap-2 text-sm text-red-700 dark:text-red-400"><AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />{c}</li>)}</ul>
+                            </div>
+                          )}
+                          {strengths.length === 0 && concerns.length === 0 && (
+                            <p className="text-sm text-gray-500">This change request has average scores across all dimensions with no standout strengths or concerns.</p>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </Card>
               );

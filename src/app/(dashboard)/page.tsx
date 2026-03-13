@@ -15,6 +15,11 @@ import {
   ClipboardCheck,
   Zap,
   FileText,
+  Gauge,
+  RotateCcw,
+  Info,
+  Layers,
+  PieChart as PieChartIcon,
 } from "lucide-react";
 import {
   BarChart,
@@ -30,8 +35,13 @@ import {
   PieChart,
   Pie,
   Cell,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
 } from "recharts";
-import { Card, CardHeader, CardTitle } from "@/components/card";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { RiskBadge } from "@/components/risk-badge";
 import { ChangeStatusBadge } from "@/components/status-badge";
 import { RiskGauge } from "@/components/risk-gauge";
@@ -67,6 +77,52 @@ export default function OverviewPage() {
 
   const avgScore = (fn: (cr: typeof changeRequests[0]) => number) =>
     changeRequests.length > 0 ? Math.round(changeRequests.reduce((a, c) => a + fn(c), 0) / changeRequests.length) : 0;
+
+  /* ═══ Plan Scoring (lightweight inline) ═══ */
+  const PLAN_KW: Record<string, string[]> = {
+    implementation: ["step","deploy","install","configure","verify","validate","monitor","rollout","pre-check","post-check","approval","schedule"],
+    backout: ["revert","rollback","restore","undo","previous","snapshot","backup","recovery","failover","downtime"],
+    testPlan: ["test","verify","validate","smoke","regression","acceptance","integration","unit","performance","security","coverage"],
+    riskAnalysis: ["risk","impact","mitigation","contingency","fallback","probability","severity","exposure","vulnerability","dependency"],
+    changePlan: ["step","deploy","install","configure","verify","validate","monitor","rollout","pre-check","post-check","approval","schedule"],
+    justification: ["business","requirement","need","value","benefit","compliance","security","improvement"],
+  };
+  function scorePlanText(text: string, keywords: string[]): { present: boolean; quality: number } {
+    const t = (text||"").trim();
+    if (!t || t.length < 5) return { present: false, quality: 0 };
+    let q = 20;
+    if (t.length > 500) q += 20; else if (t.length > 200) q += 12; else if (t.length > 50) q += 5;
+    if (/(?:^|\n)\s*(?:\d+[.)\s]|[-•*]\s)/m.test(t)) q += 15;
+    if (t.split(/\n/).filter(l => l.trim()).length >= 5) q += 5;
+    const matched = keywords.filter(kw => t.toLowerCase().includes(kw));
+    const ratio = matched.length / keywords.length;
+    if (ratio >= 0.5) q += 20; else if (ratio >= 0.25) q += 10; else if (matched.length > 0) q += 5;
+    if (/\d{4}[-/]\d{2}|\d{1,2}:\d{2}|hours?|minutes?|AM|PM/i.test(t)) q += 5;
+    if (/@|email|phone|contact|notify|team/i.test(t)) q += 5;
+    return { present: true, quality: Math.min(100, q) };
+  }
+  const PLAN_WEIGHTS = { implementation: 0.25, backout: 0.25, testPlan: 0.20, riskAnalysis: 0.15, changePlan: 0.10, justification: 0.05 };
+  const PLAN_DIM_DEFS = [
+    { key: "implementation", label: "Implementation", icon: FileText, field: "implementation_plan" },
+    { key: "backout", label: "Backout", icon: RotateCcw, field: "backout_plan" },
+    { key: "testPlan", label: "Test Plan", icon: CheckCircle2, field: "test_plan" },
+    { key: "riskAnalysis", label: "Risk Analysis", icon: AlertTriangle, field: "risk_impact_analysis" },
+    { key: "changePlan", label: "Change Plan", icon: ClipboardCheck, field: "change_plan" },
+    { key: "justification", label: "Justification", icon: Info, field: "justification" },
+  ];
+  const planResults = changeRequests.map(cr => {
+    const scores: Record<string, { present: boolean; quality: number }> = {};
+    PLAN_DIM_DEFS.forEach(d => { scores[d.key] = scorePlanText((cr as Record<string, unknown>)[d.field] as string || "", PLAN_KW[d.key]); });
+    const overallScore = Math.round(Object.entries(PLAN_WEIGHTS).reduce((s, [k, w]) => s + (scores[k]?.quality || 0) * w, 0));
+    const gapCount = Object.values(scores).filter(s => !s.present).length;
+    return { cr, scores, overallScore, gapCount };
+  });
+  const planCount = planResults.length;
+  const avgReadiness = planCount > 0 ? Math.round(planResults.reduce((a, p) => a + p.overallScore, 0) / planCount) : 0;
+  const fullCoverage = planResults.filter(p => p.gapCount === 0).length;
+  const criticalGaps = planResults.filter(p => p.overallScore < 25).length;
+  const pColor = (s: number) => s >= 75 ? "text-green-600" : s >= 50 ? "text-amber-600" : s >= 25 ? "text-orange-600" : "text-red-600";
+  const pBg = (s: number) => s >= 75 ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : s >= 50 ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300" : s >= 25 ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300" : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300";
 
   return (
     <>
@@ -271,7 +327,29 @@ export default function OverviewPage() {
         </div>
       </Card>
 
-      {/* ServiceNow Change Health */}
+      {/* ═══ Plan Readiness KPIs ═══ */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <Card className="p-4">
+          <div className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-teal-500" /><p className="text-xs text-gray-500">Avg Readiness</p></div>
+          <p className={`mt-1 text-2xl font-bold ${pColor(avgReadiness)}`}>{avgReadiness}/100</p>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-green-500" /><p className="text-xs text-gray-500">Full Plan Coverage</p></div>
+          <p className="mt-1 text-2xl font-bold text-green-600">{fullCoverage}<span className="text-sm text-gray-400">/{planCount}</span></p>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-500" /><p className="text-xs text-gray-500">Critical Gaps</p></div>
+          <p className="mt-1 text-2xl font-bold text-red-600">{criticalGaps}</p>
+          <p className="text-[11px] text-gray-400">Readiness &lt; 25</p>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-2"><Layers className="h-4 w-4 text-amber-500" /><p className="text-xs text-gray-500">Missing Plans</p></div>
+          <p className="mt-1 text-2xl font-bold text-amber-600">{planResults.reduce((a, p) => a + p.gapCount, 0)}</p>
+          <p className="text-[11px] text-gray-400">Across all CRs</p>
+        </Card>
+      </div>
+
+      {/* ═══ Enhanced Chart Grid ═══ */}
       {(() => {
         // State distribution
         const stateMap: Record<string, number> = {};
@@ -287,86 +365,200 @@ export default function OverviewPage() {
           { name: "Low (<40)", value: changeRequests.filter(c => c.impact?.overallRisk < 40).length, fill: "#22c55e" },
         ].filter(d => d.value > 0);
 
-        // Type distribution
-        const typeMap: Record<string, number> = {};
-        changeRequests.forEach(cr => { const t = cr.category || "Other"; typeMap[t] = (typeMap[t] || 0) + 1; });
-        const typeData = Object.entries(typeMap).map(([name, value]) => ({ name: name.length > 18 ? name.slice(0, 16) + "…" : name, value })).sort((a, b) => b.value - a.value).slice(0, 8);
-        const typeColors = ["#3b82f6", "#8b5cf6", "#f59e0b", "#22c55e", "#ef4444", "#06b6d4", "#ec4899", "#6366f1"];
+        // Category distribution
+        const catMap: Record<string, number> = {};
+        changeRequests.forEach(cr => { const t = cr.category || "Other"; catMap[t] = (catMap[t] || 0) + 1; });
+        const catData = Object.entries(catMap).map(([name, value]) => ({ name: name.length > 18 ? name.slice(0, 16) + "…" : name, value })).sort((a, b) => b.value - a.value).slice(0, 8);
+        const catColors = ["#3b82f6", "#8b5cf6", "#f59e0b", "#22c55e", "#ef4444", "#06b6d4", "#ec4899", "#6366f1"];
 
-        // Team risk
-        const teamMap: Record<string, { count: number; riskSum: number }> = {};
-        changeRequests.forEach(cr => {
-          const team = cr.team || "Unassigned";
-          if (!teamMap[team]) teamMap[team] = { count: 0, riskSum: 0 };
-          teamMap[team].count++;
-          teamMap[team].riskSum += cr.impact?.overallRisk || 0;
+        // Type distribution (Normal vs Emergency vs Standard)
+        const typeMap: Record<string, number> = {};
+        changeRequests.forEach(cr => { const t = cr.type || "Unknown"; typeMap[t] = (typeMap[t] || 0) + 1; });
+        const typeData = Object.entries(typeMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+        const typeColors = ["#3b82f6", "#f97316", "#22c55e", "#8b5cf6", "#ef4444", "#06b6d4"];
+
+        // Priority distribution
+        const prioMap: Record<string, number> = {};
+        changeRequests.forEach(cr => { const p = cr.priority || "Unknown"; prioMap[p] = (prioMap[p] || 0) + 1; });
+        const prioData = Object.entries(prioMap).map(([name, value]) => ({ name, value })).sort((a, b) => a.name.localeCompare(b.name));
+        const prioColors: Record<string, string> = { "1 - Critical": "#ef4444", "2 - High": "#f97316", "3 - Moderate": "#eab308", "4 - Low": "#22c55e" };
+
+        // Plan readiness distribution
+        const readinessData = [
+          { bucket: "Well Prepared (75-100)", count: planResults.filter(p => p.overallScore >= 75).length, fill: "#22c55e" },
+          { bucket: "Adequate (50-74)", count: planResults.filter(p => p.overallScore >= 50 && p.overallScore < 75).length, fill: "#eab308" },
+          { bucket: "Gaps Found (25-49)", count: planResults.filter(p => p.overallScore >= 25 && p.overallScore < 50).length, fill: "#f97316" },
+          { bucket: "Critical Gaps (0-24)", count: planResults.filter(p => p.overallScore < 25).length, fill: "#ef4444" },
+        ];
+
+        // Plan quality radar (avg across all CRs)
+        const radarData = PLAN_DIM_DEFS.map(d => ({
+          dimension: d.label,
+          score: planCount > 0 ? Math.round(planResults.reduce((a, p) => a + (p.scores[d.key]?.quality || 0), 0) / planCount) : 0,
+          fullMark: 100,
+        }));
+
+        // Readiness by risk level
+        const rrMap: Record<string, { total: number; scoreSum: number }> = {};
+        planResults.forEach(p => {
+          const risk = p.cr.risk || "Unknown";
+          if (!rrMap[risk]) rrMap[risk] = { total: 0, scoreSum: 0 };
+          rrMap[risk].total++;
+          rrMap[risk].scoreSum += p.overallScore;
         });
-        const teamData = Object.entries(teamMap).map(([team, d]) => ({
-          team: team.length > 18 ? team.slice(0, 16) + "…" : team,
-          avgRisk: Math.round(d.riskSum / d.count),
-          count: d.count,
-        })).sort((a, b) => b.avgRisk - a.avgRisk).slice(0, 8);
+        const rrData = Object.entries(rrMap).map(([risk, d]) => ({
+          risk, avgReadiness: Math.round(d.scoreSum / d.total), count: d.total,
+        })).sort((a, b) => a.avgReadiness - b.avgReadiness);
+        const rrFill: Record<string, string> = { "Very High": "#ef4444", "High": "#f97316", "Moderate": "#eab308", "Low": "#22c55e", "None": "#94a3b8" };
 
         return (
-          <>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* State Distribution */}
-              <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-indigo-500" /> Change Status Distribution</CardTitle></CardHeader>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart><Pie data={stateData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>{stateData.map((_, i) => <Cell key={i} fill={stateColors[i % stateColors.length]} />)}</Pie><Legend /><Tooltip /></PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Change Status Distribution */}
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-indigo-500" /> Change Status Distribution</CardTitle></CardHeader>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart><Pie data={stateData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>{stateData.map((_, i) => <Cell key={i} fill={stateColors[i % stateColors.length]} />)}</Pie><Legend /><Tooltip /></PieChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
 
-              {/* Risk Level Distribution */}
-              <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-4 w-4 text-red-500" /> Risk Level Distribution</CardTitle></CardHeader>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart><Pie data={riskBuckets} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>{riskBuckets.map((d, i) => <Cell key={i} fill={d.fill} />)}</Pie><Legend /><Tooltip /></PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
+            {/* Risk Level Distribution */}
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-4 w-4 text-red-500" /> Risk Level Distribution</CardTitle></CardHeader>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart><Pie data={riskBuckets} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>{riskBuckets.map((d, i) => <Cell key={i} fill={d.fill} />)}</Pie><Legend /><Tooltip /></PieChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
 
-              {/* Category Breakdown */}
-              <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><Zap className="h-4 w-4 text-blue-500" /> Changes by Category</CardTitle></CardHeader>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={typeData} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis type="number" tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                      <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} stroke="#94a3b8" width={100} />
-                      <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
-                      <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]}>
-                        {typeData.map((_, i) => <Cell key={i} fill={typeColors[i % typeColors.length]} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
+            {/* Changes by Category */}
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Zap className="h-4 w-4 text-blue-500" /> Changes by Category</CardTitle></CardHeader>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={catData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} stroke="#94a3b8" width={100} />
+                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                    <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]}>
+                      {catData.map((_, i) => <Cell key={i} fill={catColors[i % catColors.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
 
-              {/* Avg Risk by Team */}
-              <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4 text-amber-500" /> Avg Risk Score by Team</CardTitle></CardHeader>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={teamData} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                      <YAxis type="category" dataKey="team" tick={{ fontSize: 10 }} stroke="#94a3b8" width={110} />
-                      <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
-                      <Bar dataKey="avgRisk" name="Avg Risk" radius={[0, 4, 4, 0]}>
-                        {teamData.map((d, i) => <Cell key={i} fill={d.avgRisk >= 80 ? "#ef4444" : d.avgRisk >= 60 ? "#f97316" : d.avgRisk >= 40 ? "#eab308" : "#22c55e"} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            </div>
-          </>
+            {/* Change Type Distribution */}
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Zap className="h-4 w-4 text-purple-500" /> Change Type Distribution</CardTitle><CardDescription>Normal vs Emergency vs Standard</CardDescription></CardHeader>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart><Pie data={typeData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>{typeData.map((_, i) => <Cell key={i} fill={typeColors[i % typeColors.length]} />)}</Pie><Legend /><Tooltip /></PieChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Priority Distribution */}
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Gauge className="h-4 w-4 text-amber-500" /> Priority Distribution</CardTitle><CardDescription>CRs by ServiceNow priority level</CardDescription></CardHeader>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={prioData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                    <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                    <Tooltip />
+                    <Bar dataKey="value" name="Count" radius={[4, 4, 0, 0]}>
+                      {prioData.map((d, i) => <Cell key={i} fill={prioColors[d.name] || "#94a3b8"} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Plan Readiness Distribution */}
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-teal-500" /> Plan Readiness Distribution</CardTitle><CardDescription>How prepared are change plans across all CRs</CardDescription></CardHeader>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={readinessData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="bucket" tick={{ fontSize: 9 }} stroke="#94a3b8" />
+                    <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                    <Tooltip />
+                    <Bar dataKey="count" name="Changes" radius={[4, 4, 0, 0]}>
+                      {readinessData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Plan Quality Radar */}
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-teal-500" /> Avg Plan Quality by Dimension</CardTitle><CardDescription>Average quality scores across all change request plans</CardDescription></CardHeader>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={radarData}>
+                    <PolarGrid stroke="#e2e8f0" />
+                    <PolarAngleAxis dataKey="dimension" tick={{ fontSize: 11, fontWeight: 600 }} />
+                    <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
+                    <Radar name="Avg Quality" dataKey="score" stroke="#0d9488" fill="#0d9488" fillOpacity={0.2} strokeWidth={2} />
+                    <Tooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Plan Coverage Summary */}
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4 text-teal-500" /> Plan Coverage Summary</CardTitle><CardDescription>Average quality per plan dimension</CardDescription></CardHeader>
+              <div className="space-y-3 px-4 pb-4">
+                {PLAN_DIM_DEFS.map(d => {
+                  const avg = planCount > 0 ? Math.round(planResults.reduce((a, p) => a + (p.scores[d.key]?.quality || 0), 0) / planCount) : 0;
+                  const presentCount = planResults.filter(p => p.scores[d.key]?.present).length;
+                  return (
+                    <div key={d.key} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <d.icon className="h-3.5 w-3.5 text-teal-500" />
+                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{d.label}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-gray-400">{presentCount}/{planCount} present</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(avg)}`}>{avg}</span>
+                        </div>
+                      </div>
+                      <div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800">
+                        <div className="h-2 rounded-full transition-all" style={{ width: `${avg}%`, backgroundColor: avg >= 75 ? "#22c55e" : avg >= 50 ? "#eab308" : avg >= 25 ? "#f97316" : "#ef4444" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+
+            {/* Readiness by SN Risk Level */}
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Readiness by SN Risk Level</CardTitle><CardDescription>Do high-risk CRs have better plans?</CardDescription></CardHeader>
+              <div className="space-y-3 px-4 pb-4">
+                {rrData.map(d => (
+                  <div key={d.risk} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-gray-700 dark:text-gray-300">{d.risk} <span className="text-gray-400 font-normal">({d.count} CRs)</span></span>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(d.avgReadiness)}`}>{d.avgReadiness}</span>
+                    </div>
+                    <div className="h-3 rounded-full bg-gray-100 dark:bg-gray-800">
+                      <div className="h-3 rounded-full transition-all" style={{ width: `${d.avgReadiness}%`, backgroundColor: rrFill[d.risk] || "#6366f1" }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
         );
       })()}
     </div>

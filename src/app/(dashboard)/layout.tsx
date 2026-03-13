@@ -39,7 +39,7 @@ export default function DashboardLayout({
           </div>
         )}
         {/* Desktop sidebar */}
-        <div className="hidden md:block">
+        <div className="hidden md:block h-full">
           <Sidebar />
         </div>
         <main

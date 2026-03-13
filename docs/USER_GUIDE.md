@@ -1,7 +1,7 @@
-# User Guide — Change & Release Dashboard
+# User Guide — GCS Change & Release Management Dashboard
 
-> **Version**: 1.1.0
-> **Last Updated**: March 11, 2026
+> **Version**: 1.2.0
+> **Last Updated**: March 12, 2026
 
 ---
 
@@ -199,7 +199,7 @@ Click on any change request row to expand a detailed view showing all ServiceNow
 
 ## 5. Impact Analysis
 
-The Impact Analysis page provides multi-dimensional risk, plan readiness, and ML-powered content analysis for every change request. It has **four tabs**:
+The Impact Analysis page provides multi-dimensional risk, plan readiness, and ML-powered content analysis for every change request. For detailed scoring methodology, see [Impact Analysis Documentation](IMPACT_ANALYSIS.md). It has **four tabs**:
 
 ### 5.1 Overview Tab (Default)
 

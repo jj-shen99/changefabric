@@ -1,7 +1,7 @@
-# Deployment Guide — Change & Release Dashboard
+# Deployment Guide — GCS Change & Release Management Dashboard
 
-> **Version**: 1.1.0
-> **Last Updated**: March 11, 2026
+> **Version**: 1.2.0
+> **Last Updated**: March 12, 2026
 
 ---
 

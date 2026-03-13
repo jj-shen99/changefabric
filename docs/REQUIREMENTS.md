@@ -1,13 +1,13 @@
-# Requirements Document — Change & Release Dashboard
+# Requirements Document — GCS Change & Release Management Dashboard
 
-> **Version**: 1.1.0
-> **Last Updated**: March 11, 2026
+> **Version**: 1.2.0
+> **Last Updated**: March 12, 2026
 
 ---
 
 ## 1. Product Overview
 
-The **Change & Release Dashboard** is a full-stack web application that provides real-time visibility into software change requests sourced from ServiceNow. It enables engineering and release management teams to assess risk, analyze impact, track validations, and make data-driven release decisions.
+The **GCS Change & Release Management Dashboard** is a full-stack web application that provides real-time visibility into software change requests sourced from ServiceNow. It enables engineering and release management teams to assess risk, analyze impact, track validations, and make data-driven release decisions.
 
 ---
 

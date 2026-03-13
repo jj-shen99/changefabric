@@ -51,14 +51,14 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
 
   return (
     <aside
-      className="flex w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
+      className="flex h-full w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
       aria-label="Main navigation"
     >
-      <div className="flex h-11 items-center gap-2 bg-gradient-to-r from-indigo-700 to-blue-700 px-4 dark:from-indigo-900 dark:to-blue-900">
+      <div className="flex h-11 items-center gap-2 bg-gradient-to-r from-emerald-700 to-teal-700 px-4 dark:from-emerald-900 dark:to-teal-900">
         <div className="flex h-6 w-6 items-center justify-center rounded-md bg-white/20">
           <GitPullRequest className="h-3.5 w-3.5 text-white" aria-hidden="true" />
         </div>
-        <h1 className="text-base font-bold text-white tracking-tight">Release &amp; Change Management</h1>
+        <h1 className="text-base font-bold text-white tracking-tight">GCS Change &amp; Release Management Dashboard</h1>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Primary">

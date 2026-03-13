@@ -71,7 +71,7 @@ export const CHART_STYLES = {
 
 // Application metadata
 export const APP_CONFIG = {
-  name: "Change & Release Dashboard",
+  name: "GCS Change & Release Management Dashboard",
   description: "Software change validation and release impact analysis dashboard",
   url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3600",
 } as const;

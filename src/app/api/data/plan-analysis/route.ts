@@ -142,6 +142,11 @@ interface PlanAnalysisResult {
   hasRollbackReference: boolean;
   hasApprovalGates: boolean;
   hasMonitoringSteps: boolean;
+  hasBackoutDuration: boolean;
+  hasLogReview: boolean;
+  hasAuditTrail: boolean;
+  hasVersionInfo: boolean;
+  hasEnvironmentScope: boolean;
 
   // Quality scores (0-100)
   structureScore: number;
@@ -156,25 +161,34 @@ interface PlanAnalysisResult {
   missingElements: string[];
   strengths: string[];
 
+  // AI-inferred change nature insights
+  changeNatureInsights: string[];
+  backoutAnalysis: { hasDuration: boolean; hasSteps: boolean; hasTriggerCriteria: boolean; hasEscalation: boolean; estimatedDuration: string | null; gaps: string[] };
+
   // Sentiment / tone
   confidenceLevel: "high" | "medium" | "low";
   technicalDepth: "deep" | "moderate" | "shallow" | "none";
 }
 
-function analyzeImplementationPlan(text: string): PlanAnalysisResult {
+function analyzeImplementationPlan(text: string, otherPlans?: { backout_plan?: string; test_plan?: string; risk_impact_analysis?: string; change_plan?: string }): PlanAnalysisResult {
   const t = (text || "").trim();
+  // Combine all plan fields for cross-field checks (rollback, post-validation, etc.)
+  const allText = [t, otherPlans?.backout_plan, otherPlans?.test_plan, otherPlans?.risk_impact_analysis, otherPlans?.change_plan].filter(Boolean).join("\n").trim();
   if (!t || t.length < 5) {
     return {
       wordCount: 0, lineCount: 0, stepCount: 0, charCount: 0,
       hasNumberedSteps: false, hasBulletPoints: false, hasPreChecks: false,
       hasPostChecks: false, hasVerificationSteps: false, hasTimeline: false,
       hasContactInfo: false, hasRollbackReference: false, hasApprovalGates: false,
-      hasMonitoringSteps: false,
+      hasMonitoringSteps: false, hasBackoutDuration: false, hasLogReview: false,
+      hasAuditTrail: false, hasVersionInfo: false, hasEnvironmentScope: false,
       structureScore: 0, completenessScore: 0, clarityScore: 0,
       riskAwarenessScore: 0, overallQuality: 0,
       detectedActions: [], detectedRisks: ["No implementation plan provided"],
       missingElements: ["Implementation plan is completely absent"],
       strengths: [],
+      changeNatureInsights: [],
+      backoutAnalysis: { hasDuration: false, hasSteps: false, hasTriggerCriteria: false, hasEscalation: false, estimatedDuration: null, gaps: ["Backout plan not analyzed — implementation plan is absent"] },
       confidenceLevel: "low", technicalDepth: "none",
     };
   }
@@ -195,14 +209,67 @@ function analyzeImplementationPlan(text: string): PlanAnalysisResult {
   const hasBulletPoints = bulletPoints >= 2;
 
   // Check for specific plan elements
-  const hasPreChecks = /pre.?check|before.*start|prerequisite|pre.?condition|verify.*before|ensure.*before/i.test(t);
-  const hasPostChecks = /post.?check|after.*complet|verify.*after|confirm.*success|validate.*after|post.?validation/i.test(t);
-  const hasVerificationSteps = /verify|validate|confirm|check|test|ensure|assert/i.test(t);
+  const hasPreChecks = /pre.?check|pre.?implementation|before.*start|prerequisite|pre.?condition|verify.*before|ensure.*before|pre.?flight/i.test(allText);
+  const hasPostChecks = /post.?check|after.*complet|verify.*after|confirm.*success|validate.*after|post.?validation|post.?deployment/i.test(allText);
+  const hasVerificationSteps = /verify|validate|confirm|check|test|ensure|assert/i.test(allText);
   const hasTimeline = /\d{1,2}:\d{2}|\d{4}[-/]\d{2}|hours?|minutes?|AM|PM|schedule|window|during|between.*and/i.test(t);
-  const hasContactInfo = /@|email|phone|contact|notify|team|escalat|page|on.?call/i.test(t);
-  const hasRollbackReference = /rollback|revert|backout|undo|restore|fall.?back|previous.*version/i.test(t);
-  const hasApprovalGates = /approv|authorize|sign.?off|change.*board|cab|review|gate/i.test(t);
-  const hasMonitoringSteps = /monitor|alert|log|metric|dashboard|observe|watch|check.*status/i.test(t);
+  const hasContactInfo = /@|email|phone|contact|notify|team|escalat|page|on.?call/i.test(allText);
+  const hasRollbackReference = /rollback|revert|backout|undo|restore|fall.?back|previous.*version|back.?out/i.test(allText);
+  const hasApprovalGates = /approv|authorize|sign.?off|change.*board|cab|review|gate/i.test(allText);
+  const hasMonitoringSteps = /monitor|alert|log|metric|dashboard|observe|watch|check.*status/i.test(allText);
+
+  // New enhanced detection flags
+  const backoutText = (otherPlans?.backout_plan || "").trim();
+  const hasBackoutDuration = /\d+\s*(min|hour|hr|minute|sec|second|day)/i.test(backoutText) || /estimated.*duration|duration.*estimat|time.*to.*rollback|rollback.*time|ETA|RTO/i.test(backoutText);
+  const hasLogReview = /review.*log|log.*review|check.*log|inspect.*log|examine.*log|system.*log|\blog\b.*analys|error.*log|event.*log|application.*log|var\/log/i.test(allText);
+  const hasAuditTrail = /audit.*trail|audit.*log|change.*log|history|evidence|documentation.*trail|record.*change|cmdb.*update|sys_mod_count|tracking/i.test(allText);
+  const hasVersionInfo = /v\d+[._]\d+|version\s*\d|from.*v?\d+.*to.*v?\d+|upgrade.*\d|\d+\.\d+\.\d+/i.test(allText);
+  const hasEnvironmentScope = /prod(?:uction)?|stag(?:ing)?|dev(?:elopment)?|test|uat|qa|pre-prod|dr\b|failover|primary.*dc|secondary.*dc|us-(?:east|west)|eu-|data.?center/i.test(allText);
+
+  // ── Backout Plan Deep Analysis ──
+  const backoutAnalysisSteps = /step|\d+[.)]/i.test(backoutText);
+  const backoutTriggerCriteria = /trigger|criteria|if.*fail|when.*to.*rollback|decision|threshold|abort.*if|rollback.*when/i.test(backoutText);
+  const backoutEscalation = /escalat|on.?call|vendor|support|war.?room|bridge|l[123]:|tier/i.test(backoutText);
+  const durationMatch = backoutText.match(/(\d+)\s*(min(?:ute)?s?|hours?|hrs?)/i);
+  const estimatedDuration = durationMatch ? `${durationMatch[1]} ${durationMatch[2]}` : null;
+  const backoutGaps: string[] = [];
+  if (!hasBackoutDuration) backoutGaps.push("No estimated rollback duration — unable to assess recovery time");
+  if (!backoutAnalysisSteps) backoutGaps.push("No numbered/sequential rollback steps");
+  if (!backoutTriggerCriteria) backoutGaps.push("No trigger criteria for when to initiate rollback");
+  if (!backoutEscalation) backoutGaps.push("No escalation path defined in backout plan");
+  if (backoutText.length < 20) backoutGaps.push("Backout plan is missing or too brief");
+  const backoutAnalysis = { hasDuration: hasBackoutDuration, hasSteps: backoutAnalysisSteps, hasTriggerCriteria: backoutTriggerCriteria, hasEscalation: backoutEscalation, estimatedDuration, gaps: backoutGaps };
+
+  // ── AI Change Nature Insights ──
+  const changeNatureInsights: string[] = [];
+  // Version upgrade detection
+  const versionUpgradeMatch = allText.match(/(?:from|current)\s*(?:v(?:ersion)?\s*)?([\d.]+)\s*(?:→|->|to|➜)\s*(?:v(?:ersion)?\s*)?([\d.]+)/i);
+  if (versionUpgradeMatch) {
+    changeNatureInsights.push(`Version upgrade detected: ${versionUpgradeMatch[1]} → ${versionUpgradeMatch[2]}`);
+    const [fromMajor] = versionUpgradeMatch[1].split(".").map(Number);
+    const [toMajor] = versionUpgradeMatch[2].split(".").map(Number);
+    if (toMajor > fromMajor) changeNatureInsights.push(`Major version upgrade (${fromMajor}.x → ${toMajor}.x) — higher risk of breaking changes`);
+  }
+  // Firmware/runtime detection
+  if (/firmware|bios|rom|flash/i.test(allText)) changeNatureInsights.push("Firmware-level change — requires physical/low-level access, higher rollback complexity");
+  if (/python|java|node|ruby|php|go|rust|dotnet|\.net|runtime|interpreter|jvm|jdk|jre/i.test(allText)) changeNatureInsights.push("Runtime/language upgrade — dependency compatibility is critical");
+  if (/kernel|os|operating.?system|linux|windows.*upgrade/i.test(allText)) changeNatureInsights.push("OS/kernel-level change — reboot likely required, highest impact tier");
+  // Infrastructure scope
+  const serverCountMatch = allText.match(/(\d+)\s*(?:server|node|host|instance|machine)/i);
+  if (serverCountMatch && parseInt(serverCountMatch[1]) > 5) changeNatureInsights.push(`Large-scale change: ${serverCountMatch[1]} servers affected — batch/rolling deployment recommended`);
+  // Rolling vs big-bang
+  if (/rolling|batch|canary|blue.?green|phased|one.*at.*a.*time|sequential/i.test(allText)) changeNatureInsights.push("Rolling/phased deployment strategy detected — reduces blast radius");
+  else if (serverCountMatch && parseInt(serverCountMatch[1]) > 3) changeNatureInsights.push("⚠ No rolling/phased strategy detected for multi-server change — consider batch approach");
+  // Data impact
+  if (/schema|migration|alter.*table|drop.*table|truncate|data.*transform/i.test(allText)) changeNatureInsights.push("Database schema change detected — data migration risk, ensure backup and tested rollback");
+  if (/no.*schema|no.*data.*change|runtime.?only|behavioral.?only|non.?destructive/i.test(allText)) changeNatureInsights.push("Non-destructive change (no data/schema impact) — lower rollback complexity");
+  // Security implications
+  if (/cve|vulnerabilit|security.*patch|ssl|tls|certificate|encryption/i.test(allText)) changeNatureInsights.push("Security-related change — may have compliance deadline or urgency");
+  // Downtime assessment
+  if (/zero.*down|no.*downtime|non.?disruptive|rolling/i.test(allText)) changeNatureInsights.push("Zero-downtime approach documented");
+  else if (/downtime|outage|unavailable|service.*interrupt/i.test(allText)) changeNatureInsights.push("Potential downtime acknowledged — verify maintenance window is scheduled");
+  // Multi-DC / DR
+  if (/multi.?dc|cross.?dc|primary.*secondary|active.?passive|failover.*dc|disaster.*recover|gslb/i.test(allText)) changeNatureInsights.push("Multi-datacenter change — cross-DC coordination and GSLB management required");
 
   // ── Structure Score ──
   let structureScore = 10;
@@ -216,8 +283,8 @@ function analyzeImplementationPlan(text: string): PlanAnalysisResult {
 
   // ── Completeness Score ──
   let completenessScore = 10;
-  const elements = [hasPreChecks, hasPostChecks, hasVerificationSteps, hasTimeline, hasContactInfo, hasRollbackReference, hasApprovalGates, hasMonitoringSteps];
-  completenessScore += elements.filter(Boolean).length * 11;
+  const elements = [hasPreChecks, hasPostChecks, hasVerificationSteps, hasTimeline, hasContactInfo, hasRollbackReference, hasApprovalGates, hasMonitoringSteps, hasBackoutDuration, hasLogReview, hasAuditTrail];
+  completenessScore += elements.filter(Boolean).length * 8;
   if (wordCount > 100) completenessScore += 5;
   if (wordCount > 300) completenessScore += 7;
   completenessScore = Math.min(100, completenessScore);
@@ -279,6 +346,10 @@ function analyzeImplementationPlan(text: string): PlanAnalysisResult {
   if (!hasMonitoringSteps) detectedRisks.push("No monitoring steps — issue detection may be delayed");
   if (wordCount < 30) detectedRisks.push("Very brief plan — insufficient detail for reliable execution");
   if (/password|credential|secret/i.test(t)) detectedRisks.push("Contains credential references — ensure secure handling");
+  if (!hasBackoutDuration && backoutText.length >= 20) detectedRisks.push("Backout plan has no estimated rollback duration — recovery time unknown");
+  if (!hasBackoutDuration && backoutText.length < 20) detectedRisks.push("Backout plan is missing or inadequate — no rollback time estimate possible");
+  if (!hasLogReview) detectedRisks.push("No log review steps — post-change issues may go undetected");
+  if (!hasAuditTrail) detectedRisks.push("No audit trail or evidence collection — change traceability gap");
 
   // ── Missing Elements ──
   const missingElements: string[] = [];
@@ -290,6 +361,10 @@ function analyzeImplementationPlan(text: string): PlanAnalysisResult {
   if (!hasApprovalGates) missingElements.push("Approval gates or review checkpoints");
   if (!hasMonitoringSteps) missingElements.push("Monitoring and observation steps");
   if (!hasVerificationSteps) missingElements.push("Verification/testing steps");
+  if (!hasBackoutDuration) missingElements.push("Backout/rollback time estimate");
+  if (!hasLogReview) missingElements.push("Log review and inspection steps");
+  if (!hasAuditTrail) missingElements.push("Audit trail or change evidence collection");
+  if (!hasVersionInfo && /upgrade|update|patch|migration/i.test(allText)) missingElements.push("Version numbers (from/to) for upgrade traceability");
 
   // ── Strengths ──
   const strengths: string[] = [];
@@ -302,6 +377,13 @@ function analyzeImplementationPlan(text: string): PlanAnalysisResult {
   if (hasTimeline) strengths.push("Includes time references for scheduling");
   if (hasContactInfo) strengths.push("Contact/escalation info provided");
   if (hasApprovalGates) strengths.push("Approval gates defined");
+  if (hasBackoutDuration) strengths.push(`Backout plan includes time estimate${estimatedDuration ? ` (${estimatedDuration})` : ""}`);
+  if (hasLogReview) strengths.push("Includes log review/inspection steps");
+  if (hasAuditTrail) strengths.push("Audit trail and change evidence documented");
+  if (hasVersionInfo) strengths.push("Version information clearly specified");
+  if (hasEnvironmentScope) strengths.push("Environment scope clearly defined");
+  if (backoutAnalysis.hasTriggerCriteria) strengths.push("Backout trigger criteria defined — clear decision framework");
+  if (changeNatureInsights.length > 0) strengths.push(`AI detected ${changeNatureInsights.length} change nature insight(s)`);
 
   // ── Confidence & Technical Depth ──
   const confidenceLevel: PlanAnalysisResult["confidenceLevel"] = overallQuality >= 65 ? "high" : overallQuality >= 40 ? "medium" : "low";
@@ -311,9 +393,11 @@ function analyzeImplementationPlan(text: string): PlanAnalysisResult {
     wordCount, lineCount, stepCount, charCount,
     hasNumberedSteps, hasBulletPoints, hasPreChecks, hasPostChecks,
     hasVerificationSteps, hasTimeline, hasContactInfo, hasRollbackReference,
-    hasApprovalGates, hasMonitoringSteps,
+    hasApprovalGates, hasMonitoringSteps, hasBackoutDuration, hasLogReview,
+    hasAuditTrail, hasVersionInfo, hasEnvironmentScope,
     structureScore, completenessScore, clarityScore, riskAwarenessScore, overallQuality,
     detectedActions, detectedRisks, missingElements, strengths,
+    changeNatureInsights, backoutAnalysis,
     confidenceLevel, technicalDepth,
   };
 }
@@ -365,9 +449,30 @@ function generateRecommendations(
     recs.push({ severity: "high", category: "Backout Plan", title: "Backout plan is missing or inadequate", detail: "A proper backout plan is essential for any change. Document the exact steps to revert the change if issues arise during or after implementation." });
   }
 
+  if (!planAnalysis.hasBackoutDuration && backout.length >= 20) {
+    recs.push({ severity: "high", category: "Backout Duration", title: "Backout plan has no estimated rollback duration", detail: "The backout plan exists but does not specify how long a rollback would take. Without a time estimate, it is impossible to assess recovery time objectives (RTO) or plan maintenance windows for rollback scenarios. Add an explicit duration estimate (e.g., 'Estimated rollback time: 45 minutes')." });
+  }
+
+  if (planAnalysis.backoutAnalysis.gaps.length > 0 && backout.length >= 20) {
+    if (!planAnalysis.backoutAnalysis.hasTriggerCriteria) {
+      recs.push({ severity: "medium", category: "Backout Triggers", title: "Define rollback trigger criteria", detail: "The backout plan does not specify when to initiate a rollback. Define clear trigger criteria (e.g., 'Rollback if error rate exceeds 5% within 10 minutes post-deployment'). This prevents delayed rollback decisions." });
+    }
+    if (!planAnalysis.backoutAnalysis.hasEscalation) {
+      recs.push({ severity: "medium", category: "Backout Escalation", title: "Add escalation path to backout plan", detail: "No escalation contacts defined in the backout plan. Include on-call, vendor support, and management escalation paths for when rollback encounters issues." });
+    }
+  }
+
   const testPlan = (cr.test_plan || "").trim();
   if (testPlan.length < 20) {
     recs.push({ severity: "high", category: "Test Plan", title: "Test plan is missing or inadequate", detail: "Define testing steps to validate the change — include smoke tests, functional validation, and acceptance criteria." });
+  }
+
+  if (!planAnalysis.hasLogReview) {
+    recs.push({ severity: "medium", category: "Log Review", title: "Add post-change log review steps", detail: "No log review or inspection steps found in any plan field. After implementation, reviewing system logs, application logs, and error logs is critical to detect silent failures or unexpected behavior. Add explicit log inspection steps (e.g., 'Review /var/log/app/*.log for errors for 15 minutes post-change')." });
+  }
+
+  if (!planAnalysis.hasAuditTrail) {
+    recs.push({ severity: "medium", category: "Audit Trail", title: "Document change evidence and audit trail", detail: "No mention of audit trail, evidence collection, or CMDB updates. For compliance and traceability, document what changed (before/after), update CMDB records, and retain evidence for audit purposes." });
   }
 
   // Medium recommendations
@@ -398,6 +503,15 @@ function generateRecommendations(
 
   if (appProfile.technologyStack.length > 0 && !appProfile.technologyStack.includes("Not detected")) {
     recs.push({ severity: "info", category: "Technology", title: `Technology stack: ${appProfile.technologyStack.join(", ")}`, detail: `Detected technologies suggest ${changeProfile.natureTags.join(", ")} operations. Ensure team has relevant expertise.` });
+  }
+
+  // AI Change Nature Insights
+  if (planAnalysis.changeNatureInsights.length > 0) {
+    recs.push({ severity: "info", category: "AI Insights", title: `AI detected ${planAnalysis.changeNatureInsights.length} change nature insight(s)`, detail: planAnalysis.changeNatureInsights.join("; ") + "." });
+  }
+
+  if (planAnalysis.backoutAnalysis.estimatedDuration) {
+    recs.push({ severity: "info", category: "Backout Info", title: `Estimated rollback duration: ${planAnalysis.backoutAnalysis.estimatedDuration}`, detail: `The backout plan includes a time estimate of ${planAnalysis.backoutAnalysis.estimatedDuration}. Verify this aligns with your RTO requirements and maintenance window.` });
   }
 
   return recs;
@@ -483,7 +597,12 @@ export async function GET(request: Request) {
     // Run all analyses
     const changeProfile = classifyChangeNature(cr);
     const appProfile = classifyAppProfile(cr);
-    const planAnalysis = analyzeImplementationPlan(cr.implementation_plan);
+    const planAnalysis = analyzeImplementationPlan(cr.implementation_plan, {
+      backout_plan: cr.backout_plan,
+      test_plan: cr.test_plan,
+      risk_impact_analysis: cr.risk_impact_analysis,
+      change_plan: cr.change_plan,
+    });
     const recommendations = generateRecommendations(planAnalysis, changeProfile, appProfile, cr);
     const assessment = generateAssessment(planAnalysis, changeProfile, appProfile, recommendations);
 

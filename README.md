@@ -1,4 +1,4 @@
-# Change & Release Dashboard
+# GCS Change & Release Management Dashboard
 
 A full-stack **software change validation and release impact analysis dashboard** built with Next.js 14, Prisma, and NextAuth.js.
 
@@ -16,11 +16,15 @@ A full-stack **software change validation and release impact analysis dashboard*
   - **Overview** — KPI summary (impact + risk + plan readiness), impact/risk/state/type/priority distribution charts, plan coverage, readiness by team and SN risk level, **top risk CRs table**, **risk vs readiness correlation insights**
   - **Plan Analysis** — Per-CR plan readiness scoring with editable dimension weights, radar chart, plan content viewer, ML quality score integration
   - **ML Analysis** — Deep ML content analysis per CR: structure/completeness/clarity/risk-awareness scores, **quality radar chart**, **ML vs readiness comparison**, detected actions/risks, recommendations with severity
-  - **Code Change Analysis** — Git commit analysis for code-level risk factors
-- **Analytics** — 4-tab interface: Failure Analysis, Velocity, Metrics & Trends, **Change Health** (health score formula, team performance radar, team health table)
+  - **Code Change Analysis** — Git commit analysis for code-level risk factors, **file type risk breakdown chart**, **commit message pattern analysis**, **cumulative risk trend area chart**, **directory risk heatmap**, **author activity heatmap** (day-of-week grid), **repository risk profile radar**, **AI Code Change Insights** (automated risk signal synthesis)
+- **Analytics** — 4-tab interface:
+  - **Failure Analysis** — Deployment outcome KPIs, failure by team bar chart, service risk ranking, rollback intelligence, **failure root cause analysis**, **rollback frequency by service**, **failure rate vs risk score trend**, **AI Failure Intelligence summary**
+  - **Velocity** — Team velocity table, category breakdown, approval efficiency, **team efficiency radar**, **weekly throughput & risk trend**, **change window analysis** (low/standard/high-risk windows), **Velocity Intelligence insights**
+  - **Metrics & Trends** — DORA metrics KPIs, risk score trend, validation pass rate trend, lead time breakdown, deployment frequency & outcomes, weekly deploy health table, **MTTR trend chart**, **SLA compliance dashboard**, **DORA Performance Classification** (elite/high/medium/low tiers with current position)
+  - **Change Health** — Health score KPIs, team performance radar, team risk ranking, health score formula, team health table, **weekly health score trend**, **risk-velocity quadrant** (team scatter plot), **health improvement actions** (prioritized P1-P3 recommendations), **AI Health Intelligence summary**
 - **Validations** — Pie/bar charts, pass rate by team, blocker alerts, type/status filters
 - **Releases** — Timeline view, bundled changes, deployment readiness bars, **collapsible per-release validation details**
-- **Metrics & Trends** — DORA metrics, risk/validation trends, lead time breakdown, weekly health
+- **Metrics & Trends** — DORA metrics, risk/validation trends, lead time breakdown, weekly health (see Analytics page for enhanced version)
 - **Settings** — Dashboard configuration (admin/manager only)
 - **User Management** — Admin-only page to list users, change roles, delete accounts
 
@@ -150,6 +154,7 @@ src/
 │   │       ├── route.ts     # Dashboard data API
 │   │       ├── changes/     # Change request CRUD API
 │   │       ├── analytics/   # Computed analytics API
+│   │       ├── git-analysis/ # Git commit risk analysis API
 │   │       └── plan-analysis/ # ML plan content analysis API
 │   ├── error.tsx            # Global error boundary
 │   ├── not-found.tsx        # Custom 404
@@ -168,6 +173,7 @@ src/
 │   ├── theme-provider.tsx
 │   └── theme-toggle.tsx
 ├── hooks/
+│   ├── use-analytics.ts      # Analytics data fetching hook
 │   ├── use-data.ts           # SWR-based data fetching hook
 │   ├── use-debounce.ts
 │   ├── use-media-query.ts
@@ -201,6 +207,18 @@ prisma/
 - **Notifications**: Sonner (toast system)
 - **Testing**: Jest + React Testing Library
 - **Utilities**: clsx, tailwind-merge, class-variance-authority
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/ARCHITECTURE.md) | System architecture with Mermaid diagrams |
+| [Impact Analysis](docs/IMPACT_ANALYSIS.md) | Scoring methodology for Plan, ML, and Dimension analysis |
+| [Change Management Architecture](docs/CHANGE_MANAGEMENT_ARCHITECTURE.md) | End-to-end architecture graphs for the analysis pipeline |
+| [User Guide](docs/USER_GUIDE.md) | Feature guide for all dashboard pages |
+| [Codebase Analysis](docs/CODEBASE_ANALYSIS.md) | Deep dive into code structure and patterns |
+| [Deployment Guide](docs/DEPLOYMENT.md) | Setup, deployment, and operations guide |
+| [Requirements](docs/REQUIREMENTS.md) | Functional and non-functional requirements |
 
 ## License
 
