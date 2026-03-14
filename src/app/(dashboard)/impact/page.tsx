@@ -523,15 +523,15 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
           {gitLoading && !gitData && <div className="space-y-4">{[1,2,3].map((i) => <div key={i} className="h-32 animate-pulse rounded-xl bg-purple-100/50 dark:bg-purple-900/20" />)}</div>}
           {gitData && (<>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-              <Card className="p-4"><div className="flex items-center gap-2"><GitCommitHorizontal className="h-4 w-4 text-purple-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Commits</span></div><p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{gitData.summary.totalCommits}</p><p className="text-[11px] text-gray-400">last {gitData.days} days</p></Card>
-              <Card className="p-4"><div className="flex items-center gap-2"><Brain className="h-4 w-4 text-purple-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Overall Risk Factor</span></div><p className={`mt-1 text-2xl font-bold ${riskColor(gitData.summary.overallRiskFactor)}`}>{gitData.summary.overallRiskFactor}</p><p className="text-[11px] text-gray-400">{riskLbl(gitData.summary.overallRiskFactor)}</p></Card>
-              <Card className="p-4"><div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-orange-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Avg Commit Risk</span></div><p className={`mt-1 text-2xl font-bold ${riskColor(gitData.summary.avgRisk)}`}>{gitData.summary.avgRisk}</p></Card>
-              <Card className="p-4"><div className="flex items-center gap-2"><FileCode2 className="h-4 w-4 text-blue-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Code Churn</span></div><p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{(gitData.summary.totalAdditions+gitData.summary.totalDeletions).toLocaleString()}</p><p className="text-[11px] text-gray-400">+{gitData.summary.totalAdditions.toLocaleString()} / −{gitData.summary.totalDeletions.toLocaleString()}</p></Card>
-              <Card className="p-4"><div className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /><span className="text-xs text-gray-500 dark:text-gray-400">High Risk Commits</span></div><p className="mt-1 text-2xl font-bold text-red-600">{gitData.summary.criticalCount+gitData.summary.highCount}</p></Card>
+              <Card className="p-4"><div className="flex items-center gap-2"><GitCommitHorizontal className="h-4 w-4 text-purple-500" /><span className="text-sm text-gray-500 dark:text-gray-400">Commits</span></div><p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{gitData.summary.totalCommits}</p><p className="text-xs text-gray-400">last {gitData.days} days</p></Card>
+              <Card className="p-4" title="Formula: (avg_commit_risk × 0.4) + (churn_ratio × 0.3) + (high_risk_ratio × 0.3)"><div className="flex items-center gap-2"><Brain className="h-4 w-4 text-purple-500" /><span className="text-sm text-gray-500 dark:text-gray-400">Code Change Risk</span></div><p className={`mt-1 text-2xl font-bold ${riskColor(gitData.summary.overallRiskFactor)}`}>{gitData.summary.overallRiskFactor}</p><p className="text-xs text-gray-400">{riskLbl(gitData.summary.overallRiskFactor)}</p></Card>
+              <Card className="p-4"><div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-orange-500" /><span className="text-sm text-gray-500 dark:text-gray-400">Avg Commit Risk</span></div><p className={`mt-1 text-2xl font-bold ${riskColor(gitData.summary.avgRisk)}`}>{gitData.summary.avgRisk}</p></Card>
+              <Card className="p-4"><div className="flex items-center gap-2"><FileCode2 className="h-4 w-4 text-blue-500" /><span className="text-sm text-gray-500 dark:text-gray-400">Code Churn</span></div><p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{(gitData.summary.totalAdditions+gitData.summary.totalDeletions).toLocaleString()}</p><p className="text-xs text-gray-400">+{gitData.summary.totalAdditions.toLocaleString()} / −{gitData.summary.totalDeletions.toLocaleString()}</p></Card>
+              <Card className="p-4"><div className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /><span className="text-sm text-gray-500 dark:text-gray-400">High Risk Commits</span></div><p className="mt-1 text-2xl font-bold text-red-600">{gitData.summary.criticalCount+gitData.summary.highCount}</p></Card>
             </div>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <Card><CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-purple-500" /> Commit Risk Distribution</CardTitle></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={[{ bucket: "Critical", count: gitData.summary.criticalCount, fill: "#ef4444" },{ bucket: "High", count: gitData.summary.highCount, fill: "#f97316" },{ bucket: "Medium", count: gitData.summary.mediumCount, fill: "#eab308" },{ bucket: "Low", count: gitData.summary.lowCount, fill: "#22c55e" }]}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis dataKey="bucket" tick={{ fontSize: 10 }} stroke="#94a3b8" /><YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" /><Tooltip /><Bar dataKey="count" name="Commits" radius={[4, 4, 0, 0]}>{[{ fill: "#ef4444" },{ fill: "#f97316" },{ fill: "#eab308" },{ fill: "#22c55e" }].map((e, i) => <Cell key={i} fill={e.fill} />)}</Bar></BarChart></ResponsiveContainer></div></Card>
-              <Card><CardHeader><CardTitle className="flex items-center gap-2"><User className="h-4 w-4 text-blue-500" /> Risk by Author</CardTitle></CardHeader><div className="overflow-x-auto max-h-64 overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-white dark:bg-gray-900"><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-2 text-left font-medium text-gray-500 dark:text-gray-400">Author</th><th className="pb-2 text-center font-medium text-gray-500 dark:text-gray-400">Commits</th><th className="pb-2 text-center font-medium text-gray-500 dark:text-gray-400">Avg Risk</th><th className="pb-2 text-right font-medium text-gray-500 dark:text-gray-400">Churn</th></tr></thead><tbody>{gitData.authorBreakdown.map((a) => (<tr key={a.author} className="border-b border-gray-50 dark:border-gray-800"><td className="py-2 font-medium text-gray-900 dark:text-gray-100 text-xs">{a.author}</td><td className="py-2 text-center text-xs">{a.commits}</td><td className="py-2 text-center"><span className={`inline-block rounded-full px-2 py-0.5 text-xs font-bold ${riskBgCls(a.avgRisk)}`}>{a.avgRisk}</span></td><td className="py-2 text-right text-xs text-gray-500">+{a.additions} / −{a.deletions}</td></tr>))}</tbody></table></div></Card>
+              <Card><CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-purple-500" /> Commit Risk Distribution</CardTitle></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={[{ bucket: "Critical", count: gitData.summary.criticalCount, fill: "#ef4444" },{ bucket: "High", count: gitData.summary.highCount, fill: "#f97316" },{ bucket: "Medium", count: gitData.summary.mediumCount, fill: "#eab308" },{ bucket: "Low", count: gitData.summary.lowCount, fill: "#22c55e" }]}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis dataKey="bucket" tick={{ fontSize: 12 }} stroke="#94a3b8" /><YAxis tick={{ fontSize: 13 }} stroke="#94a3b8" /><Tooltip /><Bar dataKey="count" name="Commits" radius={[4, 4, 0, 0]}>{[{ fill: "#ef4444" },{ fill: "#f97316" },{ fill: "#eab308" },{ fill: "#22c55e" }].map((e, i) => <Cell key={i} fill={e.fill} />)}</Bar></BarChart></ResponsiveContainer></div></Card>
+              <Card><CardHeader><CardTitle className="flex items-center gap-2"><User className="h-4 w-4 text-blue-500" /> Risk by Author</CardTitle></CardHeader><div className="overflow-x-auto max-h-64 overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-white dark:bg-gray-900"><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-2 text-left font-medium text-gray-500 dark:text-gray-400">Author</th><th className="pb-2 text-center font-medium text-gray-500 dark:text-gray-400">Commits</th><th className="pb-2 text-center font-medium text-gray-500 dark:text-gray-400">Avg Risk</th><th className="pb-2 text-right font-medium text-gray-500 dark:text-gray-400">Churn</th></tr></thead><tbody>{gitData.authorBreakdown.map((a) => (<tr key={a.author} className="border-b border-gray-50 dark:border-gray-800"><td className="py-2 font-medium text-gray-900 dark:text-gray-100 text-sm">{a.author}</td><td className="py-2 text-center text-sm">{a.commits}</td><td className="py-2 text-center"><span className={`inline-block rounded-full px-2 py-0.5 text-sm font-bold ${riskBgCls(a.avgRisk)}`}>{a.avgRisk}</span></td><td className="py-2 text-right text-sm text-gray-500">+{a.additions} / −{a.deletions}</td></tr>))}</tbody></table></div></Card>
             </div>
             {/* ── Daily Commit Risk Trend ── */}
             {(() => {
@@ -559,10 +559,10 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={trendData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                        <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={[0, 100]} />
-                        <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
-                        <Legend wrapperStyle={{ fontSize: "11px" }} />
+                        <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                        <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" domain={[0, 100]} />
+                        <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "13px" }} />
+                        <Legend wrapperStyle={{ fontSize: "13px" }} />
                         <Line type="monotone" dataKey="avgRisk" name="Avg Risk" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                         <Line type="monotone" dataKey="commits" name="Commits" stroke="#94a3b8" strokeWidth={1} strokeDasharray="4 4" dot={{ r: 2 }} />
                       </LineChart>
@@ -587,13 +587,13 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
               const hotspots = Object.entries(fileMap)
                 .map(([file, d]) => ({ file, shortName: file.split("/").pop() || file, dir: file.split("/").slice(0, -1).join("/") || "/", ...d }))
                 .sort((a, b) => b.risk - a.risk)
-                .slice(0, 30);
+                .slice(0, 10);
               if (hotspots.length === 0) return null;
               const maxChurn = Math.max(...hotspots.map(h => h.churn), 1);
               return (
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><FileCode2 className="h-4 w-4 text-purple-500" /> File Hotspot Map — Top 30 Riskiest Files</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><FileCode2 className="h-4 w-4 text-purple-500" /> File Hotspot Map — Top 10 Riskiest Files</CardTitle>
                     <CardDescription>Size = code churn (additions + deletions). Color = max risk score. Hover for details.</CardDescription>
                   </CardHeader>
                   <div className="px-4 pb-4">
@@ -611,14 +611,14 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                             style={{ width: size, height: size }}
                             title={`${h.file}\nRisk: ${h.risk} | Churn: +${h.churn} lines | ${h.commits} commits`}
                           >
-                            <span className="text-[8px] font-bold truncate w-full text-center leading-tight">{h.shortName}</span>
-                            <span className="text-[10px] font-bold mt-0.5">{h.risk}</span>
-                            <span className="text-[7px] opacity-75">±{h.churn}</span>
+                            <span className="text-[10px] font-bold truncate w-full text-center leading-tight">{h.shortName}</span>
+                            <span className="text-xs font-bold mt-0.5">{h.risk}</span>
+                            <span className="text-[9px] opacity-75">±{h.churn}</span>
                           </div>
                         );
                       })}
                     </div>
-                    <div className="flex justify-center gap-4 mt-3 text-[10px] text-gray-400">
+                    <div className="flex justify-center gap-4 mt-3 text-xs text-gray-400">
                       <span className="flex items-center gap-1"><span className="h-2 w-2 rounded bg-red-500" /> Critical (≥75)</span>
                       <span className="flex items-center gap-1"><span className="h-2 w-2 rounded bg-orange-400" /> High (50-74)</span>
                       <span className="flex items-center gap-1"><span className="h-2 w-2 rounded bg-amber-300" /> Medium (25-49)</span>
@@ -657,9 +657,9 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={extData} layout="vertical">
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                          <YAxis type="category" dataKey="ext" tick={{ fontSize: 11 }} stroke="#94a3b8" width={60} />
-                          <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                          <YAxis type="category" dataKey="ext" tick={{ fontSize: 12 }} stroke="#94a3b8" width={60} />
+                          <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "13px" }} />
                           <Bar dataKey="avgRisk" name="Avg Risk" radius={[0, 4, 4, 0]}>
                             {extData.map((e, i) => <Cell key={i} fill={e.avgRisk >= 60 ? "#ef4444" : e.avgRisk >= 40 ? "#f97316" : e.avgRisk >= 20 ? "#eab308" : "#22c55e"} />)}
                           </Bar>
@@ -698,15 +698,15 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                           <div className="space-y-2">
                             {results.map(r => (
                               <div key={r.label} className="flex items-center gap-3">
-                                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${r.color}`}>{r.label}</span>
-                                <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                                <span className={`rounded-full px-2.5 py-0.5 text-sm font-medium whitespace-nowrap ${r.color}`}>{r.label}</span>
+                                <div className="flex-1 h-2.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
                                   <div className="h-full rounded-full bg-purple-500 transition-all" style={{ width: `${Math.min(100, (r.count / gitData.commits.length) * 100)}%` }} />
                                 </div>
-                                <span className="text-xs font-mono text-gray-500 w-8 text-right">{r.count}</span>
-                                <span className={`text-xs font-bold w-6 text-right ${r.avgRisk >= 50 ? "text-red-600" : r.avgRisk >= 25 ? "text-amber-600" : "text-green-600"}`}>{r.avgRisk}</span>
+                                <span className="text-sm font-mono text-gray-500 w-8 text-right">{r.count}</span>
+                                <span className={`text-sm font-bold w-6 text-right ${r.avgRisk >= 50 ? "text-red-600" : r.avgRisk >= 25 ? "text-amber-600" : "text-green-600"}`}>{r.avgRisk}</span>
                               </div>
                             ))}
-                            <p className="text-[10px] text-gray-400 mt-2">Count = matching commits. Score = avg risk of those commits.</p>
+                            <p className="text-xs text-gray-400 mt-2">Count = matching commits. Score = avg risk of those commits.</p>
                           </div>
                         ) : <p className="text-sm text-gray-400">No recognizable patterns detected in commit messages.</p>;
                       })()}
@@ -759,9 +759,9 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                               </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis dataKey="idx" tick={{ fontSize: 10 }} stroke="#94a3b8" label={{ value: "Commit #", position: "insideBottom", offset: -2, fontSize: 10 }} />
-                            <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" domain={[0, 100]} />
-                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                            <XAxis dataKey="idx" tick={{ fontSize: 12 }} stroke="#94a3b8" label={{ value: "Commit #", position: "insideBottom", offset: -2, fontSize: 12 }} />
+                            <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" domain={[0, 100]} />
+                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "13px" }} />
                             <Area type="monotone" dataKey="avg" name="Running Avg Risk" stroke="#8b5cf6" fill="url(#cumRiskGrad)" strokeWidth={2} dot={{ r: 2 }} />
                           </AreaChart>
                         </ResponsiveContainer>
@@ -780,10 +780,10 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                           const bg = d.risk >= 60 ? "bg-red-500" : d.risk >= 40 ? "bg-orange-400" : d.risk >= 20 ? "bg-amber-400" : "bg-green-400";
                           return (
                             <div key={d.fullDir} className="flex items-center gap-2" title={`${d.fullDir} — Risk: ${d.risk}, Files: ${d.files}, Churn: ±${d.churn}`}>
-                              <span className="text-[11px] font-mono text-gray-500 dark:text-gray-400 w-36 truncate text-right">{d.dir}</span>
+                              <span className="text-xs font-mono text-gray-500 dark:text-gray-400 w-36 truncate text-right">{d.dir}</span>
                               <div className="flex-1 h-5 rounded bg-gray-100 dark:bg-gray-800 overflow-hidden relative">
                                 <div className={`h-full rounded ${bg} transition-all`} style={{ width: `${pct}%` }} />
-                                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-gray-700 dark:text-gray-300">{d.risk} risk · {d.files} files</span>
+                                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300">{d.risk} risk · {d.files} files</span>
                               </div>
                             </div>
                           );
@@ -913,8 +913,8 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                     {insights.map((ins, i) => (
                       <div key={i} className={`rounded-lg border p-3 ${sevColor(ins.severity)}`}>
                         <div className="flex items-start gap-2">
-                          <span className="text-sm mt-0.5">{ins.icon}</span>
-                          <p className="text-xs text-gray-700 dark:text-gray-300">{ins.text}</p>
+                          <span className="text-base mt-0.5">{ins.icon}</span>
+                          <p className="text-sm text-gray-700 dark:text-gray-300">{ins.text}</p>
                         </div>
                       </div>
                     ))}
@@ -934,7 +934,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                   <div className="flex items-center gap-2 mt-2">
                     <Brain className="h-5 w-5 text-purple-600" />
                     <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">ML Feature Impact Analysis</h3>
-                    <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">{gitData.featureImpact.length} features detected</span>
+                    <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-sm font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">{gitData.featureImpact.length} features detected</span>
                   </div>
                   <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                     {/* Feature Impact Bar Chart */}
@@ -947,9 +947,9 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={gitData.featureImpact.slice(0, 10)} layout="vertical" margin={{ left: 10, right: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                            <YAxis type="category" dataKey="feature" tick={{ fontSize: 9 }} stroke="#94a3b8" width={130} />
-                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                            <YAxis type="category" dataKey="feature" tick={{ fontSize: 12 }} stroke="#94a3b8" width={140} />
+                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "13px" }} />
                             <Bar dataKey="impactScore" name="Impact" radius={[0, 4, 4, 0]}>
                               {gitData.featureImpact.slice(0, 10).map((f, i) => <Cell key={i} fill={f.impactLevel === "critical" ? "#ef4444" : f.impactLevel === "high" ? "#f97316" : f.impactLevel === "medium" ? "#eab308" : "#22c55e"} />)}
                             </Bar>
@@ -967,30 +967,30 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                         <ResponsiveContainer width="100%" height="100%">
                           <RadarChart data={radarFeatures}>
                             <PolarGrid stroke="#e2e8f0" />
-                            <PolarAngleAxis dataKey="feature" tick={{ fontSize: 9 }} />
-                            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
+                            <PolarAngleAxis dataKey="feature" tick={{ fontSize: 11 }} />
+                            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 11 }} />
                             <Radar name="Impact" dataKey="impact" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.25} />
-                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "13px" }} />
                           </RadarChart>
                         </ResponsiveContainer>
                       </div>
                     </Card>
                   </div>
                   {/* Feature Detail Cards */}
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {gitData.featureImpact.map((f) => (
                       <Card key={f.feature} className="p-4">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">{f.feature}</p>
-                            <p className="text-[10px] text-gray-400 mt-0.5">{f.description}</p>
+                            <p className="text-base font-bold text-gray-900 dark:text-gray-100 truncate">{f.feature}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{f.description}</p>
                           </div>
-                          <span className={`ml-2 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${impLvlBadge(f.impactLevel)}`}>{f.impactLevel}</span>
+                          <span className={`ml-2 shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold uppercase ${impLvlBadge(f.impactLevel)}`}>{f.impactLevel}</span>
                         </div>
                         <div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden mb-2">
                           <div className={`h-full rounded-full ${impLvlColor(f.impactLevel)} transition-all`} style={{ width: `${(f.impactScore / maxImpact) * 100}%` }} />
                         </div>
-                        <div className="flex gap-4 text-[10px] text-gray-500 dark:text-gray-400">
+                        <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400">
                           <span><strong>{f.filesAffected}</strong> files</span>
                           <span><strong>±{f.churn.toLocaleString()}</strong> lines</span>
                           <span><strong>{f.commits}</strong> commits</span>
@@ -999,7 +999,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                         {f.riskFactors.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
                             {f.riskFactors.slice(0, 3).map((rf, i) => (
-                              <span key={i} className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">{rf}</span>
+                              <span key={i} className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">{rf}</span>
                             ))}
                           </div>
                         )}
@@ -1022,8 +1022,8 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                   <div className="flex items-center gap-2 mt-2">
                     <ShieldAlert className="h-5 w-5 text-red-600" />
                     <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">Production Outage & Availability Concerns</h3>
-                    {critCount > 0 && <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-bold text-red-700 dark:bg-red-900 dark:text-red-300">{critCount} critical</span>}
-                    {highCount > 0 && <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-bold text-orange-700 dark:bg-orange-900 dark:text-orange-300">{highCount} high</span>}
+                    {critCount > 0 && <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-sm font-bold text-red-700 dark:bg-red-900 dark:text-red-300">{critCount} critical</span>}
+                    {highCount > 0 && <span className="rounded-full bg-orange-100 px-2.5 py-0.5 text-sm font-bold text-orange-700 dark:bg-orange-900 dark:text-orange-300">{highCount} high</span>}
                   </div>
                   {/* Concern summary KPIs */}
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -1035,7 +1035,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                         <Card key={t} className="p-3 text-center">
                           <span className="text-lg">{icon}</span>
                           <p className="text-2xl font-bold mt-1 text-gray-900 dark:text-gray-100">{count}</p>
-                          <p className="text-[10px] text-gray-400">{label}</p>
+                          <p className="text-xs text-gray-400">{label}</p>
                         </Card>
                       );
                     })}
@@ -1048,20 +1048,20 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <span className="text-sm">{typeIcon(c.type)}</span>
-                              <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{c.title}</p>
+                              <p className="text-base font-bold text-gray-900 dark:text-gray-100">{c.title}</p>
                             </div>
-                            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${sevBadge(c.severity)}`}>{c.severity}</span>
+                            <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold uppercase ${sevBadge(c.severity)}`}>{c.severity}</span>
                           </div>
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">{c.description}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{c.description}</p>
                           {c.evidence.length > 0 && (
                             <div className="mb-2 rounded bg-gray-100 dark:bg-gray-800 p-2">
-                              <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 mb-1">Evidence:</p>
-                              {c.evidence.map((e, j) => <p key={j} className="text-[10px] text-gray-500 dark:text-gray-400 font-mono truncate">{e}</p>)}
+                              <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Evidence:</p>
+                              {c.evidence.map((e, j) => <p key={j} className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate">{e}</p>)}
                             </div>
                           )}
                           <div className="flex items-start gap-1.5">
                             <Shield className="h-3 w-3 text-teal-600 mt-0.5 shrink-0" />
-                            <p className="text-[11px] text-teal-700 dark:text-teal-400 font-medium">{c.mitigation}</p>
+                            <p className="text-sm text-teal-700 dark:text-teal-400 font-medium">{c.mitigation}</p>
                           </div>
                         </div>
                       </Card>
@@ -1081,7 +1081,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                   <div className="flex items-center gap-2 mt-2">
                     <Zap className="h-5 w-5 text-amber-600" />
                     <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">Performance Impact Analysis</h3>
-                    {critPerf > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-700 dark:bg-amber-900 dark:text-amber-300">{critPerf} concern{critPerf > 1 ? "s" : ""}</span>}
+                    {critPerf > 0 && <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-sm font-bold text-amber-700 dark:bg-amber-900 dark:text-amber-300">{critPerf} concern{critPerf > 1 ? "s" : ""}</span>}
                   </div>
                   <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                     {/* Performance concern bar chart */}
@@ -1094,9 +1094,9 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={gitData.performanceInsights.slice(0, 8)} layout="vertical" margin={{ left: 10, right: 20 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                            <YAxis type="category" dataKey="category" tick={{ fontSize: 9 }} stroke="#94a3b8" width={120} />
-                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
+                            <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#94a3b8" />
+                            <YAxis type="category" dataKey="category" tick={{ fontSize: 12 }} stroke="#94a3b8" width={130} />
+                            <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "13px" }} />
                             <Bar dataKey="score" name="Concern Score" radius={[0, 4, 4, 0]}>
                               {gitData.performanceInsights.slice(0, 8).map((p, i) => <Cell key={i} fill={perfLvlColor(p.level)} />)}
                             </Bar>
@@ -1114,14 +1114,14 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                         {gitData.performanceInsights.map((p, i) => (
                           <div key={i} className="rounded-lg border border-gray-100 dark:border-gray-800 p-3">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{p.category}</span>
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${perfBg(p.level)}`}>{p.score}/100</span>
+                              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{p.category}</span>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${perfBg(p.level)}`}>{p.score}/100</span>
                             </div>
-                            <p className="text-[10px] text-gray-500 dark:text-gray-400 mb-1.5">{p.description}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1.5">{p.description}</p>
                             {p.files.length > 0 && (
                               <div className="flex flex-wrap gap-1">
                                 {p.files.map((f, j) => (
-                                  <span key={j} className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[9px] font-mono text-gray-500 dark:text-gray-400 truncate max-w-[200px]">{f.split("/").pop()}</span>
+                                  <span key={j} className="rounded bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 text-[11px] font-mono text-gray-500 dark:text-gray-400 truncate max-w-[200px]">{f.split("/").pop()}</span>
                                 ))}
                               </div>
                             )}
@@ -1159,8 +1159,8 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                         return perfInsights.map((ins, i) => (
                           <div key={i} className={`rounded-lg border p-3 ${pSevColor(ins.sev)}`}>
                             <div className="flex items-start gap-2">
-                              <span className="text-sm mt-0.5">{ins.icon}</span>
-                              <p className="text-xs text-gray-700 dark:text-gray-300">{ins.text}</p>
+                              <span className="text-base mt-0.5">{ins.icon}</span>
+                              <p className="text-sm text-gray-700 dark:text-gray-300">{ins.text}</p>
                             </div>
                           </div>
                         ));
@@ -1171,7 +1171,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
               );
             })()}
 
-            <div className="flex items-center gap-3 text-xs text-gray-400"><a href={gitData.repoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-purple-600 hover:underline"><ExternalLink className="h-3 w-3" /> {gitData.owner}/{gitData.repo}</a><span>·</span><span>Since {new Date(gitData.sinceDate).toLocaleDateString()}</span><span>·</span><span>{gitData.summary.totalFilesChanged} files touched</span></div>
+            <div className="flex items-center gap-3 text-sm text-gray-400"><a href={gitData.repoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-purple-600 hover:underline"><ExternalLink className="h-3 w-3" /> {gitData.owner}/{gitData.repo}</a><span>·</span><span>Since {new Date(gitData.sinceDate).toLocaleDateString()}</span><span>·</span><span>{gitData.summary.totalFilesChanged} files touched</span></div>
             <Card><CardHeader><CardTitle>All Commits — Risk Assessment ({gitData.commits.length})</CardTitle><CardDescription>Click a row to see file-level details and risk factors.</CardDescription></CardHeader><div className="overflow-x-auto max-h-[520px] overflow-y-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-white dark:bg-gray-900 z-10"><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Commit</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Risk</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Level</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Files</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">+/−</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Author</th><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Date</th></tr></thead><tbody>{gitData.commits.map((c) => (<><tr key={c.sha} className={`cursor-pointer border-b border-gray-50 dark:border-gray-800 hover:bg-purple-50 dark:hover:bg-purple-950/20 ${expandedCommit===c.sha?"bg-purple-50 dark:bg-purple-950/20":""}`} onClick={() => setExpandedCommit(expandedCommit===c.sha?null:c.sha)}><td className="py-2.5"><span className="font-mono text-[11px] text-purple-500">{c.shortSha}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{c.message}</p></td><td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${riskBgCls(c.riskScore)}`}>{c.riskScore}</span></td><td className="py-2.5 text-center"><span className={`text-xs font-semibold capitalize ${riskColor(c.riskScore)}`}>{c.riskLevel}</span></td><td className="py-2.5 text-center text-xs">{c.filesChanged}</td><td className="py-2.5 text-center text-xs"><span className="text-green-600">+{c.additions}</span>{" / "}<span className="text-red-500">−{c.deletions}</span></td><td className="py-2.5 text-xs text-gray-600 dark:text-gray-400">{c.author}</td><td className="py-2.5 text-xs text-gray-400">{c.date ? new Date(c.date).toLocaleDateString() : "—"}</td></tr>{expandedCommit===c.sha && (<tr key={`${c.sha}-d`}><td colSpan={7} className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3"><div className="space-y-3"><div><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Risk Factors</p><div className="flex flex-wrap gap-1.5">{c.riskFactors.map((f, i) => <span key={i} className="rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900 dark:text-purple-300">{f}</span>)}</div></div>{c.files.length > 0 && (<div><p className="text-xs font-semibold uppercase text-gray-400 mb-1">Files Changed ({c.files.length})</p><div className="max-h-48 overflow-y-auto space-y-1">{c.files.map((f, fi) => (<div key={fi} className="flex items-center justify-between rounded bg-white dark:bg-gray-900 px-3 py-1.5 text-xs"><div className="flex items-center gap-2 min-w-0 flex-1"><FileCode2 className="h-3 w-3 text-gray-400 shrink-0" /><span className="font-mono text-gray-700 dark:text-gray-300 truncate">{f.filename}</span></div><div className="flex items-center gap-3 shrink-0 ml-3"><span className="text-green-600">+{f.additions}</span><span className="text-red-500">−{f.deletions}</span><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${riskBgCls(f.fileRisk)}`}>{f.fileRisk}</span></div></div>))}</div></div>)}</div></td></tr>)}</>))}</tbody></table></div></Card>
           </>)}
         </div>
@@ -1394,9 +1394,9 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                               <button onClick={() => { setSelectedMlCR(selectedPlan.cr.number); setMlAnalysis(null); setMlError(null); setMlLoading(true); fetch(`/api/data/plan-analysis?number=${encodeURIComponent(selectedPlan.cr.number)}`).then(r => r.ok ? r.json() : r.json().then(b => { throw new Error(b.error); })).then(data => { setMlAnalysis(data); setMlLoading(false); }).catch(err => { setMlError(err.message); setMlLoading(false); }); }} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium mt-1">{mlLoading ? "Analyzing…" : "Run Analysis"}</button>
                             )}
                           </div>
-                          <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900">
-                            <p className="text-xs text-gray-500">SN Risk</p>
-                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{selectedPlan.cr.risk || "—"}</p>
+                          <div className="rounded-lg bg-white dark:bg-gray-900 p-3 border border-teal-100 dark:border-teal-900" title="Formula: (avg_commit_risk × 0.4) + (churn_ratio × 0.3) + (high_risk_ratio × 0.3)">
+                            <p className="text-xs text-gray-500">Code Change Risk</p>
+                            <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{gitData?.summary?.overallRiskFactor ?? "—"}</p>
                           </div>
                         </div>
                       </div>
