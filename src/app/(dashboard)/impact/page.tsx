@@ -2043,7 +2043,7 @@ formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Im
                       if (missingElements.length >= 4) concerns.push(`Missing ${missingElements.length} of 8 key elements: ${missingElements.join(", ")}`);
                       if (critRecs > 0) concerns.push(`${critRecs} critical recommendation(s) require immediate attention`);
                       if (riskCount > 3) concerns.push(`${riskCount} risks/gaps detected — higher than typical`);
-                      const overallVerdict = mlCustomOverall >= 65 && planReady >= 65 ? "ready" : mlCustomOverall >= 40 && planReady >= 40 ? "conditional" : "not-ready";
+                      const overallVerdict = mlCustomOverall >= 75 && planReady >= 75 ? "ready" : mlCustomOverall >= 50 && planReady >= 50 ? "conditional" : "not-ready";
                       return (
                         <div className="rounded-lg border-2 border-indigo-200 dark:border-indigo-700 bg-gradient-to-br from-indigo-50/80 to-white dark:from-indigo-950/30 dark:to-gray-900 p-5 space-y-4">
                           <div className="flex items-center justify-between">

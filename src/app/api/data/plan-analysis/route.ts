@@ -282,12 +282,15 @@ function analyzeImplementationPlan(text: string, otherPlans?: { backout_plan?: s
   structureScore = Math.min(100, structureScore);
 
   // ── Completeness Score ──
-  let completenessScore = 10;
-  const elements = [hasPreChecks, hasPostChecks, hasVerificationSteps, hasTimeline, hasContactInfo, hasRollbackReference, hasApprovalGates, hasMonitoringSteps, hasBackoutDuration, hasLogReview, hasAuditTrail];
-  completenessScore += elements.filter(Boolean).length * 8;
-  if (wordCount > 100) completenessScore += 5;
-  if (wordCount > 300) completenessScore += 7;
-  completenessScore = Math.min(100, completenessScore);
+  // Start at max and penalize missing critical/optional elements
+  let completenessScore = 100;
+  const criticalElements = [hasPreChecks, hasPostChecks, hasVerificationSteps, hasRollbackReference, hasMonitoringSteps];
+  const optionalElements = [hasTimeline, hasContactInfo, hasApprovalGates, hasBackoutDuration, hasLogReview, hasAuditTrail];
+  completenessScore -= criticalElements.filter(e => !e).length * 15; // -15 per missing critical element
+  completenessScore -= optionalElements.filter(e => !e).length * 5;  // -5 per missing optional element
+  if (wordCount > 100) completenessScore += 3;
+  if (wordCount > 300) completenessScore += 4;
+  completenessScore = Math.max(0, Math.min(100, completenessScore));
 
   // ── Clarity Score ──
   let clarityScore = 20;
