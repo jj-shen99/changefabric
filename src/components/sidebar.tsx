@@ -15,6 +15,7 @@ import {
   Radar,
   Crown,
   KeyRound,
+  Plug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS } from "@/lib/constants";
@@ -135,6 +136,23 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
           </Link>
         )}
         {permissions.canEditSettings && (
+          <>
+          <Link
+            href="/settings/integrations"
+            aria-current={pathname === "/settings/integrations" ? "page" : undefined}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+              pathname === "/settings/integrations"
+                ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
+                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+            )}
+          >
+            <Plug
+              className={cn("h-4 w-4", pathname === "/settings/integrations" ? "text-blue-700 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")}
+              aria-hidden="true"
+            />
+            Integrations
+          </Link>
           <Link
             href="/settings"
             aria-current={pathname === "/settings" ? "page" : undefined}
@@ -151,6 +169,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
             />
             Settings
           </Link>
+          </>
         )}
       </div>
 

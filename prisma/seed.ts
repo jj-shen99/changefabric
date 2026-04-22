@@ -27,10 +27,10 @@ async function main() {
   const viewerPassword = await bcrypt.hash("viewer123!", 12);
 
   await prisma.user.upsert({
-    where: { email: "admin@company.com" },
+    where: { email: "admin@servicenow.com" },
     update: { hashedPassword: adminPassword },
     create: {
-      email: "admin@company.com",
+      email: "admin@servicenow.com",
       name: "System Admin",
       hashedPassword: adminPassword,
       role: "admin",
@@ -38,10 +38,10 @@ async function main() {
   });
 
   await prisma.user.upsert({
-    where: { email: "manager@company.com" },
+    where: { email: "manager@servicenow.com" },
     update: { hashedPassword: managerPassword },
     create: {
-      email: "manager@company.com",
+      email: "manager@servicenow.com",
       name: "Mike Torres",
       hashedPassword: managerPassword,
       role: "manager",
@@ -49,10 +49,10 @@ async function main() {
   });
 
   await prisma.user.upsert({
-    where: { email: "viewer@company.com" },
+    where: { email: "viewer@servicenow.com" },
     update: { hashedPassword: viewerPassword },
     create: {
-      email: "viewer@company.com",
+      email: "viewer@servicenow.com",
       name: "Jane Doe",
       hashedPassword: viewerPassword,
       role: "viewer",
