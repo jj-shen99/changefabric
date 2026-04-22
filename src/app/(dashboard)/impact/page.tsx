@@ -11,6 +11,7 @@ import {
   LayoutDashboard, BarChart3, PieChart as PieChartIcon, ShieldAlert, Info,
   Brain, GitCommitHorizontal, RefreshCw, ExternalLink, FileCode2, User, Calendar,
   ClipboardCheck, FileText, CheckCircle2, XCircle, AlertCircle, TrendingUp, Sparkles,
+  Save, FolderOpen, Trash2,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { RiskBadge } from "@/components/risk-badge";
@@ -160,6 +161,18 @@ export default function ImpactPage() {
   const [mlWeights, setMlWeights] = useState({ structure: 0.25, completeness: 0.30, clarity: 0.25, riskAwareness: 0.20 });
   const [mlRecalcFlash, setMlRecalcFlash] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, Partial<DimensionScores>>>({});
+  
+  // Save Analysis state
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [saveDescription, setSaveDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [savedAnalyses, setSavedAnalyses] = useState<any[]>([]);
+  const [loadModalOpen, setLoadModalOpen] = useState(false);
+  const [loadingAnalyses, setLoadingAnalyses] = useState(false);
 
   const setWeight = useCallback((key: keyof Weights, val: number) => { setWeights((p) => redistributeWeights(p, key, val)); }, []);
   const resetWeights = useCallback(() => setWeights({ ...DEFAULT_WEIGHTS }), []);
@@ -244,18 +257,186 @@ export default function ImpactPage() {
     finally { setGitLoading(false); }
   }
 
+  /* ═══ Save/Load Analysis Functions ═══ */
+  async function loadSavedAnalyses() {
+    setLoadingAnalyses(true);
+    try {
+      const res = await fetch("/api/analysis");
+      if (res.ok) {
+        const data = await res.json();
+        setSavedAnalyses(data.analyses || []);
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingAnalyses(false); }
+  }
+
+  async function saveCurrentAnalysis() {
+    if (!saveName.trim()) { setSaveError("Please enter a name for this analysis"); return; }
+    setSaving(true); setSaveError(null); setSaveSuccess(false);
+    try {
+      // Determine analysis type and gather data based on active tab
+      let analysisType = "combined";
+      let changeRequestId: string | null = null;
+      let repoUrl: string | null = null;
+      let overallScore: number | null = null;
+      let planReadyScore: number | null = null;
+      let mlScore: number | null = null;
+      let codeRiskScore: number | null = null;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let analysisData: any = {};
+
+      if (activeTab === "ml" && gitData) {
+        analysisType = "code";
+        repoUrl = gitRepo;
+        codeRiskScore = gitData.summary.overallRiskFactor;
+        analysisData = { gitData, gitDays, gitRepo };
+      } else if (activeTab === "plans" && selectedPlanCR) {
+        analysisType = "plan";
+        changeRequestId = selectedPlanCR;
+        const pr = planResults.find(p => p.cr.number === selectedPlanCR);
+        if (pr) { planReadyScore = pr.overallScore; analysisData = { planResult: pr, planWeights }; }
+      } else if (activeTab === "mlTab" && selectedMlCR && mlAnalysis) {
+        analysisType = "ml";
+        changeRequestId = selectedMlCR;
+        mlScore = mlAnalysis.overallQuality;
+        analysisData = { mlAnalysis, mlWeights };
+      } else {
+        // Combined/overview
+        analysisType = "combined";
+        const avgScore = scored.length > 0 ? Math.round(scored.reduce((a, s) => a + s.overall, 0) / scored.length) : 0;
+        overallScore = avgScore;
+        analysisData = { weights, scored: scored.slice(0, 20), planResults: planResults.slice(0, 10), gitData, mlAnalysis };
+      }
+
+      const res = await fetch("/api/analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: saveName,
+          description: saveDescription,
+          analysisType,
+          changeRequestId,
+          repoUrl,
+          overallScore,
+          planReadyScore,
+          mlScore,
+          codeRiskScore,
+          analysisData,
+        }),
+      });
+
+      if (res.ok) {
+        setSaveSuccess(true);
+        setSaveName("");
+        setSaveDescription("");
+        setTimeout(() => { setSaveModalOpen(false); setSaveSuccess(false); }, 1500);
+      } else {
+        const data = await res.json();
+        setSaveError(data.error || "Failed to save analysis");
+      }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteAnalysis(id: string) {
+    try {
+      const res = await fetch(`/api/analysis?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setSavedAnalyses(prev => prev.filter(a => a.id !== id));
+      }
+    } catch { /* ignore */ }
+  }
+
   return (
     <>
       <PageHeader title="Impact Analysis" subtitle="Computed impact scores from ServiceNow fields — click a row for details, adjust weights for what-if analysis" />
     <div className="space-y-6 p-4 md:p-6">
 
-      {/* ═══ Tabs ═══ */}
-      <div className="flex gap-1 border-b border-gray-200 pb-0.5 dark:border-gray-800 overflow-x-auto">
-        <button onClick={() => setActiveTab("overview")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="overview" ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><LayoutDashboard className="h-4 w-4" />Overview</button>
-        <button onClick={() => setActiveTab("plans")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="plans" ? "border-b-2 border-teal-600 text-teal-600 bg-teal-50 dark:bg-teal-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><ClipboardCheck className="h-4 w-4" />Plan Analysis</button>
-        <button onClick={() => setActiveTab("mlTab")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="mlTab" ? "border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><Brain className="h-4 w-4" />ML Analysis</button>
-        <button onClick={() => setActiveTab("ml")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="ml" ? "border-b-2 border-purple-600 text-purple-600 bg-purple-50 dark:bg-purple-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><Brain className="h-4 w-4" />Code Change Analysis</button>
+      {/* ═══ Tabs + Save/Load Buttons ═══ */}
+      <div className="flex items-center justify-between gap-4 border-b border-gray-200 pb-0.5 dark:border-gray-800">
+        <div className="flex gap-1 overflow-x-auto">
+          <button onClick={() => setActiveTab("overview")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="overview" ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><LayoutDashboard className="h-4 w-4" />Overview</button>
+          <button onClick={() => setActiveTab("plans")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="plans" ? "border-b-2 border-teal-600 text-teal-600 bg-teal-50 dark:bg-teal-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><ClipboardCheck className="h-4 w-4" />Plan Analysis</button>
+          <button onClick={() => setActiveTab("mlTab")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="mlTab" ? "border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><Brain className="h-4 w-4" />ML Analysis</button>
+          <button onClick={() => setActiveTab("ml")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="ml" ? "border-b-2 border-purple-600 text-purple-600 bg-purple-50 dark:bg-purple-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><Brain className="h-4 w-4" />Code Change Analysis</button>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <button onClick={() => setSaveModalOpen(true)} className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700 hover:bg-green-100 dark:border-green-800 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900"><Save className="h-4 w-4" />Save</button>
+          <button onClick={() => { setLoadModalOpen(true); loadSavedAnalyses(); }} className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"><FolderOpen className="h-4 w-4" />Load</button>
+        </div>
       </div>
+
+      {/* ═══ Save Analysis Modal ═══ */}
+      {saveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Save Analysis</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+                <input type="text" value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="e.g., Sprint 28 Risk Assessment" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                <textarea value={saveDescription} onChange={(e) => setSaveDescription(e.target.value)} placeholder="Optional notes about this analysis..." rows={3} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100" />
+              </div>
+              <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                <p><strong>Analysis Type:</strong> {activeTab === "ml" ? "Code Change" : activeTab === "plans" ? "Plan" : activeTab === "mlTab" ? "ML" : "Combined"}</p>
+                {activeTab === "ml" && gitData && <p><strong>Repository:</strong> {gitRepo}</p>}
+                {(activeTab === "plans" && selectedPlanCR) && <p><strong>Change Request:</strong> {selectedPlanCR}</p>}
+                {(activeTab === "mlTab" && selectedMlCR) && <p><strong>Change Request:</strong> {selectedMlCR}</p>}
+              </div>
+              {saveError && <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{saveError}</div>}
+              {saveSuccess && <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950 dark:text-green-300">Analysis saved successfully!</div>}
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => { setSaveModalOpen(false); setSaveError(null); }} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">Cancel</button>
+              <button onClick={saveCurrentAnalysis} disabled={saving || !saveName.trim()} className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">{saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}{saving ? "Saving..." : "Save Analysis"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ Load Analysis Modal ═══ */}
+      {loadModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900 max-h-[80vh] overflow-hidden flex flex-col">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Saved Analyses</h3>
+            {loadingAnalyses ? (
+              <div className="flex items-center justify-center py-8"><RefreshCw className="h-6 w-6 animate-spin text-blue-500" /></div>
+            ) : savedAnalyses.length === 0 ? (
+              <div className="py-8 text-center text-gray-500">No saved analyses found</div>
+            ) : (
+              <div className="overflow-y-auto flex-1 space-y-2">
+                {savedAnalyses.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between rounded-lg border border-gray-200 p-4 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{a.name}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${a.analysisType === "code" ? "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300" : a.analysisType === "plan" ? "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300" : a.analysisType === "ml" ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300" : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"}`}>{a.analysisType}</span>
+                      </div>
+                      {a.description && <p className="text-sm text-gray-500 truncate mt-1">{a.description}</p>}
+                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                        <span>{new Date(a.createdAt).toLocaleDateString()}</span>
+                        {a.changeRequestId && <span>CR: {a.changeRequestId}</span>}
+                        {a.overallScore !== null && <span>Score: {a.overallScore}</span>}
+                        {a.codeRiskScore !== null && <span>Risk: {a.codeRiskScore}</span>}
+                      </div>
+                    </div>
+                    <button onClick={() => deleteAnalysis(a.id)} className="ml-4 rounded-lg p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-950" title="Delete"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => setLoadModalOpen(false)} className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══ OVERVIEW TAB ═══ */}
       {activeTab === "overview" && (() => {

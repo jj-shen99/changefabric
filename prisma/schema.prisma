@@ -190,3 +190,34 @@ model IntegrationSetting {
 
   @@unique([type, key])
 }
+
+// ── Saved Analysis Results ───────────────────────────────────────
+// Stores analysis results for change requests (Plan Analysis, ML Analysis, Code Change Analysis)
+
+model SavedAnalysis {
+  id              String   @id @default(uuid())
+  name            String   // User-provided name for this analysis
+  description     String?  // Optional description
+  analysisType    String   // "plan" | "ml" | "code" | "combined"
+  changeRequestId String?  // Associated CR number (optional)
+  repoUrl         String?  // For code analysis
+  analysisDate    DateTime @default(now())
+  
+  // Scores
+  overallScore    Float?
+  planReadyScore  Float?
+  mlScore         Float?
+  codeRiskScore   Float?
+  
+  // Full analysis data as JSON
+  analysisData    String   // JSON blob with full analysis details
+  
+  // Metadata
+  createdBy       String   // User email who created this
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([changeRequestId])
+  @@index([analysisType])
+  @@index([createdBy])
+}
