@@ -31,7 +31,9 @@ A full-stack **software change validation and release impact analysis dashboard*
 ### Authentication & Authorization
 - **Login / Register / Reset Password** pages with form validation
 - **JWT-based sessions** via NextAuth.js with credentials provider
-- **Role-based access**: Admin, Manager, Viewer with permission matrix
+- **Role-based access**: Admin and Manager roles with permission matrix
+- **Per-user data isolation** — non-admin users only see their own synced change requests and analyses
+- **Per-user credential storage** — each user saves their own ServiceNow/Git credentials (AES-256-GCM encrypted)
 - **Role-based UI gating** — sidebar items, CRUD buttons, and pages hidden based on permissions
 - User avatar, role badge, and sign-out in sidebar
 
@@ -66,7 +68,7 @@ A full-stack **software change validation and release impact analysis dashboard*
 - **Inter font** via `next/font/google`
 
 ### Testing & Code Quality
-- **Jest + React Testing Library** with 24 unit tests across utils, constants, and auth-types
+- **Jest + React Testing Library** with 113 unit tests covering utils, constants, auth-types, crypto, access control, API authorization, page accessibility, boundary cases, and negative cases
 - **ESLint** with Next.js + TypeScript + Prettier rules
 - **Prettier** with Tailwind CSS class sorting
 - **Strict TypeScript** (`noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`)
@@ -103,11 +105,11 @@ Open [http://localhost:3600](http://localhost:3600) in your browser.
 
 ### Demo Accounts
 
-| Email || Role |
+| Email | Password | Role |
 |---|---|---|
-| `admin@company.com` | | Admin |
-| `manager@company.com` | | Manager |
-| `viewer@company.com` | | Viewer |
+| `admin@servicenow.com` | `admin123!` | Admin |
+| `manager@servicenow.com` | `manager123!` | Manager |
+| `jane@servicenow.com` | `manager123!` | Manager |
 
 ## Scripts
 
@@ -138,24 +140,28 @@ src/
 │   │   ├── register/
 │   │   └── reset-password/
 │   ├── (dashboard)/         # Dashboard pages (with sidebar)
-│   │   ├── changes/
-│   │   ├── analytics/
-│   │   ├── impact/
-│   │   ├── metrics/
-│   │   ├── releases/
+│   │   ├── analytics/       # CHG Analytics (4-tab)
+│   │   ├── changes/         # Change Requests (CRUD + sync)
+│   │   ├── code-analysis/   # Git commit risk analysis
+│   │   ├── impact/          # Impact Analysis (4-tab)
+│   │   ├── reports/         # Saved analysis reports
 │   │   ├── settings/
-│   │   │   └── users/       # Admin user management
-│   │   ├── validations/
+│   │   │   ├── account/     # User's own account
+│   │   │   ├── integrations/ # Per-user credential management
+│   │   │   └── users/       # Admin-only user management
 │   │   └── layout.tsx       # Responsive layout + command palette
 │   ├── api/
-│   │   ├── admin/users/     # Admin user CRUD API
-│   │   ├── auth/            # NextAuth + register + reset-password
-│   │   └── data/
-│   │       ├── route.ts     # Dashboard data API
-│   │       ├── changes/     # Change request CRUD API
-│   │       ├── analytics/   # Computed analytics API
-│   │       ├── git-analysis/ # Git commit risk analysis API
-│   │       └── plan-analysis/ # ML plan content analysis API
+│   │   ├── admin/users/     # Admin-only user CRUD API
+│   │   ├── analysis/        # Saved analysis CRUD + HTML reports
+│   │   ├── auth/            # NextAuth + register + reset-password + account
+│   │   ├── data/
+│   │   │   ├── route.ts     # Dashboard data API (user-filtered)
+│   │   │   ├── analytics/   # Analytics API (user-filtered)
+│   │   │   ├── changes/     # Change request CRUD API
+│   │   │   ├── git-analysis/ # Git commit risk analysis API
+│   │   │   └── plan-analysis/ # ML plan content analysis API
+│   │   ├── settings/integrations/ # Per-user credential storage
+│   │   └── sync/            # ServiceNow sync (sets syncedBy)
 │   ├── error.tsx            # Global error boundary
 │   ├── not-found.tsx        # Custom 404
 │   ├── globals.css
@@ -181,10 +187,12 @@ src/
 ├── lib/
 │   ├── __tests__/            # Jest unit tests
 │   ├── auth.ts               # NextAuth configuration
-│   ├── auth-types.ts         # Role types + permissions
+│   ├── auth-types.ts         # Role types + permission matrix
 │   ├── constants.ts          # App-wide constants
+│   ├── crypto.ts             # AES-256-GCM encryption/decryption
 │   ├── data.ts               # Static mock data (legacy fallback)
 │   ├── prisma.ts             # Prisma client singleton
+│   ├── servicenow.ts         # ServiceNow sync client
 │   ├── types.ts              # Domain types
 │   └── utils.ts              # Utility functions
 ├── middleware.ts              # Auth middleware
@@ -212,7 +220,8 @@ prisma/
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](docs/ARCHITECTURE.md) | System architecture with Mermaid diagrams |
+| [Architecture](docs/ARCHITECTURE.md) | Legacy system architecture overview |
+| [Architecture Diagrams](docs/architecture/) | Mermaid diagrams: system overview, access control, data flow, API routes, DB schema, UI components |
 | [Impact Analysis](docs/IMPACT_ANALYSIS.md) | Scoring methodology for Plan, ML, and Dimension analysis |
 | [Change Management Architecture](docs/CHANGE_MANAGEMENT_ARCHITECTURE.md) | End-to-end architecture graphs for the analysis pipeline |
 | [User Guide](docs/USER_GUIDE.md) | Feature guide for all dashboard pages |

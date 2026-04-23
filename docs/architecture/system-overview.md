@@ -1,0 +1,53 @@
+# System Overview
+
+High-level architecture of the GCS Release Change Analysis Dashboard.
+
+```mermaid
+graph TB
+    subgraph Client["Browser Client"]
+        UI[Next.js React UI<br/>Port 3600]
+        Auth[NextAuth.js<br/>Session Management]
+    end
+
+    subgraph Server["Next.js Server"]
+        MW[Middleware<br/>Auth Guard]
+        API[API Routes<br/>18 endpoints]
+        SSR[Server-Side Rendering]
+    end
+
+    subgraph External["External Services"]
+        SNOW[ServiceNow Instance<br/>REST API]
+        GIT[Git Enterprise<br/>REST API]
+    end
+
+    subgraph Storage["Data Layer"]
+        DB[(SQLite via Prisma<br/>prisma/dev.db)]
+        ENV[.env<br/>Encrypted Secrets]
+    end
+
+    UI -->|HTTP Requests| MW
+    MW -->|Authenticated| API
+    MW -->|Redirect| Auth
+    API -->|Prisma ORM| DB
+    API -->|Fetch CRs| SNOW
+    API -->|Fetch Commits| GIT
+    API -->|Read Secrets| ENV
+    SSR -->|Prisma ORM| DB
+
+    style Client fill:#dbeafe,stroke:#3b82f6
+    style Server fill:#fef3c7,stroke:#f59e0b
+    style External fill:#fce7f3,stroke:#ec4899
+    style Storage fill:#d1fae5,stroke:#10b981
+```
+
+## Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 19, Next.js 14, Recharts, TailwindCSS, Lucide Icons |
+| **Auth** | NextAuth.js, bcryptjs, JWT |
+| **Backend** | Next.js API Routes (Node.js) |
+| **Database** | SQLite + Prisma ORM |
+| **Encryption** | AES-256-GCM (credentials at rest) |
+| **External APIs** | ServiceNow REST API, GitHub Enterprise REST API |
+| **Testing** | Jest, Testing Library |

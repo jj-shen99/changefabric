@@ -9,12 +9,22 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const days = parseInt(searchParams.get("days") || "0", 10);
-  const dateFilter = days > 0
-    ? { opened_at: { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString() } }
-    : {};
+
+  // Build where clause with date filter and user filter
+  const userRole = (session.user as { role?: string }).role;
+  const userEmail = session.user.email || "";
+
+  const whereClause: Record<string, unknown> = {};
+  if (days > 0) {
+    whereClause.opened_at = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString() };
+  }
+  // Non-admin users can only see analytics for change requests they synced
+  if (userRole !== "admin") {
+    whereClause.syncedBy = userEmail;
+  }
 
   const [changeRequests, releases] = await Promise.all([
-    prisma.changeRequest.findMany({ where: dateFilter, include: { validations: true }, orderBy: { opened_at: "desc" } }),
+    prisma.changeRequest.findMany({ where: whereClause, include: { validations: true }, orderBy: { opened_at: "desc" } }),
     prisma.release.findMany({ orderBy: { scheduledDate: "desc" } }),
   ]);
 

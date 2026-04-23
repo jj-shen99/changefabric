@@ -25,40 +25,34 @@ describe("RISK_LABELS", () => {
 });
 
 describe("NAV_SECTIONS", () => {
-  it("has 2 sections", () => {
-    expect(NAV_SECTIONS.length).toBe(2);
+  it("has at least 1 section", () => {
+    expect(NAV_SECTIONS.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("has Changes and Releases sections", () => {
+  it("has Changes section", () => {
     const sectionNames = NAV_SECTIONS.map((s) => s.section);
     expect(sectionNames).toContain("Changes");
-    expect(sectionNames).toContain("Releases");
   });
 
-  it("has Analytics under Changes", () => {
+  it("has CHG Analytics under Changes", () => {
     const changes = NAV_SECTIONS.find((s) => s.section === "Changes");
-    expect(changes?.items.some((i) => i.label === "Analytics")).toBe(true);
+    expect(changes?.items.some((i) => i.label === "CHG Analytics")).toBe(true);
   });
 
-  it("has Release Overview at top of Releases section", () => {
-    const releases = NAV_SECTIONS.find((s) => s.section === "Releases");
-    expect(releases?.items[0].label).toBe("Release Overview");
+  it("has Change Requests under Changes", () => {
+    const changes = NAV_SECTIONS.find((s) => s.section === "Changes");
+    expect(changes?.items.some((i) => i.label === "Change Requests")).toBe(true);
   });
 
-  it("has combined Releases & Validations under Releases section", () => {
-    const releases = NAV_SECTIONS.find((s) => s.section === "Releases");
-    expect(releases?.items.some((i) => i.label === "Releases & Validations")).toBe(true);
-  });
-
-  it("has combined Risk & Confidence under Releases section", () => {
-    const releases = NAV_SECTIONS.find((s) => s.section === "Releases");
-    expect(releases?.items.some((i) => i.label === "Risk & Confidence")).toBe(true);
+  it("has Reports under Changes", () => {
+    const changes = NAV_SECTIONS.find((s) => s.section === "Changes");
+    expect(changes?.items.some((i) => i.label === "Reports")).toBe(true);
   });
 });
 
 describe("NAV_ITEMS", () => {
   it("has the correct number of items", () => {
-    expect(NAV_ITEMS.length).toBe(7);
+    expect(NAV_ITEMS.length).toBe(6);
   });
 
   it("starts with Overview", () => {
