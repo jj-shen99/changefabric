@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Filter, Search, FileCode2, RefreshCw, Trash2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Filter, Search, FileCode2, RefreshCw, Trash2, ChevronLeft, ChevronRight, Loader2, Key, Eye, EyeOff, CheckCircle2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { useDebounce, useData, usePermissions } from "@/hooks";
 import { PAGINATION } from "@/lib/constants";
-import { Card, CardHeader, CardTitle } from "@/components/card";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
 import { RiskBadge } from "@/components/risk-badge";
 import { ChangeStatusBadge, ValidationStatusBadge } from "@/components/status-badge";
@@ -23,8 +23,111 @@ export default function ChangesPage() {
   const [syncing, setSyncing] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  
+  // Refresh data options
+  const [syncDays, setSyncDays] = useState(7);
+  
+  // ServiceNow authentication state
+  const [snowInstance, setSnowInstance] = useState("");
+  const [snowUser, setSnowUser] = useState("");
+  const [snowPassword, setSnowPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [saveCredentials, setSaveCredentials] = useState(false);
+  const [credentialsSaved, setCredentialsSaved] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [showAuthPanel, setShowAuthPanel] = useState(false);
 
   const debouncedSearch = useDebounce(search);
+
+  // Load saved credentials on mount
+  useEffect(() => {
+    loadSavedCredentials();
+  }, []);
+
+  async function loadSavedCredentials() {
+    try {
+      // First check if credentials exist
+      const res = await fetch("/api/settings/integrations");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.snow?.hasPassword) {
+          setCredentialsSaved(true);
+          // Load full credentials including decrypted password
+          const credRes = await fetch("/api/settings/integrations/credentials?type=snow");
+          if (credRes.ok) {
+            const creds = await credRes.json();
+            if (creds.instance) setSnowInstance(creds.instance);
+            if (creds.user) setSnowUser(creds.user);
+            if (creds.password) setSnowPassword(creds.password);
+          }
+        } else if (data.snow) {
+          if (data.snow.instance) setSnowInstance(data.snow.instance);
+          if (data.snow.user) setSnowUser(data.snow.user);
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  async function testConnection() {
+    setTestingConnection(true);
+    setConnectionStatus(null);
+    try {
+      const res = await fetch("/api/settings/integrations/test-snow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instance: snowInstance, user: snowUser, password: snowPassword }),
+      });
+      const data = await res.json();
+      setConnectionStatus({ success: data.success, message: data.message });
+    } catch (err) {
+      setConnectionStatus({ success: false, message: err instanceof Error ? err.message : "Connection test failed" });
+    } finally {
+      setTestingConnection(false);
+    }
+  }
+
+  async function saveCredentialsToServer() {
+    try {
+      const res = await fetch("/api/settings/integrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "snow", instance: snowInstance, user: snowUser, password: snowPassword }),
+      });
+      if (res.ok) {
+        setCredentialsSaved(true);
+        toast.success("Credentials saved");
+      }
+    } catch { /* ignore */ }
+  }
+
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      // Build URL with days parameter
+      let url = `/api/sync?days=${syncDays}`;
+      // If credentials provided, pass them
+      if (snowUser && snowPassword) {
+        url += `&instance=${encodeURIComponent(snowInstance)}&user=${encodeURIComponent(snowUser)}&pass=${encodeURIComponent(snowPassword)}`;
+      }
+      const res = await fetch(url, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Synced ${data.upserted} change requests from ServiceNow`);
+        await refetch();
+        // Save credentials if checkbox is checked
+        if (saveCredentials && snowUser && snowPassword) {
+          await saveCredentialsToServer();
+        }
+      } else {
+        toast.error(data.error || "Sync failed");
+      }
+    } catch {
+      toast.error("Failed to connect to ServiceNow");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   if (loading) return <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="h-32 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />)}</div>;
   if (error) return <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">{error}</div>;
@@ -64,33 +167,134 @@ export default function ChangesPage() {
 
   return (
     <>
-      <PageHeader title="Change Requests" subtitle="Track and manage all software change requests" actions={
-        <button
-          onClick={async () => {
-            setSyncing(true);
-            try {
-              const res = await fetch("/api/sync", { method: "POST" });
-              const data = await res.json();
-              if (res.ok) {
-                toast.success(`Synced ${data.upserted} change requests from ServiceNow`);
-                await refetch();
-              } else {
-                toast.error(data.error || "Sync failed");
-              }
-            } catch {
-              toast.error("Failed to connect to ServiceNow");
-            } finally {
-              setSyncing(false);
-            }
-          }}
-          disabled={syncing}
-          className="flex items-center gap-2 rounded-lg bg-blue-500/80 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
-        >
-          {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          {syncing ? "Syncing..." : "Refresh Data"}
-        </button>
-      } />
+      <PageHeader title="Change Requests" subtitle="Track and manage all software change requests" />
     <div className="space-y-6 p-4 md:p-6">
+
+      {/* ServiceNow Data Refresh Panel */}
+      <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-blue-600" />
+              Refresh Data from ServiceNow
+            </CardTitle>
+            <button
+              onClick={() => setShowAuthPanel(!showAuthPanel)}
+              className="text-xs text-blue-600 hover:underline"
+            >
+              {showAuthPanel ? "Hide" : "Show"} Authentication
+            </button>
+          </div>
+          <CardDescription className="text-sm">
+            Pull change requests from ServiceNow instance
+          </CardDescription>
+        </CardHeader>
+        <div className="px-4 pb-4 space-y-4">
+          {/* Authentication Panel (collapsible) */}
+          {showAuthPanel && (
+            <div className="rounded-lg border border-blue-100 bg-white p-4 dark:border-blue-800 dark:bg-gray-900">
+              <div className="flex items-center gap-2 mb-3">
+                <Key className="h-4 w-4 text-blue-500" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">ServiceNow Authentication</span>
+                {credentialsSaved && <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900 dark:text-green-300">Saved</span>}
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Instance URL</label>
+                  <input
+                    type="text"
+                    value={snowInstance}
+                    onChange={(e) => setSnowInstance(e.target.value)}
+                    placeholder="https://instance.service-now.com"
+                    className="w-full rounded-lg border border-gray-200 bg-white py-2 px-3 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Username</label>
+                  <input
+                    type="text"
+                    value={snowUser}
+                    onChange={(e) => setSnowUser(e.target.value)}
+                    placeholder="admin"
+                    className="w-full rounded-lg border border-gray-200 bg-white py-2 px-3 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Password</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={snowPassword}
+                      onChange={(e) => setSnowPassword(e.target.value)}
+                      placeholder="password"
+                      className="w-full rounded-lg border border-gray-200 bg-white py-2 px-3 pr-10 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <input
+                    type="checkbox"
+                    checked={saveCredentials}
+                    onChange={(e) => setSaveCredentials(e.target.checked)}
+                    className="rounded border-gray-300"
+                  />
+                  Save credentials
+                </label>
+                <button
+                  onClick={testConnection}
+                  disabled={testingConnection || !snowUser}
+                  className="flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900"
+                >
+                  {testingConnection ? <RefreshCw className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
+                  Test Connection
+                </button>
+              </div>
+              {connectionStatus && (
+                <div className={`mt-2 rounded-lg p-2 text-xs ${connectionStatus.success ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300" : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"}`}>
+                  {connectionStatus.message}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Refresh Controls */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600 dark:text-gray-400">Fetch changes from last</label>
+              <div className="relative">
+                <select
+                  value={syncDays}
+                  onChange={(e) => setSyncDays(Number(e.target.value))}
+                  className="appearance-none rounded-lg border border-blue-200 bg-white pl-3 pr-8 py-2 text-sm outline-none focus:border-blue-500 dark:border-blue-700 dark:bg-gray-800 dark:text-gray-100"
+                >
+                  <option value={1}>1 day</option>
+                  <option value={7}>7 days</option>
+                  <option value={14}>14 days</option>
+                  <option value={30}>30 days</option>
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {syncing ? "Syncing..." : "Refresh Data"}
+            </button>
+          </div>
+        </div>
+      </Card>
 
       {showCreate && canManageChanges && <CreateChangeForm onCreated={() => { setShowCreate(false); refetch(); }} onCancel={() => setShowCreate(false)} />}
 

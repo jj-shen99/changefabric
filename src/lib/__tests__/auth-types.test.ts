@@ -8,7 +8,6 @@ describe("ROLE_LABELS", () => {
   it("has labels for all roles", () => {
     expect(ROLE_LABELS.admin).toBe("Administrator");
     expect(ROLE_LABELS.manager).toBe("Release Manager");
-    expect(ROLE_LABELS.viewer).toBe("Viewer");
   });
 });
 
@@ -32,18 +31,8 @@ describe("ROLE_PERMISSIONS", () => {
     expect(perms.canManageReleases).toBe(true);
   });
 
-  it("viewer can only view metrics", () => {
-    const perms = ROLE_PERMISSIONS.viewer;
-    expect(perms.canManageUsers).toBe(false);
-    expect(perms.canManageChanges).toBe(false);
-    expect(perms.canApproveChanges).toBe(false);
-    expect(perms.canManageReleases).toBe(false);
-    expect(perms.canEditSettings).toBe(false);
-    expect(perms.canViewMetrics).toBe(true);
-  });
-
   it("covers all defined roles", () => {
-    const roles: UserRole[] = ["admin", "manager", "viewer"];
+    const roles: UserRole[] = ["admin", "manager"];
     roles.forEach((role) => {
       expect(ROLE_PERMISSIONS[role]).toBeDefined();
       expect(typeof ROLE_PERMISSIONS[role].canViewMetrics).toBe("boolean");

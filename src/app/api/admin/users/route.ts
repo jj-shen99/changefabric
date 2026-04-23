@@ -47,8 +47,8 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "userId and role are required" }, { status: 400 });
     }
 
-    if (!["admin", "manager", "viewer"].includes(role)) {
-      return NextResponse.json({ error: "Invalid role. Must be admin, manager, or viewer" }, { status: 400 });
+    if (!["admin", "manager"].includes(role)) {
+      return NextResponse.json({ error: "Invalid role. Must be admin or manager" }, { status: 400 });
     }
 
     // Prevent self-demotion

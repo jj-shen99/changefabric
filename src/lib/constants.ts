@@ -71,7 +71,7 @@ export const CHART_STYLES = {
 
 // Application metadata
 export const APP_CONFIG = {
-  name: "GCS Change & Release Management Dashboard",
+  name: "GCS Release Change Analysis Dashboard",
   description: "Software change validation and release impact analysis dashboard",
   url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3600",
 } as const;
@@ -87,15 +87,9 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/", label: "Overview", segment: null },
       { href: "/changes", label: "Change Requests", segment: "changes" },
       { href: "/impact", label: "Impact Analysis", segment: "impact" },
-      { href: "/analytics", label: "Analytics", segment: "analytics" },
-    ],
-  },
-  {
-    section: "Releases",
-    items: [
-      { href: "/executive", label: "Release Overview", segment: "executive" },
-      { href: "/releases", label: "Releases & Validations", segment: "releases" },
-      { href: "/risk-radar", label: "Risk & Confidence", segment: "risk-radar" },
+      { href: "/code-analysis", label: "Code Analysis", segment: "code-analysis" },
+      { href: "/reports", label: "Reports", segment: "reports" },
+      { href: "/analytics", label: "CHG Analytics", segment: "analytics" },
     ],
   },
 ];

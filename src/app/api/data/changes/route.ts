@@ -6,8 +6,8 @@ import { ROLE_PERMISSIONS } from "@/lib/auth-types";
 import type { UserRole } from "@/lib/auth-types";
 
 function getPermissions(session: { user: { role?: string } }) {
-  const role = (session.user.role || "viewer") as UserRole;
-  return ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.viewer;
+  const role = (session.user.role || "manager") as UserRole;
+  return ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.manager;
 }
 
 // POST /api/data/changes — Create a new change request (SN schema)

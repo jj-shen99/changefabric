@@ -24,7 +24,6 @@ async function main() {
   // ── Users ─────────────────────────────────────────────
   const adminPassword = await bcrypt.hash("admin123!", 12);
   const managerPassword = await bcrypt.hash("manager123!", 12);
-  const viewerPassword = await bcrypt.hash("viewer123!", 12);
 
   await prisma.user.upsert({
     where: { email: "admin@servicenow.com" },
@@ -49,13 +48,13 @@ async function main() {
   });
 
   await prisma.user.upsert({
-    where: { email: "viewer@servicenow.com" },
-    update: { hashedPassword: viewerPassword },
+    where: { email: "jane@servicenow.com" },
+    update: { hashedPassword: managerPassword },
     create: {
-      email: "viewer@servicenow.com",
+      email: "jane@servicenow.com",
       name: "Jane Doe",
-      hashedPassword: viewerPassword,
-      role: "viewer",
+      hashedPassword: managerPassword,
+      role: "manager",
     },
   });
 

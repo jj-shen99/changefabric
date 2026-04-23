@@ -23,6 +23,12 @@ export async function GET(
     if (!analysis) {
       return NextResponse.json({ error: "Analysis not found" }, { status: 404 });
     }
+    
+    // Non-admin users can only view their own analyses
+    const userRole = (session.user as { role?: string }).role;
+    if (userRole !== "admin" && analysis.createdBy !== session.user.email) {
+      return NextResponse.json({ error: "Not authorized to view this analysis" }, { status: 403 });
+    }
 
     // Parse the JSON data
     let parsedData = null;

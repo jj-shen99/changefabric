@@ -5,7 +5,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// GET - List saved analyses
+// GET - List saved analyses (filtered by user, admin sees all)
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -21,6 +21,12 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {};
     if (type) where.analysisType = type;
     if (crId) where.changeRequestId = crId;
+    
+    // Non-admin users can only see their own analyses
+    const userRole = (session.user as { role?: string }).role;
+    if (userRole !== "admin") {
+      where.createdBy = session.user.email;
+    }
 
     const analyses = await prisma.savedAnalysis.findMany({
       where,

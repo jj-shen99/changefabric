@@ -22,12 +22,11 @@ declare module "next-auth/jwt" {
   }
 }
 
-export type UserRole = "admin" | "manager" | "viewer";
+export type UserRole = "admin" | "manager";
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Administrator",
   manager: "Release Manager",
-  viewer: "Viewer",
 };
 
 export const ROLE_PERMISSIONS = {
@@ -38,6 +37,7 @@ export const ROLE_PERMISSIONS = {
     canManageReleases: true,
     canEditSettings: true,
     canViewMetrics: true,
+    canViewAllData: true,
   },
   manager: {
     canManageUsers: false,
@@ -46,13 +46,6 @@ export const ROLE_PERMISSIONS = {
     canManageReleases: true,
     canEditSettings: false,
     canViewMetrics: true,
-  },
-  viewer: {
-    canManageUsers: false,
-    canManageChanges: false,
-    canApproveChanges: false,
-    canManageReleases: false,
-    canEditSettings: false,
-    canViewMetrics: true,
+    canViewAllData: false,
   },
 } as const;

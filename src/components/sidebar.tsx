@@ -7,15 +7,13 @@ import {
   LayoutDashboard,
   GitPullRequest,
   ShieldAlert,
-  Rocket,
   BarChart3,
   Settings,
   LogOut,
   Users,
-  Radar,
-  Crown,
   KeyRound,
-  Plug,
+  FileText,
+  Code2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS } from "@/lib/constants";
@@ -26,16 +24,14 @@ const iconMap: Record<string, React.ElementType> = {
   "/": LayoutDashboard,
   "/changes": GitPullRequest,
   "/impact": ShieldAlert,
+  "/code-analysis": Code2,
   "/analytics": BarChart3,
-  "/releases": Rocket,
-  "/risk-radar": Radar,
-  "/executive": Crown,
+  "/reports": FileText,
 };
 
 const roleBadge: Record<string, { label: string; className: string }> = {
   admin: { label: "Admin", className: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" },
   manager: { label: "Manager", className: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" },
-  viewer: { label: "Viewer", className: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300" },
 };
 
 interface SidebarProps {
@@ -46,9 +42,9 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const userRole = ((session?.user as { role?: string })?.role || "viewer") as UserRole;
-  const badge = roleBadge[userRole] || roleBadge.viewer;
-  const permissions = ROLE_PERMISSIONS[userRole] || ROLE_PERMISSIONS.viewer;
+  const userRole = ((session?.user as { role?: string })?.role || "manager") as UserRole;
+  const badge = roleBadge[userRole] || roleBadge.manager;
+  const permissions = ROLE_PERMISSIONS[userRole] || ROLE_PERMISSIONS.manager;
 
   return (
     <aside
@@ -59,7 +55,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
         <div className="flex h-6 w-6 items-center justify-center rounded-md bg-white/20">
           <GitPullRequest className="h-3.5 w-3.5 text-white" aria-hidden="true" />
         </div>
-        <h1 className="text-base font-bold text-white tracking-tight">GCS Change &amp; Release Management Dashboard</h1>
+        <h1 className="text-base font-bold text-white tracking-tight">GCS Release Change Analysis Dashboard</h1>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Primary">
@@ -136,23 +132,6 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
           </Link>
         )}
         {permissions.canEditSettings && (
-          <>
-          <Link
-            href="/settings/integrations"
-            aria-current={pathname === "/settings/integrations" ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-              pathname === "/settings/integrations"
-                ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
-                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-            )}
-          >
-            <Plug
-              className={cn("h-4 w-4", pathname === "/settings/integrations" ? "text-blue-700 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")}
-              aria-hidden="true"
-            />
-            Integrations
-          </Link>
           <Link
             href="/settings"
             aria-current={pathname === "/settings" ? "page" : undefined}
@@ -169,7 +148,6 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
             />
             Settings
           </Link>
-          </>
         )}
       </div>
 

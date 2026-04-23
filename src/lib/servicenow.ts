@@ -24,31 +24,70 @@ function displayVal(field: unknown): string {
 
 /* ─── Fetch from ServiceNow ─── */
 
+export interface SyncOptions {
+  days?: number;
+  instance?: string;
+  user?: string;
+  password?: string;
+  syncedBy?: string;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function fetchChangeRequests(): Promise<Record<string, any>[]> {
+export async function fetchChangeRequests(options?: SyncOptions): Promise<Record<string, any>[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const all: Record<string, any>[] = [];
   let offset = 0;
 
+  // Use provided credentials or fall back to defaults
+  const instance = options?.instance || snowInstance();
+  const user = options?.user || snowUser();
+  const password = options?.password || snowPassword();
+
+  // Build date filter if days specified
+  let dateFilter = "";
+  if (options?.days) {
+    const since = new Date();
+    since.setDate(since.getDate() - options.days);
+    const isoDate = since.toISOString().split("T")[0];
+    dateFilter = `&sysparm_query=sys_created_on>=${isoDate}`;
+  }
+
   while (true) {
     const url =
-      `${snowInstance()}/api/now/table/change_request` +
+      `${instance}/api/now/table/change_request` +
       `?sysparm_display_value=true` +
       `&sysparm_limit=${PAGE_SIZE}` +
       `&sysparm_offset=${offset}` +
-      `&sysparm_orderby=number`;
+      `&sysparm_orderby=number` +
+      dateFilter;
 
     const res = await fetch(url, {
       headers: {
-        Accept: "application/json",
-        Authorization:
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization":
           "Basic " +
-          Buffer.from(`${snowUser()}:${snowPassword()}`).toString("base64"),
+          Buffer.from(`${user}:${password}`).toString("base64"),
       },
     });
 
     if (!res.ok) {
-      throw new Error(`ServiceNow API ${res.status}: ${await res.text()}`);
+      const text = await res.text();
+      // Check if we got HTML back (login page redirect)
+      if (text.includes("<!DOCTYPE") || text.includes("<html")) {
+        throw new Error(`ServiceNow returned HTML instead of JSON. The instance may require SSO authentication or the REST API may not be enabled.`);
+      }
+      throw new Error(`ServiceNow API ${res.status}: ${text.slice(0, 200)}`);
+    }
+
+    // Check content type to ensure we got JSON
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      if (text.includes("<!DOCTYPE") || text.includes("<html")) {
+        throw new Error(`ServiceNow returned HTML instead of JSON. The instance may require SSO authentication or the REST API may not be enabled.`);
+      }
+      throw new Error(`ServiceNow returned unexpected content type: ${contentType}`);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -113,8 +152,10 @@ export interface SyncResult {
 
 export async function syncChangeRequests(
   prisma: PrismaClient,
+  options?: SyncOptions,
 ): Promise<SyncResult> {
-  const records = await fetchChangeRequests();
+  const records = await fetchChangeRequests(options);
+  const syncedBy = options?.syncedBy || "";
 
   const result: SyncResult = {
     fetched: records.length,
@@ -127,12 +168,16 @@ export async function syncChangeRequests(
     try {
       const row = toRow(rec);
       const { number: num, ...rest } = row;
+      
+      // Add syncedBy to track who synced this record
+      const dataWithSyncedBy = { ...rest, syncedBy };
+      const createWithSyncedBy = { ...row, syncedBy };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await prisma.changeRequest.upsert({
         where: { number: num },
-        update: rest as any,
-        create: row as any,
+        update: dataWithSyncedBy as any,
+        create: createWithSyncedBy as any,
       });
       result.upserted++;
     } catch (err) {

@@ -35,7 +35,7 @@ export async function POST(request: Request) {
         email,
         name,
         hashedPassword,
-        role: "viewer",
+        role: "manager",
       },
     });
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { Mail, Lock, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Mail, Lock, Loader2, CheckCircle2, AlertTriangle, LogOut } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
 
@@ -96,14 +96,23 @@ export default function AccountPage() {
 
       {/* Current info */}
       <Card className="p-5">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-            {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+              {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{session?.user?.name || "User"}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{session?.user?.email || "—"}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{session?.user?.name || "User"}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{session?.user?.email || "—"}</p>
-          </div>
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 dark:border-red-800 dark:bg-red-950 dark:text-red-400 dark:hover:bg-red-900"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign Out
+          </button>
         </div>
       </Card>
 

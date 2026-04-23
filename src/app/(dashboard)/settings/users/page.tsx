@@ -98,7 +98,6 @@ export default function UserManagementPage() {
   const roleBadge: Record<string, string> = {
     admin: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
     manager: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-    viewer: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
   };
 
   return (
@@ -156,9 +155,8 @@ export default function UserManagementPage() {
                       >
                         <option value="admin">Admin</option>
                         <option value="manager">Manager</option>
-                        <option value="viewer">Viewer</option>
                       </select>
-                      <span className={`ml-2 inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${roleBadge[user.role] || roleBadge.viewer}`}>
+                      <span className={`ml-2 inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${roleBadge[user.role] || roleBadge.manager}`}>
                         {user.role}
                       </span>
                     </td>
@@ -207,14 +205,6 @@ export default function UserManagementPage() {
               <li>Approve changes</li>
               <li>Manage releases</li>
               <li>View metrics</li>
-            </ul>
-          </div>
-          <div>
-            <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.viewer}`}>Viewer</span>
-            <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
-              <li>View all dashboards</li>
-              <li>View metrics</li>
-              <li>Read-only access</li>
             </ul>
           </div>
         </div>

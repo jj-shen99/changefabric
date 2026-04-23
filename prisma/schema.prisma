@@ -129,6 +129,9 @@ model ChangeRequest {
   reassignment_count  String  @default("")
   business_duration   String  @default("")
   calendar_duration   String  @default("")
+  
+  // Track who synced this change request
+  syncedBy            String  @default("")
 
   validations Validation[]
 }
@@ -181,6 +184,7 @@ model DashboardMetric {
 
 model IntegrationSetting {
   id        String   @id @default(uuid())
+  userId    String   // User email who saved this credential
   type      String   // "snow" or "git"
   key       String   // "instance", "user", "password"
   value     String   // encrypted value
@@ -188,7 +192,7 @@ model IntegrationSetting {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([type, key])
+  @@unique([userId, type, key])
 }
 
 // ── Saved Analysis Results ───────────────────────────────────────

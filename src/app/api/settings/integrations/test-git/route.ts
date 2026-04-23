@@ -2,11 +2,16 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// POST - Test Git connection
+// POST - Test Git connection (admin only)
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  
+  // Only admins can test integration settings
+  if ((session.user as { role?: string }).role !== "admin") {
+    return NextResponse.json({ error: "Forbidden - Admin role required" }, { status: 403 });
   }
 
   try {

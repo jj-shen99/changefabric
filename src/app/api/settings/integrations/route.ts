@@ -6,7 +6,7 @@ import { encrypt, decrypt } from "@/lib/crypto";
 
 const prisma = new PrismaClient();
 
-// GET - Load saved integration settings
+// GET - Load saved integration settings for current user
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session) {
@@ -14,8 +14,11 @@ export async function GET() {
   }
 
   try {
-    // Get settings from database
-    const settings = await prisma.integrationSetting.findMany();
+    // Get settings for current user
+    const userEmail = session.user.email || "";
+    const settings = await prisma.integrationSetting.findMany({
+      where: { userId: userEmail },
+    });
     
     const result: Record<string, Record<string, string | boolean>> = {};
     
@@ -43,16 +46,11 @@ export async function GET() {
   }
 }
 
-// POST - Save integration settings
+// POST - Save integration settings for current user
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // Only admins and managers can modify settings
-  if (session.user.role !== "admin" && session.user.role !== "manager") {
-    return NextResponse.json({ error: "Forbidden - Admin or Manager role required" }, { status: 403 });
   }
 
   try {
@@ -63,7 +61,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid integration type" }, { status: 400 });
     }
 
-    // Save each setting
+    const userEmail = session.user.email || "";
+
+    // Save each setting for current user
     for (const [key, value] of Object.entries(settings)) {
       if (value === undefined) continue; // Skip undefined values (masked passwords)
       
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
 
       await prisma.integrationSetting.upsert({
         where: {
-          type_key: { type, key },
+          userId_type_key: { userId: userEmail, type, key },
         },
         update: {
           value: encryptedValue,
@@ -81,6 +81,7 @@ export async function POST(request: Request) {
           updatedAt: new Date(),
         },
         create: {
+          userId: userEmail,
           type,
           key,
           value: encryptedValue,

@@ -22,6 +22,7 @@ export default function IntegrationsPage() {
   const [snowSaving, setSnowSaving] = useState(false);
 
   // Git state
+  const [gitRepo, setGitRepo] = useState("");
   const [gitUser, setGitUser] = useState("");
   const [gitPassword, setGitPassword] = useState("");
   const [showGitPassword, setShowGitPassword] = useState(false);
@@ -43,6 +44,7 @@ export default function IntegrationsPage() {
             if (data.snow.hasPassword) setSnowPassword("••••••••");
           }
           if (data.git) {
+            setGitRepo(data.git.instance || "");
             setGitUser(data.git.user || "");
             if (data.git.hasPassword) setGitPassword("••••••••");
           }
@@ -144,6 +146,7 @@ export default function IntegrationsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "git",
+          instance: gitRepo,
           user: gitUser,
           password: gitPassword === "••••••••" ? undefined : gitPassword,
         }),
@@ -160,6 +163,7 @@ export default function IntegrationsPage() {
       setGitSaving(false);
     }
   }
+
 
   return (
     <>
@@ -268,6 +272,19 @@ export default function IntegrationsPage() {
             <CardDescription>Configure credentials for accessing private Git repositories (GitHub Enterprise, Gitea, etc.)</CardDescription>
           </CardHeader>
           <div className="space-y-4 px-6 pb-6">
+            {/* Repository URL */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Repository URL</label>
+              <input
+                type="url"
+                value={gitRepo}
+                onChange={(e) => setGitRepo(e.target.value)}
+                placeholder="https://code.devsnc.com/dev/your-repo"
+                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+              />
+              <p className="mt-1 text-xs text-gray-500">The Git repository URL (e.g., GitHub Enterprise, Gitea, etc.)</p>
+            </div>
+
             {/* Username */}
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
