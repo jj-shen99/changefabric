@@ -1,7 +1,7 @@
 # Architecture Document — GCS Change & Release Management Dashboard
 
-> **Version**: 1.2.0
-> **Last Updated**: March 12, 2026
+> **Version**: 1.3.0
+> **Last Updated**: April 23, 2026
 
 ---
 
@@ -56,7 +56,7 @@ graph TB
 
     subgraph Data["Data Layer"]
         DB[(SQLite Database)]
-        SN[ServiceNow REST API<br/>/api/now/table/]
+        SN[ServiceNow REST API - /api/now/table/]
     end
 
     RP -->|HTTP fetch| API
@@ -164,8 +164,8 @@ src/app/
 graph TB
     ROOT["RootLayout (src/app/layout.tsx)"] --> SP[SessionProvider — NextAuth]
     SP --> THP[ThemeProvider — dark mode]
-    THP --> AL["(auth) layout<br/>Centered, no sidebar"]
-    THP --> DL["(dashboard) layout<br/>Sidebar + mobile nav"]
+    THP --> AL["(auth) layout - Centered, no sidebar"]
+    THP --> DL["(dashboard) layout - Sidebar + mobile nav"]
     AL --> PAGES1[Login / Register / Reset Password]
     DL --> S2C[SkipToContent]
     DL --> CMP[CommandPalette ⌘K]
@@ -204,11 +204,11 @@ graph LR
     PC[Page Component] --> UD[useData hook]
     PC --> UA[useAnalytics hook]
 
-    UD -->|"SWR /api/data<br/>30s refresh, 5s dedup"| API1[/api/data]
-    UA -->|"SWR /api/data/analytics<br/>60s refresh, 10s dedup"| API2[/api/data/analytics]
+    UD -->|SWR 30s refresh| API1["/api/data"]
+    UA -->|SWR 60s refresh| API2["/api/data/analytics"]
 
-    API1 -->|Returns| D1[changeRequests<br/>releases<br/>dashboardMetrics]
-    API2 -->|Returns| D2[releaseRiskRadar<br/>blastRadius<br/>confidenceScores<br/>failureAnalysis<br/>velocity<br/>rollbackIntelligence]
+    API1 -->|Returns| D1["changeRequests, releases, metrics"]
+    API2 -->|Returns| D2["riskRadar, blastRadius, confidence, failure, velocity"]
 
     style PC fill:#e0f2fe,stroke:#0284c7
     style API1 fill:#f0fdf4,stroke:#16a34a
@@ -219,9 +219,9 @@ graph LR
 
 ```mermaid
 flowchart TB
-    REQ[GET /api/data/analytics] --> AUTH[1. Auth Check<br/>getServerSession]
-    AUTH --> DB[2. Parallel DB Queries<br/>Prisma]
-    DB --> CR[changeRequests<br/>with validations]
+    REQ[GET /api/data/analytics] --> AUTH[1. Auth Check - getServerSession]
+    AUTH --> DB[2. Parallel DB Queries - Prisma]
+    DB --> CR[changeRequests - with validations]
     DB --> REL[releases]
     CR --> AGG[3. Data Aggregation]
     REL --> AGG
@@ -247,10 +247,10 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    TRIG["User clicks 'Pull Data'<br/>OR CLI: npx tsx scripts/import-servicenow.ts"] --> SYNC[POST /api/sync]
+    TRIG["User clicks 'Pull Data' - OR CLI: npx tsx scripts/import-servicenow.ts"] --> SYNC[POST /api/sync]
     SYNC --> FETCH[fetchChangeRequests]
-    FETCH -->|"Paginated GET<br/>sysparm_display_value=true<br/>Basic Auth"| SN[ServiceNow API<br/>/api/now/table/change_request]
-    SN -->|"All change_request records"| NORM[toRow — Normalize<br/>Extract display_value from refs]
+    FETCH -->|"Paginated GET - sysparm_display_value=true - Basic Auth"| SN[ServiceNow API - /api/now/table/change_request]
+    SN -->|"All change_request records"| NORM[toRow — Normalize - Extract display_value from refs]
     NORM --> UPSERT[Prisma Upsert Loop]
     UPSERT -->|"WHERE: number = CHGxxxxxxx"| UPD[UPDATE: all 90+ fields]
     UPSERT -->|"If not exists"| CRE[CREATE: new record]
@@ -268,12 +268,12 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    LP[Login Page /login] -->|POST credentials| NAP[NextAuth<br/>Credentials Provider]
-    NAP --> PF[Prisma: find user<br/>bcrypt.compare]
-    PF --> JWT[JWT Token — 24h TTL<br/>Contains: id, email, name, role]
-    JWT --> MW[Middleware<br/>Redirect to /login]
-    JWT --> API[API Routes<br/>401 if missing]
-    JWT --> CS[Client Session<br/>useSession hook]
+    LP[Login Page /login] -->|POST credentials| NAP[NextAuth - Credentials Provider]
+    NAP --> PF[Prisma: find user - bcrypt.compare]
+    PF --> JWT[JWT Token — 24h TTL - Contains: id, email, name, role]
+    JWT --> MW[Middleware - Redirect to /login]
+    JWT --> API[API Routes - 401 if missing]
+    JWT --> CS[Client Session - useSession hook]
 
     style LP fill:#e0f2fe,stroke:#0284c7
     style JWT fill:#fef3c7,stroke:#d97706
@@ -493,8 +493,8 @@ The application uses **no global state library** (e.g., Redux, Zustand). Instead
 
 ```mermaid
 graph LR
-    APP[Dashboard App] -->|"GET /api/now/table/change_request<br/>sysparm_display_value=true<br/>sysparm_limit=100<br/>Basic Auth"| SN[ServiceNow Instance]
-    SN -->|"JSON array<br/>90+ columns per record"| APP
+    APP[Dashboard App] -->|"GET /api/now/table/change_request - sysparm_display_value=true - sysparm_limit=100 - Basic Auth"| SN[ServiceNow Instance]
+    SN -->|"JSON array - 90+ columns per record"| APP
 
     style APP fill:#e0f2fe,stroke:#0284c7
     style SN fill:#fef3c7,stroke:#d97706

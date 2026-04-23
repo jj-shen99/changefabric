@@ -5,24 +5,24 @@ High-level architecture of the GCS Release Change Analysis Dashboard.
 ```mermaid
 graph TB
     subgraph Client["Browser Client"]
-        UI[Next.js React UI<br/>Port 3600]
-        Auth[NextAuth.js<br/>Session Management]
+        UI[Next.js React UI - Port 3600]
+        Auth[NextAuth.js - Session Management]
     end
 
     subgraph Server["Next.js Server"]
-        MW[Middleware<br/>Auth Guard]
-        API[API Routes<br/>18 endpoints]
+        MW[Middleware - Auth Guard]
+        API[API Routes - 18 endpoints]
         SSR[Server-Side Rendering]
     end
 
     subgraph External["External Services"]
-        SNOW[ServiceNow Instance<br/>REST API]
-        GIT[Git Enterprise<br/>REST API]
+        SNOW[ServiceNow Instance - REST API]
+        GIT[Git Enterprise - REST API]
     end
 
     subgraph Storage["Data Layer"]
-        DB[(SQLite via Prisma<br/>prisma/dev.db)]
-        ENV[.env<br/>Encrypted Secrets]
+        DB[(SQLite via Prisma - prisma/dev.db)]
+        ENV[.env - Encrypted Secrets]
     end
 
     UI -->|HTTP Requests| MW

@@ -6,8 +6,8 @@ Role-based access control (RBAC) architecture for the dashboard.
 
 ```mermaid
 graph TD
-    Admin["Admin<br/>Full access to all data and settings"]
-    Manager["Manager<br/>Own data + change management"]
+    Admin["Admin - Full access to all data and settings"]
+    Manager["Manager - Own data + change management"]
 
     Admin -->|superset of| Manager
 
@@ -95,7 +95,7 @@ flowchart LR
         B_GIT[Git repo + creds]
     end
     subgraph "IntegrationSetting Table"
-        DB["userId + type + key = UNIQUE<br/>Each user has isolated credentials"]
+        DB["userId + type + key = UNIQUE - Each user has isolated credentials"]
     end
 
     A_SNOW --> DB

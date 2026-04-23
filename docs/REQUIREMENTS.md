@@ -1,7 +1,7 @@
 # Requirements Document — GCS Change & Release Management Dashboard
 
-> **Version**: 1.2.0
-> **Last Updated**: March 12, 2026
+> **Version**: 1.3.0
+> **Last Updated**: April 23, 2026
 
 ---
 

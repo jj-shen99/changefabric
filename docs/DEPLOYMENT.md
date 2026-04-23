@@ -1,7 +1,7 @@
 # Deployment Guide — GCS Change & Release Management Dashboard
 
-> **Version**: 1.2.0
-> **Last Updated**: March 12, 2026
+> **Version**: 1.3.0
+> **Last Updated**: April 23, 2026
 
 ---
 
@@ -66,9 +66,9 @@ The seed script creates three demo users:
 
 | Email | Password | Role |
 |-------|----------|------|
-| `admin@company.com` | `password123` | Admin |
-| `manager@company.com` | `password123` | Manager |
-| `viewer@company.com` | `password123` | Viewer |
+| `admin@servicenow.com` | `admin123!` | Admin |
+| `manager@servicenow.com` | `manager123!` | Manager |
+| `jane@servicenow.com` | `manager123!` | Manager |
 
 > ⚠️ **Change these credentials before any production deployment.**
 

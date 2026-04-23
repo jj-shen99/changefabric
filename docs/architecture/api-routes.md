@@ -7,42 +7,42 @@ All API endpoints with authentication and authorization requirements.
 ```mermaid
 graph TD
     subgraph "Authentication"
-        AUTH["POST /api/auth/[...nextauth]<br/>NextAuth.js handler"]
-        REG["POST /api/auth/register<br/>New user registration"]
-        RESET["POST /api/auth/reset-password<br/>Password reset"]
-        ACCT["GET|PUT /api/auth/account<br/>Own account details"]
+        AUTH["POST /api/auth/[...nextauth] - NextAuth.js handler"]
+        REG["POST /api/auth/register - New user registration"]
+        RESET["POST /api/auth/reset-password - Password reset"]
+        ACCT["GET|PUT /api/auth/account - Own account details"]
     end
 
     subgraph "Admin Only"
-        USERS["GET|POST|PUT|DELETE /api/admin/users<br/>User management"]
+        USERS["GET|POST|PUT|DELETE /api/admin/users - User management"]
     end
 
     subgraph "Data — User Filtered"
-        DATA["GET /api/data<br/>Change requests + releases"]
-        ANALYTICS["GET /api/data/analytics<br/>Failure, velocity, blast radius"]
-        CHANGES["GET /api/data/changes<br/>Change request details"]
+        DATA["GET /api/data - Change requests + releases"]
+        ANALYTICS["GET /api/data/analytics - Failure, velocity, blast radius"]
+        CHANGES["GET /api/data/changes - Change request details"]
     end
 
     subgraph "Analysis — User Filtered"
-        ANA_LIST["GET /api/analysis<br/>List saved analyses"]
-        ANA_SAVE["POST /api/analysis<br/>Save new analysis"]
-        ANA_DEL["DELETE /api/analysis<br/>Delete analysis"]
-        ANA_GET["GET /api/analysis/:id<br/>Single analysis"]
-        ANA_HTML["GET /api/analysis/:id/html<br/>HTML report"]
+        ANA_LIST["GET /api/analysis - List saved analyses"]
+        ANA_SAVE["POST /api/analysis - Save new analysis"]
+        ANA_DEL["DELETE /api/analysis - Delete analysis"]
+        ANA_GET["GET /api/analysis/:id - Single analysis"]
+        ANA_HTML["GET /api/analysis/:id/html - HTML report"]
     end
 
     subgraph "External Integrations"
-        SYNC["POST /api/sync<br/>Sync CRs from ServiceNow"]
-        GIT_ANA["POST /api/data/git-analysis<br/>Git commit analysis"]
-        PLAN_ANA["POST /api/data/plan-analysis<br/>Plan readiness analysis"]
+        SYNC["POST /api/sync - Sync CRs from ServiceNow"]
+        GIT_ANA["POST /api/data/git-analysis - Git commit analysis"]
+        PLAN_ANA["POST /api/data/plan-analysis - Plan readiness analysis"]
     end
 
     subgraph "Settings — Per User"
-        INT_GET["GET /api/settings/integrations<br/>Load user credentials"]
-        INT_POST["POST /api/settings/integrations<br/>Save user credentials"]
-        INT_CRED["GET /api/settings/integrations/credentials<br/>Decrypted credentials"]
-        TEST_SNOW["POST /api/settings/integrations/test-snow<br/>Test SNOW connection"]
-        TEST_GIT["POST /api/settings/integrations/test-git<br/>Test Git connection"]
+        INT_GET["GET /api/settings/integrations - Load user credentials"]
+        INT_POST["POST /api/settings/integrations - Save user credentials"]
+        INT_CRED["GET /api/settings/integrations/credentials - Decrypted credentials"]
+        TEST_SNOW["POST /api/settings/integrations/test-snow - Test SNOW connection"]
+        TEST_GIT["POST /api/settings/integrations/test-git - Test Git connection"]
     end
 
     style Authentication fill:#f0fdf4,stroke:#22c55e

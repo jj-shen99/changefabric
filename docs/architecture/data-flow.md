@@ -97,9 +97,9 @@ flowchart TD
     CR --> F
 
     subgraph Compute["Analytics Computation"]
-        FA[Failure Analysis<br/>by state & team]
-        VEL[Velocity<br/>by assignment_group]
-        BR[Blast Radius<br/>by business_service]
+        FA[Failure Analysis - by state & team]
+        VEL[Velocity - by assignment_group]
+        BR[Blast Radius - by business_service]
         CAT[Category Breakdown]
     end
 

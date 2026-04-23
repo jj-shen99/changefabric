@@ -1,7 +1,7 @@
 # Change Management Analysis — Architecture
 
-> **Version**: 1.2.0
-> **Last Updated**: March 12, 2026
+> **Version**: 1.3.0
+> **Last Updated**: April 23, 2026
 
 ---
 
@@ -10,46 +10,46 @@
 ```mermaid
 graph TB
     subgraph External["External Data Sources"]
-        SN[ServiceNow<br/>change_request table]
-        GH[GitHub / GitLab<br/>Git Repositories]
+        SN[ServiceNow - change_request table]
+        GH[GitHub / GitLab - Git Repositories]
     end
 
     subgraph Ingestion["Data Ingestion Layer"]
-        SYNC[Sync Engine<br/>POST /api/sync]
-        CLI[CLI Import<br/>scripts/import-servicenow.ts]
-        GITAPI[Git Analysis API<br/>GET /api/data/git-analysis]
+        SYNC[Sync Engine - POST /api/sync]
+        CLI[CLI Import - scripts/import-servicenow.ts]
+        GITAPI[Git Analysis API - GET /api/data/git-analysis]
     end
 
     subgraph Storage["Storage Layer"]
-        DB[(SQLite / PostgreSQL<br/>Prisma ORM)]
-        CR_TBL[ChangeRequest<br/>90+ fields]
-        VAL_TBL[Validation<br/>Test results]
-        REL_TBL[Release<br/>Deployment tracking]
-        USR_TBL[User<br/>Auth & RBAC]
+        DB[(SQLite / PostgreSQL - Prisma ORM)]
+        CR_TBL[ChangeRequest - 90+ fields]
+        VAL_TBL[Validation - Test results]
+        REL_TBL[Release - Deployment tracking]
+        USR_TBL[User - Auth & RBAC]
     end
 
     subgraph Analysis["Analysis Engine Layer"]
         direction TB
-        DIM[Dimension Scoring Engine<br/>6 SN field dimensions<br/>Weighted 0–100]
-        PLAN[Plan Readiness Engine<br/>6 plan dimensions<br/>Keyword analysis]
-        ML[ML Content Analyzer<br/>Structure + Completeness<br/>+ Clarity + Risk Awareness]
-        GIT[Code Change Analyzer<br/>Commit risk scoring<br/>File type analysis]
+        DIM[Dimension Scoring Engine - 6 SN field dimensions - Weighted 0–100]
+        PLAN[Plan Readiness Engine - 6 plan dimensions - Keyword analysis]
+        ML[ML Content Analyzer - Structure + Completeness - + Clarity + Risk Awareness]
+        GIT[Code Change Analyzer - Commit risk scoring - File type analysis]
     end
 
     subgraph Presentation["Presentation Layer — Browser"]
         direction TB
-        OV[Overview Tab<br/>KPIs, distributions, top risks]
-        PA[Plan Analysis Tab<br/>Per-CR scoring, radar, plans]
-        MA[ML Analysis Tab<br/>Deep quality analysis, recommendations]
-        CA[Code Change Tab<br/>Git risk, heatmaps, trends]
-        AN[Analytics Page<br/>Failure, Velocity, Metrics, Health]
-        EX[Executive Page<br/>Release KPIs, risk gauges]
-        RR[Risk Radar Page<br/>Multi-axis risk, confidence]
+        OV[Overview Tab - KPIs, distributions, top risks]
+        PA[Plan Analysis Tab - Per-CR scoring, radar, plans]
+        MA[ML Analysis Tab - Deep quality analysis, recommendations]
+        CA[Code Change Tab - Git risk, heatmaps, trends]
+        AN[Analytics Page - Failure, Velocity, Metrics, Health]
+        EX[Executive Page - Release KPIs, risk gauges]
+        RR[Risk Radar Page - Multi-axis risk, confidence]
     end
 
-    SN -->|"REST API<br/>Basic Auth"| SYNC
+    SN -->|"REST API - Basic Auth"| SYNC
     SN -->|"REST API"| CLI
-    GH -->|"REST API<br/>OAuth"| GITAPI
+    GH -->|"REST API - OAuth"| GITAPI
 
     SYNC --> DB
     CLI --> DB
@@ -88,25 +88,25 @@ graph TB
 ```mermaid
 flowchart LR
     subgraph Input["Input: Change Request"]
-        META[SN Metadata<br/>risk, impact, urgency<br/>priority, type, scope]
-        PLANS[Plan Fields<br/>implementation_plan<br/>backout_plan<br/>test_plan<br/>change_plan<br/>risk_impact_analysis<br/>justification]
-        REPO[Linked Repository<br/>Git commit history]
+        META[SN Metadata - risk, impact, urgency - priority, type, scope]
+        PLANS[Plan Fields - implementation_plan - backout_plan - test_plan - change_plan - risk_impact_analysis - justification]
+        REPO[Linked Repository - Git commit history]
     end
 
     subgraph Scoring["Scoring Engines"]
-        DS["Dimension Scoring<br/>━━━━━━━━━━━━━━<br/>Risk × 25%<br/>Impact × 25%<br/>Urgency × 15%<br/>Priority × 15%<br/>Type × 10%<br/>Scope × 10%"]
-        PS["Plan Readiness<br/>━━━━━━━━━━━━━━<br/>Implementation × 25%<br/>Backout × 25%<br/>Test Plan × 20%<br/>Risk Analysis × 15%<br/>Change Plan × 10%<br/>Justification × 5%"]
-        MLS["ML Quality<br/>━━━━━━━━━━━━━━<br/>Structure × 25%<br/>Completeness × 30%<br/>Clarity × 25%<br/>Risk Awareness × 20%"]
-        GS["Code Risk<br/>━━━━━━━━━━━━━━<br/>Files changed<br/>Lines added/deleted<br/>File type risk<br/>Commit patterns<br/>Author concentration"]
+        DS["Dimension Scoring - ━━━━━━━━━━━━━━ - Risk × 25% - Impact × 25% - Urgency × 15% - Priority × 15% - Type × 10% - Scope × 10%"]
+        PS["Plan Readiness - ━━━━━━━━━━━━━━ - Implementation × 25% - Backout × 25% - Test Plan × 20% - Risk Analysis × 15% - Change Plan × 10% - Justification × 5%"]
+        MLS["ML Quality - ━━━━━━━━━━━━━━ - Structure × 25% - Completeness × 30% - Clarity × 25% - Risk Awareness × 20%"]
+        GS["Code Risk - ━━━━━━━━━━━━━━ - Files changed - Lines added/deleted - File type risk - Commit patterns - Author concentration"]
     end
 
     subgraph Output["Output: Risk Profile"]
-        DI[Dimension Score<br/>0–100]
-        RE[Readiness Score<br/>0–100]
-        MQ[ML Quality Score<br/>0–100]
-        CR[Code Risk Score<br/>0–100]
+        DI[Dimension Score - 0–100]
+        RE[Readiness Score - 0–100]
+        MQ[ML Quality Score - 0–100]
+        CR[Code Risk Score - 0–100]
         
-        DI --> FINAL[Composite Risk<br/>Assessment]
+        DI --> FINAL[Composite Risk - Assessment]
         RE --> FINAL
         MQ --> FINAL
         CR --> FINAL
@@ -201,12 +201,12 @@ flowchart TB
         QUERY[Parallel Prisma Queries]
         
         subgraph Aggregation["Aggregation Engine"]
-            RRR[Release Risk Radar<br/>Per-release risk dimensions]
-            BR[Blast Radius<br/>Impact by assignment group]
-            CS[Confidence Scores<br/>Go/no-go recommendations]
-            FA[Failure Analysis<br/>DORA change failure rate<br/>Failure by team<br/>Service risk ranking]
-            VEL[Velocity<br/>Team deployment rates<br/>Category breakdown<br/>Approval efficiency]
-            RI[Rollback Intelligence<br/>Rollback patterns<br/>Complexity analysis]
+            RRR[Release Risk Radar - Per-release risk dimensions]
+            BR[Blast Radius - Impact by assignment group]
+            CS[Confidence Scores - Go/no-go recommendations]
+            FA[Failure Analysis - DORA change failure rate - Failure by team - Service risk ranking]
+            VEL[Velocity - Team deployment rates - Category breakdown - Approval efficiency]
+            RI[Rollback Intelligence - Rollback patterns - Complexity analysis]
         end
     end
 
@@ -255,21 +255,21 @@ flowchart TB
         LOGIN[Login Page] -->|email + password| CRED[NextAuth Credentials Provider]
         CRED --> PRISMA[Prisma: User lookup]
         PRISMA --> BCRYPT[bcrypt.compare]
-        BCRYPT -->|Valid| JWT[JWT Token — 24h<br/>id + email + name + role]
+        BCRYPT -->|Valid| JWT[JWT Token — 24h - id + email + name + role]
         BCRYPT -->|Invalid| ERR[Error: Invalid credentials]
     end
 
     subgraph Protection["Route Protection"]
-        JWT --> MW[Middleware<br/>Protected route patterns]
+        JWT --> MW[Middleware - Protected route patterns]
         MW -->|Authenticated| ALLOW[Allow access]
         MW -->|Not authenticated| REDIR[Redirect to /login]
     end
 
     subgraph RBAC["Role-Based Access Control"]
         JWT --> PERM[usePermissions hook]
-        PERM --> ADMIN["Admin<br/>━━━━━━━━━━━━━━<br/>✅ Manage users<br/>✅ Manage changes<br/>✅ Approve changes<br/>✅ Manage releases<br/>✅ Edit settings<br/>✅ View metrics"]
-        PERM --> MGR["Manager<br/>━━━━━━━━━━━━━━<br/>❌ Manage users<br/>✅ Manage changes<br/>✅ Approve changes<br/>✅ Manage releases<br/>❌ Edit settings<br/>✅ View metrics"]
-        PERM --> VIEW["Viewer<br/>━━━━━━━━━━━━━━<br/>❌ Manage users<br/>❌ Manage changes<br/>❌ Approve changes<br/>❌ Manage releases<br/>❌ Edit settings<br/>✅ View metrics"]
+        PERM --> ADMIN["Admin - ━━━━━━━━━━━━━━ - ✅ Manage users - ✅ Manage changes - ✅ Approve changes - ✅ Manage releases - ✅ Edit settings - ✅ View metrics"]
+        PERM --> MGR["Manager - ━━━━━━━━━━━━━━ - ❌ Manage users - ✅ Manage changes - ✅ Approve changes - ✅ Manage releases - ❌ Edit settings - ✅ View metrics"]
+        PERM --> VIEW["Viewer - ━━━━━━━━━━━━━━ - ❌ Manage users - ❌ Manage changes - ❌ Approve changes - ❌ Manage releases - ❌ Edit settings - ✅ View metrics"]
     end
 
     style Auth fill:#e0f2fe,stroke:#0284c7
@@ -287,7 +287,7 @@ flowchart TB
 ```mermaid
 graph LR
     subgraph Frontend["Frontend"]
-        NEXT[Next.js 14<br/>App Router]
+        NEXT[Next.js 14 - App Router]
         REACT[React 18]
         TW[Tailwind CSS 3.4]
         CHARTS[Recharts 3.x]

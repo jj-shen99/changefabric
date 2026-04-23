@@ -1,7 +1,7 @@
 # Impact Analysis — Methodology & Scoring Guide
 
-> **Version**: 1.2.0
-> **Last Updated**: March 12, 2026
+> **Version**: 1.3.0
+> **Last Updated**: April 23, 2026
 
 ---
 
@@ -29,10 +29,10 @@ graph LR
     CR --> PA[Plan Analysis]
     CR --> ML[ML Content Analysis]
     CR --> CC[Code Change Analysis]
-    DS --> |"Impact Score<br/>0–100"| RA[Risk Assessment]
-    PA --> |"Readiness Score<br/>0–100"| RA
-    ML --> |"Quality Score<br/>0–100"| RA
-    CC --> |"Code Risk<br/>0–100"| RA
+    DS --> |"Impact Score - 0–100"| RA[Risk Assessment]
+    PA --> |"Readiness Score - 0–100"| RA
+    ML --> |"Quality Score - 0–100"| RA
+    CC --> |"Code Risk - 0–100"| RA
     RA --> Decision{Go / No-Go}
 
     style CR fill:#e0f2fe,stroke:#0284c7
@@ -54,7 +54,7 @@ graph LR
 ```mermaid
 graph TB
     subgraph "Client — Browser"
-        UI[Impact Analysis Page<br/>4 Tabs]
+        UI[Impact Analysis Page - 4 Tabs]
         OV[Overview Tab]
         PT[Plan Analysis Tab]
         MT[ML Analysis Tab]
@@ -66,21 +66,21 @@ graph TB
     end
 
     subgraph "Scoring Engines — Client-Side"
-        DE[Dimension Engine<br/>computeDimensions + computeOverall]
-        PE[Plan Engine<br/>scorePlan × 6 dimensions]
-        WE[Weight Engine<br/>User-adjustable sliders]
+        DE[Dimension Engine - computeDimensions + computeOverall]
+        PE[Plan Engine - scorePlan × 6 dimensions]
+        WE[Weight Engine - User-adjustable sliders]
     end
 
     subgraph "API — Server-Side"
-        PLA[/api/data/plan-analysis<br/>ML Content Analyzer/]
-        GIT[/api/data/git-analysis<br/>Git Commit Analyzer/]
-        DATA[/api/data<br/>Change Request Data/]
+        PLA[/api/data/plan-analysis - ML Content Analyzer/]
+        GIT[/api/data/git-analysis - Git Commit Analyzer/]
+        DATA[/api/data - Change Request Data/]
     end
 
     subgraph "Data Sources"
-        DB[(SQLite / PostgreSQL<br/>Prisma ORM)]
-        SN[ServiceNow<br/>change_request table]
-        GH[GitHub / GitLab<br/>Commit History]
+        DB[(SQLite / PostgreSQL - Prisma ORM)]
+        SN[ServiceNow - change_request table]
+        GH[GitHub / GitLab - Commit History]
     end
 
     OV --> DE
@@ -131,12 +131,12 @@ graph LR
     end
 
     subgraph "Score Mapping"
-        RS["Risk Score<br/>Very High→95, High→75<br/>Moderate→50, Low→25, None→5"]
-        IS["Impact Score<br/>1-High→85, 2-Medium→55<br/>3-Low→25"]
-        US["Urgency Score<br/>1-High→85, 2-Medium→55<br/>3-Low→25"]
-        PS["Priority Score<br/>1-Critical→95, 2-High→75<br/>3-Moderate→50, 4-Low→25"]
-        TS["Type Score<br/>Emergency→90, Normal→50<br/>Standard→25"]
-        SS["Scope Score<br/>Large→80, Medium→50<br/>Small→25"]
+        RS["Risk Score - Very High→95, High→75 - Moderate→50, Low→25, None→5"]
+        IS["Impact Score - 1-High→85, 2-Medium→55 - 3-Low→25"]
+        US["Urgency Score - 1-High→85, 2-Medium→55 - 3-Low→25"]
+        PS["Priority Score - 1-Critical→95, 2-High→75 - 3-Moderate→50, 4-Low→25"]
+        TS["Type Score - Emergency→90, Normal→50 - Standard→25"]
+        SS["Scope Score - Large→80, Medium→50 - Small→25"]
     end
 
     R --> RS
@@ -202,20 +202,20 @@ Readiness Score = Σ (plan_quality × weight)
 ```mermaid
 graph TB
     subgraph "6 Plan Dimensions"
-        IP["Implementation Plan<br/>Weight: 25%"]
-        BP["Backout Plan<br/>Weight: 25%"]
-        TP["Test Plan<br/>Weight: 20%"]
-        RA["Risk/Impact Analysis<br/>Weight: 15%"]
-        CP["Change Plan<br/>Weight: 10%"]
-        JU["Justification<br/>Weight: 5%"]
+        IP["Implementation Plan - Weight: 25%"]
+        BP["Backout Plan - Weight: 25%"]
+        TP["Test Plan - Weight: 20%"]
+        RA["Risk/Impact Analysis - Weight: 15%"]
+        CP["Change Plan - Weight: 10%"]
+        JU["Justification - Weight: 5%"]
     end
 
     subgraph "Quality Scoring (0–100)"
-        PR["Present?<br/>+20 base points"]
-        LN["Length Analysis<br/>+5/+12/+20 pts"]
-        ST["Structure Analysis<br/>+15 numbered steps<br/>+5 for 5+ lines"]
-        KW["Keyword Match<br/>+5/+10/+20 pts"]
-        BN["Bonus Signals<br/>+5 time refs<br/>+5 contact info"]
+        PR["Present? - +20 base points"]
+        LN["Length Analysis - +5/+12/+20 pts"]
+        ST["Structure Analysis - +15 numbered steps - +5 for 5+ lines"]
+        KW["Keyword Match - +5/+10/+20 pts"]
+        BN["Bonus Signals - +5 time refs - +5 contact info"]
     end
 
     IP --> PR
@@ -227,7 +227,7 @@ graph TB
 
     PR --> LN --> ST --> KW --> BN
 
-    BN --> |"Sum capped at 100"| QS[Quality Score<br/>0–100]
+    BN --> |"Sum capped at 100"| QS[Quality Score - 0–100]
 
     style IP fill:#e0f2fe,stroke:#0284c7
     style BP fill:#fce7f3,stroke:#db2777
@@ -431,12 +431,12 @@ graph TB
     ML --> R3{Low Scores?}
     ML --> R4{Backout Gaps?}
     
-    R1 -->|Yes| CRIT["🔴 Critical<br/>Missing required elements"]
-    R2 -->|Yes| HIGH["🟠 High<br/>Unaddressed risk factors"]
-    R3 -->|Yes| MED["🟡 Medium<br/>Quality improvement suggestions"]
-    R4 -->|Yes| INFO["🔵 Info<br/>Best practice recommendations"]
+    R1 -->|Yes| CRIT["🔴 Critical - Missing required elements"]
+    R2 -->|Yes| HIGH["🟠 High - Unaddressed risk factors"]
+    R3 -->|Yes| MED["🟡 Medium - Quality improvement suggestions"]
+    R4 -->|Yes| INFO["🔵 Info - Best practice recommendations"]
     
-    CRIT --> REC[Prioritized<br/>Recommendation List]
+    CRIT --> REC[Prioritized - Recommendation List]
     HIGH --> REC
     MED --> REC
     INFO --> REC
@@ -516,20 +516,20 @@ When viewing a specific change request in Plan Analysis, four KPIs are displayed
 ```mermaid
 graph TB
     subgraph "Plan Quality Axis"
-        RS[Readiness Score<br/>Plan content quality]
-        MQ[ML Quality Score<br/>Structural depth]
+        RS[Readiness Score - Plan content quality]
+        MQ[ML Quality Score - Structural depth]
     end
 
     subgraph "Risk Classification Axis"
-        DIM[Dimension Score<br/>SN field classification]
-        SNR[SN Risk Label<br/>Original risk tag]
+        DIM[Dimension Score - SN field classification]
+        SNR[SN Risk Label - Original risk tag]
     end
 
-    RS -.->|"Both measure plan quality<br/>from different angles"| MQ
-    DIM -.->|"Both measure risk level<br/>from different angles"| SNR
+    RS -.->|"Both measure plan quality - from different angles"| MQ
+    DIM -.->|"Both measure risk level - from different angles"| SNR
 
-    RS -->|"High readiness +<br/>Low dimension = ideal"| GOOD[✅ Well-Prepared<br/>Low-Risk Change]
-    RS -->|"Low readiness +<br/>High dimension = danger"| BAD[🛑 Under-Prepared<br/>High-Risk Change]
+    RS -->|"High readiness + - Low dimension = ideal"| GOOD[✅ Well-Prepared - Low-Risk Change]
+    RS -->|"Low readiness + - High dimension = danger"| BAD[🛑 Under-Prepared - High-Risk Change]
 
     style GOOD fill:#dcfce7,stroke:#16a34a
     style BAD fill:#fee2e2,stroke:#dc2626
@@ -552,19 +552,19 @@ graph TB
 
 ```mermaid
 flowchart LR
-    SN[ServiceNow<br/>change_request] -->|"Sync API<br/>POST /api/sync"| DB[(Database)]
-    GH[GitHub<br/>Repositories] -->|"Git Analysis API<br/>GET /api/data/git-analysis"| GA[Git Risk<br/>Scores]
+    SN[ServiceNow - change_request] -->|"Sync API - POST /api/sync"| DB[(Database)]
+    GH[GitHub - Repositories] -->|"Git Analysis API - GET /api/data/git-analysis"| GA[Git Risk - Scores]
     
-    DB -->|"Data API<br/>GET /api/data"| CLIENT[Client Browser]
-    DB -->|"ML API<br/>GET /api/data/plan-analysis"| MLA[ML Analysis<br/>Engine]
+    DB -->|"Data API - GET /api/data"| CLIENT[Client Browser]
+    DB -->|"ML API - GET /api/data/plan-analysis"| MLA[ML Analysis - Engine]
     
-    CLIENT -->|"Client-side"| DSE[Dimension<br/>Scoring Engine]
-    CLIENT -->|"Client-side"| PSE[Plan Readiness<br/>Scoring Engine]
+    CLIENT -->|"Client-side"| DSE[Dimension - Scoring Engine]
+    CLIENT -->|"Client-side"| PSE[Plan Readiness - Scoring Engine]
     
     MLA --> CLIENT
     GA --> CLIENT
     
-    DSE --> VIZ[Visualization Layer<br/>Recharts + Tables]
+    DSE --> VIZ[Visualization Layer - Recharts + Tables]
     PSE --> VIZ
     MLA --> VIZ
     GA --> VIZ

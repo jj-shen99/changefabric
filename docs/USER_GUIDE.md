@@ -1,7 +1,7 @@
 # User Guide — GCS Change & Release Management Dashboard
 
-> **Version**: 1.2.0
-> **Last Updated**: March 12, 2026
+> **Version**: 1.3.0
+> **Last Updated**: April 23, 2026
 
 ---
 
@@ -38,8 +38,8 @@
 1. On the login page, click **Create an account**
 2. Fill in your **Name**, **Email**, and **Password**
 3. Click **Register**
-4. New accounts are created with the **Viewer** role by default
-5. An administrator can upgrade your role from the User Management page
+4. New accounts are created with the **Manager** role by default
+5. An administrator can change your role from the User Management page
 
 ### 1.3 Resetting Your Password
 
@@ -51,14 +51,17 @@
 
 Your role determines what you can see and do:
 
-| Capability | Admin | Manager | Viewer |
-|-----------|-------|---------|--------|
-| View all dashboards and analytics | ✅ | ✅ | ✅ |
-| Pull data from ServiceNow | ✅ | ✅ | ❌ |
-| Create/edit change requests | ✅ | ✅ | ❌ |
-| Delete change requests | ✅ | ❌ | ❌ |
-| Manage dashboard settings | ✅ | ✅ | ❌ |
-| Manage users (roles, delete) | ✅ | ❌ | ❌ |
+| Capability | Admin | Manager |
+|-----------|-------|--------|
+| View all change requests and analyses | ✅ | Own only |
+| View all dashboards and analytics | ✅ | Own data |
+| Pull data from ServiceNow | ✅ | ✅ |
+| Create/edit change requests | ✅ | ✅ |
+| Save and view analysis reports | ✅ | Own only |
+| Configure integrations (credentials) | ✅ | Own only |
+| Manage users (roles, delete) | ✅ | ❌ |
+
+> **Note**: Non-admin users only see change requests they synced and analyses they created. Each user stores their own ServiceNow/Git credentials.
 
 Your current role is displayed as a badge next to your name in the sidebar.
 

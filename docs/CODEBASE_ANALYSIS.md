@@ -1,7 +1,7 @@
 # Codebase Analysis — GCS Change & Release Management Dashboard
 
-> **Version**: 1.2.0
-> **Last Updated**: March 12, 2026
+> **Version**: 1.3.0
+> **Last Updated**: April 23, 2026
 
 ---
 
@@ -30,7 +30,7 @@
 |--------|-------|
 | **Framework** | Next.js 14 (App Router) |
 | **Language** | TypeScript 5.9 (strict mode) |
-| **Total source files** | ~57 TypeScript/TSX files |
+| **Total source files** | ~65 TypeScript/TSX files |
 | **Configuration files** | ~10 (tsconfig, eslint, prettier, jest, postcss, tailwind, editorconfig, next.config) |
 | **Database** | SQLite via Prisma ORM |
 | **Test framework** | Jest + React Testing Library |
@@ -45,7 +45,7 @@
 |-----------|-------|---------|
 | `src/app/(auth)/` | 4 | Auth pages (login, register, reset-password, layout) |
 | `src/app/(dashboard)/` | 28 | Dashboard pages, layouts, and loading states |
-| `src/app/api/` | 7 | REST API route handlers |
+| `src/app/api/` | 18 | REST API route handlers |
 | `src/app/` (root) | 4 | Root layout, globals.css, error.tsx, not-found.tsx |
 | `src/components/` | 12 | Reusable UI components |
 | `src/hooks/` | 5 | Custom React hooks |
