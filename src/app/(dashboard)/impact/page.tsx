@@ -123,6 +123,10 @@ export default function ImpactPage() {
   const [selectedMlCR, setSelectedMlCR] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [mlAnalysis, setMlAnalysis] = useState<Record<string, any> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [mlRisk, setMlRisk] = useState<Record<string, any> | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [llmQuality, setLlmQuality] = useState<Record<string, any> | null>(null);
   const [mlLoading, setMlLoading] = useState(false);
   const [mlError, setMlError] = useState<string | null>(null);
   const [mlWeights, setMlWeights] = useState({ structure: 0.25, completeness: 0.30, clarity: 0.25, riskAwareness: 0.20 });
@@ -830,7 +834,7 @@ export default function ImpactPage() {
               </select>
               </>)}
               {selectedMlCR && (
-                <button onClick={() => { setSelectedMlCR(null); setMlAnalysis(null); setMlError(null); }} className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600">← Back to List</button>
+                <button onClick={() => { setSelectedMlCR(null); setMlAnalysis(null); setMlRisk(null); setLlmQuality(null); setMlError(null); }} className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600">← Back to List</button>
               )}
             </div>
 
@@ -881,9 +885,25 @@ export default function ImpactPage() {
                 setTimeout(() => {
                   setMlLoading(true);
                   setMlError(null);
-                  fetch(`/api/data/plan-analysis?number=${encodeURIComponent(crNum)}`)
-                    .then(r => r.ok ? r.json() : r.json().then(b => { throw new Error(b.error || `HTTP ${r.status}`); }))
-                    .then(data => { setMlAnalysis(data); setMlLoading(false); })
+                  setMlRisk(null);
+                  setLlmQuality(null);
+                  Promise.all([
+                    fetch(`/api/data/plan-analysis?number=${encodeURIComponent(crNum)}`)
+                      .then(r => r.ok ? r.json() : r.json().then(b => { throw new Error(b.error || `HTTP ${r.status}`); })),
+                    fetch(`/api/data/risk-predict`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ number: crNum, includeLLM: true }),
+                    }).then(r => r.ok ? r.json() : null).catch(() => null),
+                  ])
+                    .then(([planData, riskData]) => {
+                      setMlAnalysis(planData);
+                      if (riskData) {
+                        setMlRisk(riskData.mlRisk || null);
+                        setLlmQuality(riskData.llmQuality || null);
+                      }
+                      setMlLoading(false);
+                    })
                     .catch(err => { setMlError(err.message); setMlLoading(false); });
                 }, 0);
               }
@@ -906,6 +926,8 @@ export default function ImpactPage() {
 
               const a = mlAnalysis;
               const pa = a.planAnalysis;
+              const risk = mlRisk;
+              const llm = llmQuality;
               const cp = a.changeProfile;
               const ap = a.appProfile;
               const recs = a.recommendations as { severity: string; category: string; title: string; detail: string }[];
@@ -945,6 +967,82 @@ export default function ImpactPage() {
                   </CardHeader>
 
                   <div className="space-y-5 px-6 pb-6">
+                    {/* ── Predictive Risk Model card ── */}
+                    {risk && (
+                      <div className="rounded-lg border border-violet-200 dark:border-violet-800 bg-white dark:bg-gray-900 p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-bold text-violet-700 dark:text-violet-300 flex items-center gap-2"><Shield className="h-4 w-4" />Predictive Risk Model</p>
+                          <div className="flex items-center gap-2">
+                            <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                              risk.riskTier === "critical" ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                              : risk.riskTier === "high" ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300"
+                              : risk.riskTier === "medium" ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                              : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"}`}>{risk.riskTier?.toUpperCase()}</span>
+                            <span className={`text-2xl font-bold ${
+                              risk.riskScore >= 75 ? "text-red-600" : risk.riskScore >= 50 ? "text-orange-600" : risk.riskScore >= 25 ? "text-amber-600" : "text-green-600"}`}>{risk.riskScore}<span className="text-sm font-normal text-gray-400">/100</span></span>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3 text-center">
+                          <div className="rounded bg-violet-50 dark:bg-violet-950/30 p-2">
+                            <p className="text-[11px] text-gray-500">Success Prob.</p>
+                            <p className="font-bold text-sm text-violet-700 dark:text-violet-300">{Math.round((risk.successProbability || 0) * 100)}%</p>
+                          </div>
+                          <div className="rounded bg-violet-50 dark:bg-violet-950/30 p-2">
+                            <p className="text-[11px] text-gray-500">Confidence</p>
+                            <p className="font-bold text-sm text-violet-700 dark:text-violet-300">{Math.round((risk.confidence || 0) * 100)}%</p>
+                          </div>
+                          <div className="rounded bg-violet-50 dark:bg-violet-950/30 p-2">
+                            <p className="text-[11px] text-gray-500">Model</p>
+                            <p className="font-bold text-[11px] text-violet-700 dark:text-violet-300">{risk.modelVersion}</p>
+                          </div>
+                        </div>
+                        <div className="rounded-lg border border-violet-100 dark:border-violet-900 px-3 py-2">
+                          <p className={`text-xs font-bold mb-1 ${
+                            risk.recommendation === "block-pending-review" ? "text-red-600" : risk.recommendation === "additional-controls" ? "text-orange-600" : risk.recommendation === "review-recommended" ? "text-amber-600" : "text-green-600"}`}>Recommendation: {(risk.recommendation || "").replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}</p>
+                        </div>
+                        {risk.topRiskFactors?.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-red-600 dark:text-red-400 mb-1">Risk drivers</p>
+                            <ul className="space-y-0.5">{(risk.topRiskFactors as string[]).slice(0, 4).map((f: string, i: number) => <li key={i} className="text-xs text-red-500 dark:text-red-400 flex items-start gap-1"><span className="shrink-0 mt-0.5">↑</span>{f}</li>)}</ul>
+                          </div>
+                        )}
+                        {risk.topMitigators?.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">Mitigating factors</p>
+                            <ul className="space-y-0.5">{(risk.topMitigators as string[]).slice(0, 3).map((f: string, i: number) => <li key={i} className="text-xs text-green-600 dark:text-green-400 flex items-start gap-1"><span className="shrink-0 mt-0.5">↓</span>{f}</li>)}</ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── LLM Quality Analysis card ── */}
+                    {llm && (
+                      <div className="rounded-lg border border-teal-200 dark:border-teal-800 bg-white dark:bg-gray-900 p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-bold text-teal-700 dark:text-teal-300 flex items-center gap-2"><Sparkles className="h-4 w-4" />LLM Quality Analysis {!llm.llmUsed && <span className="text-[10px] font-normal text-gray-400">(heuristic)</span>}</p>
+                          <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                            llm.qualityScore >= 70 ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                            : llm.qualityScore >= 45 ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                            : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"}`}>{llm.qualityScore}/100</span>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 italic">&ldquo;{llm.summary}&rdquo;</p>
+                        {llm.reviewerFeedback && <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{llm.reviewerFeedback}</p>}
+                        {llm.issues?.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-red-600 mb-1">Issues flagged</p>
+                            <ul className="space-y-0.5">{(llm.issues as string[]).map((iss: string, i: number) => <li key={i} className="text-xs text-red-500 dark:text-red-400 flex items-start gap-1"><AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />{iss}</li>)}</ul>
+                          </div>
+                        )}
+                        {llm.suggestions?.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-teal-600 mb-1">Suggestions</p>
+                            <ul className="space-y-0.5">{(llm.suggestions as string[]).map((s: string, i: number) => <li key={i} className="text-xs text-teal-600 dark:text-teal-400 flex items-start gap-1"><TrendingUp className="h-3 w-3 mt-0.5 shrink-0" />{s}</li>)}</ul>
+                          </div>
+                        )}
+                        <p className="text-[10px] text-gray-400">Provider: {llm.provider}</p>
+                      </div>
+                    )}
+
                     {/* Assessment Summary */}
                     <div className={`rounded-lg border p-4 ${verdictColor}`}>
                       <p className="text-base leading-relaxed">{asmt.summary}</p>
