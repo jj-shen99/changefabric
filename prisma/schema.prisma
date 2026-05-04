@@ -2,8 +2,13 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// ── Database Configuration ────────────────────────────────────
+// Set DATABASE_PROVIDER in env to switch between sqlite (dev) and postgresql (prod)
+// Example DATABASE_URL:
+//   sqlite:     "file:./dev.db"
+//   postgresql: "postgresql://user:pass@host:5432/release_change_ai?schema=public"
 datasource db {
-  provider = "sqlite"
+  provider = env("DATABASE_PROVIDER")
   url      = env("DATABASE_URL")
 }
 

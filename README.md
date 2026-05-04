@@ -50,11 +50,30 @@ A full-stack **software change validation and release impact analysis dashboard*
 - Grouped results by category
 
 ### Database
-- **SQLite** via Prisma ORM (easily swappable to PostgreSQL/MySQL)
-- Full schema for Users, ChangeRequests, ImpactAnalysis, Validations, Releases, DashboardMetrics
+- **Dual-provider Prisma ORM** — SQLite for development, **PostgreSQL for production**
+  - Configurable via `DATABASE_PROVIDER` env (auto-detected from `DATABASE_URL`)
+  - SQLite (`file:./dev.db`) for zero-setup local dev
+  - PostgreSQL (`postgresql://...`) recommended for multi-user / high-volume production
+- Full schema for Users, ChangeRequests, ImpactAnalysis, Validations, Releases, DashboardMetrics, SavedAnalysis, IntegrationSettings
 - Seed script with 3 demo users, 8 change requests, 3 releases
 - **CRUD API** for change requests (`POST`/`PUT`/`DELETE /api/data/changes`)
 - **Admin API** for user management (`GET`/`PUT`/`DELETE /api/admin/users`)
+- Encrypted `DATABASE_URL` support (`enc:` prefix → AES-256-GCM auto-decrypt at boot)
+
+### LLM-Powered Quality Analysis
+- **Pluggable LLM backend** — choose `openai`, `anthropic`, `ollama`, or `disabled`
+- LLM enriches plan analysis with: executive summary, reviewer-style feedback, structured issues + suggestions, calibrated quality score (0–100)
+- **Always-safe** — heuristic fallback runs deterministically if LLM is disabled, the API key is missing, the network fails, or the response is malformed
+- Local-first option via **Ollama** for on-prem environments without external API access
+- Endpoint: `POST /api/data/risk-predict` with `{ number, includeLLM: true }`
+
+### Predictive Risk Model (ML)
+- **Logistic-regression risk model** with hand-crafted, fully-explainable features
+- Predicts `riskScore` (0–100), `riskTier` (low/medium/high/critical), `successProbability`, `recommendation` (approve / review-recommended / additional-controls / block-pending-review)
+- **Per-feature contribution breakdown** — shows exactly which fields are pushing risk up or down
+- **Confidence score** based on input completeness
+- **Calibration script** (`npx tsx scripts/train-risk-model.ts`) — runs Brier-score calibration against historical CR outcomes
+- Endpoint: `POST /api/data/risk-predict`
 
 ### UI/UX
 - **Dark mode** toggle with localStorage persistence and system preference detection
@@ -68,7 +87,7 @@ A full-stack **software change validation and release impact analysis dashboard*
 - **Inter font** via `next/font/google`
 
 ### Testing & Code Quality
-- **Jest + React Testing Library** with 113 unit tests covering utils, constants, auth-types, crypto, access control, API authorization, page accessibility, boundary cases, and negative cases
+- **Jest + React Testing Library** with **291 unit tests** covering utils, constants, auth-types, crypto, access control, API authorization, page accessibility, page/tab structure, predictive ML risk model, LLM quality analysis, database configuration, boundary cases, and negative cases
 - **ESLint** with Next.js + TypeScript + Prettier rules
 - **Prettier** with Tailwind CSS class sorting
 - **Strict TypeScript** (`noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`)
@@ -102,6 +121,65 @@ npm run dev
 ```
 
 Open [http://localhost:3600](http://localhost:3600) in your browser.
+
+### PostgreSQL (Production) Setup
+
+For multi-user / high-volume production deployments, switch from SQLite to PostgreSQL:
+
+```bash
+# 1. Provision a PostgreSQL database (e.g. via Docker)
+docker run -d --name release-pg \
+  -e POSTGRES_USER=release \
+  -e POSTGRES_PASSWORD=changeme \
+  -e POSTGRES_DB=release_change_ai \
+  -p 5432:5432 postgres:16
+
+# 2. Update .env
+DATABASE_PROVIDER="postgresql"
+DATABASE_URL="postgresql://release:changeme@localhost:5432/release_change_ai?schema=public"
+
+# 3. Apply schema and seed
+npm run db:push
+npm run db:seed
+
+# 4. Restart the app
+npm run build && npm start
+```
+
+The Prisma schema auto-detects the provider from `DATABASE_URL`, so the same codebase runs on either backend without changes.
+
+### LLM-Powered Quality Analysis
+
+Optional. The system works fully without an LLM (deterministic heuristics). To enable richer reviewer feedback:
+
+```bash
+# OpenAI
+LLM_PROVIDER="openai"
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+
+# OR Anthropic Claude
+LLM_PROVIDER="anthropic"
+ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+
+# OR self-hosted Ollama (no external API)
+LLM_PROVIDER="ollama"
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
+```
+
+Then call `POST /api/data/risk-predict` with `{ "number": "CHG0030001", "includeLLM": true }`.
+
+### Predictive Risk Model (ML)
+
+The ML risk model is enabled by default (`ML_RISK_ENABLED=true`). It runs in-process with no external dependencies. To re-calibrate against your historical CR outcomes:
+
+```bash
+npx tsx scripts/train-risk-model.ts
+```
+
+This loads all closed CRs from the DB, computes the Brier score, and prints calibration buckets so you can tune `WEIGHTS` in `src/lib/ml-risk.ts` if needed.
 
 ### Demo Accounts
 

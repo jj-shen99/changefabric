@@ -133,17 +133,21 @@ npm run db:reset
 
 ### 4.2 Switching to PostgreSQL (Production Recommended)
 
-1. **Update `prisma/schema.prisma`**:
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+The Prisma schema is already provider-agnostic — it reads `DATABASE_PROVIDER` from the environment (auto-detected from `DATABASE_URL` if unset). **No schema edits required.**
+
+1. **Provision a PostgreSQL database**:
+```bash
+docker run -d --name release-pg \
+  -e POSTGRES_USER=release \
+  -e POSTGRES_PASSWORD=changeme \
+  -e POSTGRES_DB=change_dashboard \
+  -p 5432:5432 postgres:16
 ```
 
 2. **Update `.env`**:
 ```env
-DATABASE_URL="postgresql://user:password@host:5432/change_dashboard?schema=public"
+DATABASE_PROVIDER="postgresql"
+DATABASE_URL="postgresql://release:changeme@localhost:5432/change_dashboard?schema=public"
 ```
 
 3. **Regenerate client and push schema**:
