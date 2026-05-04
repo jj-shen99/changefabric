@@ -3,20 +3,18 @@
 import { useState, useMemo, useCallback } from "react";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend,
-  PieChart, Pie,
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from "recharts";
 import {
   Shield, AlertTriangle, Gauge, Zap, Layers, Settings2, RotateCcw, Search,
-  LayoutDashboard, BarChart3, PieChart as PieChartIcon, ShieldAlert, Info,
-  Brain, RefreshCw, User, Calendar,
-  ClipboardCheck, FileText, CheckCircle2, XCircle, AlertCircle, TrendingUp, Sparkles,
+  Info, Brain, RefreshCw,
+  ClipboardCheck, FileText, CheckCircle2, XCircle, TrendingUp, Sparkles,
   Save,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { RiskBadge } from "@/components/risk-badge";
 import { useData } from "@/hooks";
-import { getRiskBg, getRiskLabel } from "@/lib/utils";
+import { getRiskBg } from "@/lib/utils";
 import type { ChangeRequest } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 
@@ -103,12 +101,12 @@ function scorePlan(text: string, keywords: string[], planName: string): PlanScor
 /* ═══════════════════════════════════════════════════════════════════ */
 
 export default function ImpactPage() {
-  const [days, setDays] = useState(7);
+  const [days] = useState(7);
   const { changeRequests, loading, error } = useData(days);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedCR, _setSelectedCR] = useState<string | null>(null);
   const [weights, setWeights] = useState<Weights>({ ...DEFAULT_WEIGHTS });
-  const [activeTab, setActiveTab] = useState<"overview"|"plans"|"mlTab">("overview");
+  const [activeTab, setActiveTab] = useState<"plans"|"mlTab">("plans");
   const [weightsOpen, setWeightsOpen] = useState(false);
   const [planWeights, setPlanWeights] = useState({ implementation: 0.25, backout: 0.25, testPlan: 0.20, riskAnalysis: 0.15, changePlan: 0.10, justification: 0.05 });
   const [planSearch, setPlanSearch] = useState("");
@@ -183,9 +181,6 @@ export default function ImpactPage() {
   if (changeRequests.length === 0) return <div className="text-gray-500">No change requests found</div>;
 
   const activeNum = selectedCR || changeRequests[0].number;
-  const catMap: Record<string, { total: number; count: number }> = {};
-  scored.forEach((s) => { const cat = s.cr.category || "Other"; if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 }; catMap[cat].total += s.overall; catMap[cat].count++; });
-  const categoryData = Object.entries(catMap).map(([category, d]) => ({ category, avgRisk: Math.round(d.total / d.count), count: d.count })).sort((a, b) => b.avgRisk - a.avgRisk);
 
   const DIMS: { key: keyof DimensionScores; label: string; snField: string; icon: React.ElementType; formula: string }[] = [
     { key: "risk", label: "Risk", snField: "risk", icon: AlertTriangle, formula: "Very High→95, High→75, Moderate→50, Low→25, None→5" },
@@ -286,7 +281,6 @@ export default function ImpactPage() {
       {/* ═══ Tabs + Save/Load Buttons ═══ */}
       <div className="flex items-center justify-between gap-4 border-b border-gray-200 pb-0.5 dark:border-gray-800">
         <div className="flex gap-1 overflow-x-auto">
-          <button onClick={() => setActiveTab("overview")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="overview" ? "border-b-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><LayoutDashboard className="h-4 w-4" />Overview</button>
           <button onClick={() => setActiveTab("plans")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="plans" ? "border-b-2 border-teal-600 text-teal-600 bg-teal-50 dark:bg-teal-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><ClipboardCheck className="h-4 w-4" />Plan Analysis</button>
           <button onClick={() => setActiveTab("mlTab")} className={`flex items-center gap-1.5 rounded-t-lg px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab==="mlTab" ? "border-b-2 border-indigo-600 text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"}`}><Brain className="h-4 w-4" />ML Analysis</button>
         </div>
@@ -300,7 +294,7 @@ export default function ImpactPage() {
             } else if (activeTab === "mlTab" && selectedMlCR) {
               defaultName = `${selectedMlCR}-ml-${timestamp}`;
             } else {
-              defaultName = `impact-overview-${timestamp}`;
+              defaultName = `impact-analysis-${timestamp}`;
             }
             setSaveName(defaultName);
             setSaveModalOpen(true);
@@ -338,263 +332,6 @@ export default function ImpactPage() {
         </div>
       )}
 
-      {/* ═══ OVERVIEW TAB ═══ */}
-      {activeTab === "overview" && (() => {
-        const totalCRs = scored.length;
-        const avgOverall = totalCRs > 0 ? Math.round(scored.reduce((a, s) => a + s.overall, 0) / totalCRs) : 0;
-        const criticalCount = scored.filter((s) => s.overall >= 80).length;
-        const highCount = scored.filter((s) => s.overall >= 60 && s.overall < 80).length;
-        const lowCount = scored.filter((s) => s.overall < 40).length;
-        const riskDistData = [
-          { name: "Critical (≥80)", value: criticalCount, fill: "#ef4444" },
-          { name: "High (60-79)", value: highCount, fill: "#f97316" },
-          { name: "Medium (40-59)", value: scored.filter((s) => s.overall >= 40 && s.overall < 60).length, fill: "#eab308" },
-          { name: "Low (<40)", value: lowCount, fill: "#22c55e" },
-        ].filter((d) => d.value > 0);
-        /* ── Risk Analysis summary KPIs for overview ── */
-        const riskScores = scored.map(s => {
-          const c = s.cr;
-          const p = (c.priority||"").trim(); const pS = p.startsWith("1")?5:p.startsWith("2")?4:p.startsWith("3")?3:p.startsWith("4")?2:3;
-          const u = (c.urgency||"").trim(); const uS = u.startsWith("1")?5:u.startsWith("2")?3:u.startsWith("3")?1:3;
-          const L = Math.round((pS+uS)/2*10)/10;
-          const imp = (c.sn_impact||"").trim(); const iS = imp.startsWith("1")?5:imp.startsWith("2")?3:imp.startsWith("3")?1:3;
-          const r = (c.risk||"").toLowerCase(); const rS = r==="very high"?5:r==="high"?4:r==="moderate"?3:r==="low"?2:r==="none"?1:3;
-          const sc = (c.scope||"").toLowerCase(); const sS = (sc==="large"||sc==="extensive")?5:sc==="medium"?3:sc==="small"?1:3;
-          const I = Math.round((iS+rS+sS)/3*10)/10;
-          const t = (c.type||"").toLowerCase(); const V = t==="emergency"?0.8:t==="normal"?0.3:t==="standard"?0.1:0.3;
-          let C = 0; if (c.backout_plan && c.backout_plan.trim().length > 10) C += 10; if (c.test_plan && c.test_plan.trim().length > 10) C += 8; if (c.implementation_plan && c.implementation_plan.trim().length > 10) C += 7;
-          return Math.max(0, Math.min(100, Math.round((L*I/25)*100*(1+V) - C)));
-        });
-        const avgRiskScore = riskScores.length > 0 ? Math.round(riskScores.reduce((a, b) => a+b, 0) / riskScores.length) : 0;
-        const maxRiskScore = riskScores.length > 0 ? Math.max(...riskScores) : 0;
-        const riskCritCount = riskScores.filter(s => s >= 75).length;
-
-        /* ── Plan Readiness KPIs ── */
-        const pn = planResults.length;
-        const pAvg = pn>0?Math.round(planResults.reduce((a, p) => a+p.overallScore, 0)/pn):0;
-        const pFull = planResults.filter(p => p.gapCount===0).length;
-        const pMissingBack = planResults.filter(p => !p.backout.present).length;
-        const pMissingImpl = planResults.filter(p => !p.implementation.present).length;
-        const pMissingTest = planResults.filter(p => !p.testPlan.present).length;
-
-        /* ── State distribution ── */
-        const stateMap: Record<string, number> = {};
-        changeRequests.forEach(c => { const st = c.state || "Unknown"; stateMap[st] = (stateMap[st] || 0) + 1; });
-        const stateData = Object.entries(stateMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-        const stateColors = ["#6366f1", "#8b5cf6", "#a855f7", "#c084fc", "#d8b4fe", "#e9d5ff", "#f3e8ff", "#94a3b8"];
-
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-gray-500">Showing change requests from the last {days} days</h3>
-              <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 dark:border-gray-700 dark:bg-gray-800">
-                <Calendar className="h-3.5 w-3.5 text-gray-400" />
-                <select value={days} onChange={(e) => setDays(Number(e.target.value))} className="bg-transparent text-xs font-medium text-gray-700 outline-none dark:text-gray-300">
-                  <option value={7}>Last 7 days</option>
-                  <option value={14}>Last 14 days</option>
-                  <option value={30}>Last 30 days</option>
-                  <option value={90}>Last 90 days</option>
-                </select>
-              </div>
-            </div>
-
-            {/* ═══ ALL KPIs AT TOP ═══ */}
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
-              <Card className="p-4"><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Total CRs</p><p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{totalCRs}</p></Card>
-              <Card className="p-4"><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Avg Impact Score</p><p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{avgOverall}</p><p className="text-[11px] text-gray-400">{getRiskLabel(avgOverall)}</p></Card>
-              <Card className="p-4"><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Critical / High Impact</p><p className="mt-1 text-2xl font-bold text-red-600">{criticalCount + highCount}</p><p className="text-[11px] text-gray-400">{criticalCount} crit, {highCount} high</p></Card>
-              <Card className="p-4"><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Low Impact</p><p className="mt-1 text-2xl font-bold text-green-600">{lowCount}</p><p className="text-[11px] text-gray-400">Score &lt; 40</p></Card>
-              <Card className="p-4"><p className="text-xs font-medium text-gray-500 dark:text-gray-400">Avg Risk Score</p><p className={`mt-1 text-2xl font-bold ${riskColor(avgRiskScore)}`}>{avgRiskScore}</p><p className="text-[11px] text-gray-400">{getRiskLabel(avgRiskScore)}</p></Card>
-            </div>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-5">
-              <Card className="p-4"><div className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-red-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Max Risk Score</span></div><p className={`mt-1 text-2xl font-bold ${riskColor(maxRiskScore)}`}>{maxRiskScore}</p></Card>
-              <Card className="p-4"><div className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Risk Critical</span></div><p className="mt-1 text-2xl font-bold text-red-600">{riskCritCount}</p><p className="text-[11px] text-gray-400">Score ≥ 75</p></Card>
-              <Card className="p-4"><div className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4 text-teal-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Avg Readiness</span></div><p className={`mt-1 text-2xl font-bold ${pColor(pAvg)}`}>{pAvg}</p><p className="text-[11px] text-gray-400">{pLabel(pAvg)}</p></Card>
-              <Card className="p-4"><div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-green-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Full Plan Coverage</span></div><p className="mt-1 text-2xl font-bold text-green-600">{pFull}</p><p className="text-[11px] text-gray-400">All 6 plans</p></Card>
-              <Card className="p-4"><div className="flex items-center gap-2"><AlertCircle className="h-4 w-4 text-amber-500" /><span className="text-xs text-gray-500 dark:text-gray-400">Missing Plans</span></div><p className="mt-1 text-2xl font-bold text-amber-600">{pMissingImpl+pMissingBack+pMissingTest}</p><p className="text-[11px] text-gray-400">impl:{pMissingImpl} back:{pMissingBack} test:{pMissingTest}</p></Card>
-            </div>
-
-            {/* ═══ ALL PLOTS IN 2-COL GRID ═══ */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Impact Score Distribution Pie */}
-              <Card><CardHeader><CardTitle className="flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-blue-500" /> Impact Score Distribution</CardTitle></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={riskDistData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`} /><Legend /><Tooltip /></PieChart></ResponsiveContainer></div></Card>
-
-              {/* Average Impact by Category */}
-              <Card><CardHeader><CardTitle>Avg Impact Score by Category</CardTitle><CardDescription>Computed overall scores with current weights</CardDescription></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={categoryData} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis type="number" domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#94a3b8" /><YAxis type="category" dataKey="category" tick={{ fontSize: 12 }} stroke="#94a3b8" width={100} /><Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }} // eslint-disable-next-line @typescript-eslint/no-explicit-any
-formatter={(value: any) => [`${value} (${getRiskLabel(Number(value))})`, "Avg Impact"]} /><Bar dataKey="avgRisk" radius={[0, 4, 4, 0]}>{categoryData.map((entry, index) => (<Cell key={`cell-${index}`} fill={entry.avgRisk >= 80 ? "#ef4444" : entry.avgRisk >= 60 ? "#f97316" : entry.avgRisk >= 40 ? "#eab308" : "#22c55e"} />))}</Bar></BarChart></ResponsiveContainer></div></Card>
-
-              {/* Plan Readiness Distribution */}
-              <Card><CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-teal-500" /> Plan Readiness Distribution</CardTitle></CardHeader><div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={[{ bucket: "Well Prepared (75-100)", count: planResults.filter(p => p.overallScore>=75).length, fill: "#22c55e" },{ bucket: "Adequate (50-74)", count: planResults.filter(p => p.overallScore>=50 && p.overallScore<75).length, fill: "#eab308" },{ bucket: "Gaps Found (25-49)", count: planResults.filter(p => p.overallScore>=25 && p.overallScore<50).length, fill: "#f97316" },{ bucket: "Critical Gaps (0-24)", count: planResults.filter(p => p.overallScore<25).length, fill: "#ef4444" }]}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis dataKey="bucket" tick={{ fontSize: 10 }} stroke="#94a3b8" /><YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" /><Tooltip /><Bar dataKey="count" name="Changes" radius={[4, 4, 0, 0]}>{["#22c55e","#eab308","#f97316","#ef4444"].map((fill, idx) => <Cell key={idx} fill={fill} />)}</Bar></BarChart></ResponsiveContainer></div></Card>
-
-              {/* Plan Coverage Summary */}
-              <Card><CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4 text-teal-500" /> Plan Coverage Summary</CardTitle><CardDescription>Average quality per plan dimension</CardDescription></CardHeader><div className="space-y-3 px-4 pb-4">{PLAN_DIMS.map((d) => { const avg = pn>0?Math.round(planResults.reduce((a, p) => a+p[d.key].quality, 0)/pn):0; const presentCount = planResults.filter(p => p[d.key].present).length; return (<div key={d.key} className="space-y-1"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><d.icon className="h-3.5 w-3.5 text-teal-500" /><span className="text-xs font-medium text-gray-700 dark:text-gray-300">{d.label}</span></div><div className="flex items-center gap-2"><span className="text-[11px] text-gray-400">{presentCount}/{pn} present</span><span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(avg)}`}>{avg}</span></div></div><div className="h-2 rounded-full bg-gray-100 dark:bg-gray-800"><div className="h-2 rounded-full transition-all" style={{ width: `${avg}%`, backgroundColor: avg>=75?"#22c55e":avg>=50?"#eab308":avg>=25?"#f97316":"#ef4444" }} /></div></div>); })}</div></Card>
-
-              {/* Plan Readiness by Team */}
-              {(() => {
-                const teamMap: Record<string, { total: number; scoreSum: number; gapSum: number }> = {};
-                planResults.forEach(p => {
-                  const team = p.cr.assignment_group || "Unassigned";
-                  if (!teamMap[team]) teamMap[team] = { total: 0, scoreSum: 0, gapSum: 0 };
-                  teamMap[team].total++;
-                  teamMap[team].scoreSum += p.overallScore;
-                  teamMap[team].gapSum += p.gapCount;
-                });
-                const teamData = Object.entries(teamMap).map(([team, d]) => ({
-                  team: team.length > 20 ? team.slice(0, 18) + "…" : team,
-                  avgReadiness: Math.round(d.scoreSum / d.total),
-                  avgGaps: +(d.gapSum / d.total).toFixed(1),
-                  count: d.total,
-                })).sort((a, b) => a.avgReadiness - b.avgReadiness);
-                return (
-                  <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2"><User className="h-4 w-4 text-teal-500" /> Plan Readiness by Team</CardTitle><CardDescription>Average readiness per assignment group</CardDescription></CardHeader>
-                    <div className="h-64 px-2"><ResponsiveContainer width="100%" height="100%"><BarChart data={teamData} layout="vertical" barCategoryGap="20%"><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} /><XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} stroke="#94a3b8" /><YAxis type="category" dataKey="team" tick={{ fontSize: 9 }} stroke="#94a3b8" width={110} /><Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} /><Bar dataKey="avgReadiness" name="Avg Readiness" radius={[0, 4, 4, 0]}>{teamData.map((d, i) => <Cell key={i} fill={d.avgReadiness >= 75 ? "#22c55e" : d.avgReadiness >= 50 ? "#eab308" : d.avgReadiness >= 25 ? "#f97316" : "#ef4444"} />)}</Bar></BarChart></ResponsiveContainer></div>
-                  </Card>
-                );
-              })()}
-
-              {/* Plan Readiness by SN Risk Level */}
-              {(() => {
-                const rrMap: Record<string, { total: number; scoreSum: number; gapSum: number }> = {};
-                planResults.forEach(p => {
-                  const risk = p.cr.risk || "Unknown";
-                  if (!rrMap[risk]) rrMap[risk] = { total: 0, scoreSum: 0, gapSum: 0 };
-                  rrMap[risk].total++;
-                  rrMap[risk].scoreSum += p.overallScore;
-                  rrMap[risk].gapSum += p.gapCount;
-                });
-                const rrData = Object.entries(rrMap).map(([risk, d]) => ({
-                  risk,
-                  avgReadiness: Math.round(d.scoreSum / d.total),
-                  avgGaps: +(d.gapSum / d.total).toFixed(1),
-                  count: d.total,
-                })).sort((a, b) => a.avgReadiness - b.avgReadiness);
-                const rrFill: Record<string, string> = { "Very High": "#ef4444", "High": "#f97316", "Moderate": "#eab308", "Low": "#22c55e", "None": "#94a3b8" };
-                return (
-                  <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-amber-500" /> Readiness by SN Risk Level</CardTitle><CardDescription>Do high-risk CRs have better plans?</CardDescription></CardHeader>
-                    <div className="space-y-3 px-4 pb-4">
-                      {rrData.map(d => (
-                        <div key={d.risk} className="space-y-1">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-semibold text-gray-700 dark:text-gray-300">{d.risk} <span className="text-gray-400 font-normal">({d.count} CRs)</span></span>
-                            <div className="flex items-center gap-3">
-                              <span className="text-gray-400">Avg gaps: <span className="font-bold text-gray-600 dark:text-gray-300">{d.avgGaps}</span></span>
-                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(d.avgReadiness)}`}>{d.avgReadiness}</span>
-                            </div>
-                          </div>
-                          <div className="h-3 rounded-full bg-gray-100 dark:bg-gray-800"><div className="h-3 rounded-full transition-all" style={{ width: `${d.avgReadiness}%`, backgroundColor: rrFill[d.risk] || "#6366f1" }} /></div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                );
-              })()}
-
-              {/* State Distribution (new from cross-tab data) */}
-              <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-indigo-500" /> CR State Distribution</CardTitle><CardDescription>How CRs are distributed across states</CardDescription></CardHeader>
-                <div className="h-64"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={stateData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>{stateData.map((_, i) => <Cell key={i} fill={stateColors[i % stateColors.length]} />)}</Pie><Legend /><Tooltip /></PieChart></ResponsiveContainer></div>
-              </Card>
-
-              {/* Risk Score Distribution (new from risk analysis data) */}
-              <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><ShieldAlert className="h-4 w-4 text-purple-500" /> Risk Score Distribution</CardTitle><CardDescription>Computed risk scores across all CRs</CardDescription></CardHeader>
-                <div className="h-64"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={[{ name: "Critical (≥75)", value: riskCritCount, fill: "#ef4444" },{ name: "High (50-74)", value: riskScores.filter(s => s>=50 && s<75).length, fill: "#f97316" },{ name: "Medium (25-49)", value: riskScores.filter(s => s>=25 && s<50).length, fill: "#eab308" },{ name: "Low (<25)", value: riskScores.filter(s => s<25).length, fill: "#22c55e" }].filter(d => d.value > 0)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`} /><Legend /><Tooltip /></PieChart></ResponsiveContainer></div>
-              </Card>
-
-              {/* Change Type Distribution */}
-              {(() => {
-                const typeMap: Record<string, number> = {};
-                changeRequests.forEach(c => { const t = c.type || "Unknown"; typeMap[t] = (typeMap[t] || 0) + 1; });
-                const typeData = Object.entries(typeMap).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-                const typeColors = ["#3b82f6", "#8b5cf6", "#f59e0b", "#ef4444", "#22c55e", "#06b6d4"];
-                return (
-                  <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2"><Zap className="h-4 w-4 text-blue-500" /> Change Type Distribution</CardTitle><CardDescription>Normal vs Emergency vs Standard</CardDescription></CardHeader>
-                    <div className="h-64"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={typeData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>{typeData.map((_, i) => <Cell key={i} fill={typeColors[i % typeColors.length]} />)}</Pie><Legend /><Tooltip /></PieChart></ResponsiveContainer></div>
-                  </Card>
-                );
-              })()}
-
-              {/* Priority Distribution */}
-              {(() => {
-                const prioMap: Record<string, number> = {};
-                changeRequests.forEach(c => { const p = c.priority || "Unknown"; prioMap[p] = (prioMap[p] || 0) + 1; });
-                const prioData = Object.entries(prioMap).map(([name, value]) => ({ name, value })).sort((a, b) => a.name.localeCompare(b.name));
-                const prioColors: Record<string, string> = { "1 - Critical": "#ef4444", "2 - High": "#f97316", "3 - Moderate": "#eab308", "4 - Low": "#22c55e" };
-                return (
-                  <Card>
-                    <CardHeader><CardTitle className="flex items-center gap-2"><Gauge className="h-4 w-4 text-amber-500" /> Priority Distribution</CardTitle><CardDescription>CRs by ServiceNow priority level</CardDescription></CardHeader>
-                    <div className="h-64"><ResponsiveContainer width="100%" height="100%"><BarChart data={prioData}><CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" /><XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#94a3b8" /><YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" /><Tooltip /><Bar dataKey="value" name="Count" radius={[4, 4, 0, 0]}>{prioData.map((d, i) => <Cell key={i} fill={prioColors[d.name] || "#94a3b8"} />)}</Bar></BarChart></ResponsiveContainer></div>
-                  </Card>
-                );
-              })()}
-            </div>
-
-            {/* ═══ Top Risk CRs Table ═══ */}
-            {(() => {
-              const topRisk = scored.slice().sort((a, b) => b.overall - a.overall).slice(0, 8);
-              return (
-                <Card>
-                  <CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-500" /> Top Risk Change Requests</CardTitle><CardDescription>Highest computed impact scores — click to open Plan Analysis</CardDescription></CardHeader>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Impact</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Readiness</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">SN Risk</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">State</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Type</th></tr></thead>
-                      <tbody>
-                        {topRisk.map((s) => {
-                          const pr = planResults.find(p => p.cr.number === s.cr.number);
-                          return (
-                            <tr key={s.cr.number} className="cursor-pointer border-b border-gray-50 dark:border-gray-800 hover:bg-blue-50 dark:hover:bg-blue-950/20" onClick={() => { setSelectedPlanCR(s.cr.number); setActiveTab("plans"); }}>
-                              <td className="py-2.5"><span className="font-mono text-[11px] text-gray-400">{s.cr.number}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{s.cr.short_description}</p><p className="text-[11px] text-gray-400">{s.cr.assignment_group || "Unassigned"}</p></td>
-                              <td className="py-2.5 text-center"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${getRiskBg(s.overall)}`}>{s.overall}</span></td>
-                              <td className="py-2.5 text-center">{pr ? <span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-bold ${pBg(pr.overallScore)}`}>{pr.overallScore}</span> : <span className="text-gray-400">—</span>}</td>
-                              <td className="py-2.5 text-center"><span className="text-xs text-gray-600 dark:text-gray-400">{s.cr.risk || "—"}</span></td>
-                              <td className="py-2.5 text-center"><span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{s.cr.state}</span></td>
-                              <td className="py-2.5 text-center"><span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{s.cr.type}</span></td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </Card>
-              );
-            })()}
-
-            {/* ═══ Risk vs Readiness Correlation ═══ */}
-            {(() => {
-              const highImpactLowReady = planResults.filter(p => {
-                const s = scored.find(sc => sc.cr.number === p.cr.number);
-                return s && s.overall >= 60 && p.overallScore < 50;
-              });
-              const lowImpactHighReady = planResults.filter(p => {
-                const s = scored.find(sc => sc.cr.number === p.cr.number);
-                return s && s.overall < 40 && p.overallScore >= 75;
-              });
-              return (
-                <Card className="border-amber-200 bg-amber-50/30 dark:border-amber-900 dark:bg-amber-950/20">
-                  <CardHeader><CardTitle className="flex items-center gap-2"><Info className="h-4 w-4 text-amber-600" /> Risk vs Readiness Insights</CardTitle></CardHeader>
-                  <div className="grid grid-cols-1 gap-4 px-4 pb-4 md:grid-cols-2">
-                    <div className="rounded-lg border border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20 p-3">
-                      <p className="text-xs font-bold text-red-700 dark:text-red-400">High Impact + Low Readiness</p>
-                      <p className="text-2xl font-bold text-red-600 mt-1">{highImpactLowReady.length}</p>
-                      <p className="text-[11px] text-red-600/70 mt-0.5">CRs with impact ≥60 but readiness &lt;50 — need immediate attention</p>
-                      {highImpactLowReady.slice(0, 3).map(p => <p key={p.cr.number} className="text-[10px] text-red-500 mt-1 truncate">• {p.cr.number}: {p.cr.short_description}</p>)}
-                    </div>
-                    <div className="rounded-lg border border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20 p-3">
-                      <p className="text-xs font-bold text-green-700 dark:text-green-400">Low Impact + High Readiness</p>
-                      <p className="text-2xl font-bold text-green-600 mt-1">{lowImpactHighReady.length}</p>
-                      <p className="text-[11px] text-green-600/70 mt-0.5">CRs with impact &lt;40 and readiness ≥75 — well-prepared, low risk</p>
-                      {lowImpactHighReady.slice(0, 3).map(p => <p key={p.cr.number} className="text-[10px] text-green-500 mt-1 truncate">• {p.cr.number}: {p.cr.short_description}</p>)}
-                    </div>
-                  </div>
-                </Card>
-              );
-            })()}
-          </div>
-        );
-      })()}
       {/* ═══ PLAN ANALYSIS TAB ═══ */}
       {activeTab === "plans" && (() => {
         const pq = planSearch.toLowerCase();

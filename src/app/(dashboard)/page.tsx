@@ -412,6 +412,7 @@ export default function OverviewPage() {
         const rrFill: Record<string, string> = { "Very High": "#ef4444", "High": "#f97316", "Moderate": "#eab308", "Low": "#22c55e", "None": "#94a3b8" };
 
         return (
+          <>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Change Status Distribution */}
             <Card>
@@ -559,6 +560,62 @@ export default function OverviewPage() {
               </div>
             </Card>
           </div>
+
+          {/* ═══ Risk vs Readiness Insights ═══ */}
+          {(() => {
+            const highImpactLowReady = planResults.filter(p => p.overallScore < 50 && (changeRequests.find(c => c.id === p.cr.id || c.number === p.cr.number)?.impact?.overallRisk ?? 0) >= 60);
+            const lowImpactHighReady = planResults.filter(p => p.overallScore >= 75 && (changeRequests.find(c => c.id === p.cr.id || c.number === p.cr.number)?.impact?.overallRisk ?? 100) < 40);
+            return (
+              <Card className="border-amber-200 bg-amber-50/30 dark:border-amber-900 dark:bg-amber-950/20">
+                <CardHeader><CardTitle className="flex items-center gap-2"><Info className="h-4 w-4 text-amber-600" /> Risk vs Readiness Insights</CardTitle></CardHeader>
+                <div className="grid grid-cols-1 gap-4 px-4 pb-4 md:grid-cols-2">
+                  <div className="rounded-lg border border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20 p-3">
+                    <p className="text-xs font-bold text-red-700 dark:text-red-400">High Risk + Low Readiness</p>
+                    <p className="text-2xl font-bold text-red-600 mt-1">{highImpactLowReady.length}</p>
+                    <p className="text-[11px] text-red-600/70 mt-0.5">CRs with risk ≥60 but readiness &lt;50 — need immediate attention</p>
+                    {highImpactLowReady.slice(0, 3).map(p => <p key={p.cr.id || p.cr.number} className="text-[10px] text-red-500 mt-1 truncate">• {p.cr.number || p.cr.id}: {p.cr.short_description || p.cr.title}</p>)}
+                  </div>
+                  <div className="rounded-lg border border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20 p-3">
+                    <p className="text-xs font-bold text-green-700 dark:text-green-400">Low Risk + High Readiness</p>
+                    <p className="text-2xl font-bold text-green-600 mt-1">{lowImpactHighReady.length}</p>
+                    <p className="text-[11px] text-green-600/70 mt-0.5">CRs with risk &lt;40 and readiness ≥75 — well-prepared, low risk</p>
+                    {lowImpactHighReady.slice(0, 3).map(p => <p key={p.cr.id || p.cr.number} className="text-[10px] text-green-500 mt-1 truncate">• {p.cr.number || p.cr.id}: {p.cr.short_description || p.cr.title}</p>)}
+                  </div>
+                </div>
+              </Card>
+            );
+          })()}
+
+          {/* ═══ Top Risk Change Requests ═══ */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-500" /> Top Risk Change Requests</CardTitle>
+                <Link href="/impact" className="text-xs font-medium text-blue-600 hover:underline">Analyze in Detail →</Link>
+              </div>
+              <CardDescription>Highest risk CRs with plan readiness scores</CardDescription>
+            </CardHeader>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Risk</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Readiness</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Status</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Team</th></tr></thead>
+                <tbody>
+                  {[...changeRequests].sort((a, b) => (b.impact?.overallRisk || 0) - (a.impact?.overallRisk || 0)).slice(0, 6).map((cr) => {
+                    const pr = planResults.find(p => p.cr.id === cr.id || p.cr.number === cr.number);
+                    return (
+                      <tr key={cr.id || cr.number} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <td className="py-2.5"><span className="font-mono text-[11px] text-gray-400">{cr.number || cr.id}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{cr.short_description || cr.title}</p></td>
+                        <td className="py-2.5 text-center"><RiskBadge score={cr.impact?.overallRisk || 0} size="sm" /></td>
+                        <td className="py-2.5 text-center">{pr ? <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(pr.overallScore)}`}>{pr.overallScore}</span> : <span className="text-gray-400">—</span>}</td>
+                        <td className="py-2.5 text-center"><ChangeStatusBadge status={cr.status || cr.state} /></td>
+                        <td className="py-2.5 text-center"><span className="text-[10px] text-gray-500">{cr.team || cr.assignment_group || "—"}</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+          </>
         );
       })()}
     </div>
