@@ -63,7 +63,7 @@ let sn = 0;
   s.addText("GCS Change & Release\nManagement Dashboard", { x: 1.0, y: 1.5, w: 11, h: 2.5, fontSize: 44, fontFace: "Arial", color: C.white, bold: true, lineSpacingMultiple: 1.1 });
   s.addShape(pptx.ShapeType.rect, { x: 1.0, y: 4.2, w: 3, h: 0.06, fill: { color: C.accent } });
   s.addText("Framework Architecture, Scoring Methodology & Live Demo", { x: 1.0, y: 4.5, w: 11, h: 0.6, fontSize: 20, fontFace: "Arial", color: C.gray });
-  s.addText("March 2026  |  GCS Engineering", { x: 1.0, y: 5.5, w: 11, h: 0.5, fontSize: 14, fontFace: "Arial", color: C.gray });
+  s.addText("April 2026  |  GCS Engineering  |  v1.3.0", { x: 1.0, y: 5.5, w: 11, h: 0.5, fontSize: 14, fontFace: "Arial", color: C.gray });
   addFooter(s, sn, TOTAL);
 }
 
@@ -143,7 +143,7 @@ let sn = 0;
     { title: "ServiceNow Integration", desc: "Pull all 90+ change_request fields, paginated sync, upsert to local DB", color: C.accent },
     { title: "ML Scoring Engines", desc: "Dimension scoring, plan readiness, NLP content analysis, code risk", color: C.red },
     { title: "Analytics Suite", desc: "Failure Analysis · Velocity · DORA Metrics · Change Health", color: C.orange },
-    { title: "RBAC + Auth", desc: "Admin / Manager / Viewer roles, JWT sessions, role-gated UI", color: C.accent2 },
+    { title: "RBAC + Auth", desc: "Admin / Manager roles, per-user data isolation, JWT sessions, role-gated UI", color: C.accent2 },
   ];
   features.forEach((f, i) => {
     const col = i % 3;
@@ -229,7 +229,7 @@ let sn = 0;
   const stack = [
     ["Frontend", [["Next.js 14", "App Router, SSR + CSR"], ["React 18", "Functional components + hooks"], ["Tailwind CSS 3.4", "Utility-first styling"], ["Recharts 3.x", "Interactive charts & radars"], ["Lucide React", "Icon library"], ["SWR 2.x", "Data fetching + caching"]], C.blue],
     ["Backend", [["Next.js API Routes", "RESTful endpoints"], ["NextAuth.js 4", "JWT + Credentials provider"], ["Prisma ORM 6.x", "Type-safe DB access"], ["bcryptjs", "Password hashing"], ["ML Analysis Engine", "NLP pattern matching"]], C.green],
-    ["Data & Infra", [["SQLite", "Dev (swappable to PG/MySQL)"], ["ServiceNow REST", "change_request sync"], ["GitHub Enterprise", "Commit analysis"], ["Jest + RTL", "24 unit tests"], ["ESLint + Prettier", "Code quality"]], C.purple],
+    ["Data & Infra", [["SQLite", "Dev (swappable to PG/MySQL)"], ["ServiceNow REST", "change_request sync"], ["GitHub Enterprise", "Commit analysis"], ["Jest + RTL", "113 unit tests"], ["ESLint + Prettier", "Code quality"]], C.purple],
   ];
 
   stack.forEach(([group, items, color], gi) => {
@@ -607,19 +607,19 @@ let sn = 0;
   // RBAC Table
   s.addText("Role Permissions Matrix", { x: 0.8, y: 3.6, w: 11, h: 0.5, fontSize: 16, fontFace: "Arial", color: C.dark, bold: true });
 
-  const headers = ["Permission", "Admin", "Manager", "Viewer"];
+  const headers = ["Permission", "Admin", "Manager"];
   const rows = [
-    ["View dashboard & analytics", "✅", "✅", "✅"],
-    ["View change requests", "✅", "✅", "✅"],
-    ["Create/edit change requests", "✅", "✅", "❌"],
-    ["Delete change requests", "✅", "❌", "❌"],
-    ["Trigger ServiceNow sync", "✅", "✅", "❌"],
-    ["Manage dashboard settings", "✅", "✅", "❌"],
-    ["Manage users", "✅", "❌", "❌"],
+    ["View ALL change requests & analyses", "✅", "Own only"],
+    ["View dashboard & analytics", "✅", "Own data"],
+    ["Create/edit change requests", "✅", "✅"],
+    ["Sync from ServiceNow", "✅", "✅"],
+    ["Save/view analysis reports", "✅", "Own only"],
+    ["Configure integrations (credentials)", "✅", "Own only"],
+    ["Manage users", "✅", "❌"],
   ];
 
-  const tw = [4.5, 1.5, 1.5, 1.5];
-  const tx = [0.8, 5.3, 6.8, 8.3];
+  const tw = [5.5, 2.0, 2.0];
+  const tx = [0.8, 6.3, 8.3];
   // Header
   headers.forEach((h, i) => {
     s.addShape(pptx.ShapeType.rect, { x: tx[i], y: 4.15, w: tw[i], h: 0.4, fill: { color: C.dark } });
@@ -663,7 +663,7 @@ let sn = 0;
     { num: "4", title: "Impact Analysis — ML Analysis", desc: "Run ML analysis on a CR → Structure/Completeness/\nClarity/Risk Awareness scores, recommendations", time: "2 min" },
     { num: "5", title: "Code Change Analysis + ML Feature Impact", desc: "Enter repo URL → Git risk analysis, feature impact radar,\nproduction outage concerns, performance insights", time: "3 min" },
     { num: "6", title: "Analytics — Failure + Velocity + Health", desc: "Failure root cause, team velocity radar, DORA metrics,\nchange health quadrant, AI intelligence summaries", time: "2 min" },
-    { num: "7", title: "Role-Based Access + User Management", desc: "Login as Admin vs Viewer, role-gated sidebar,\nuser management page, dark mode toggle", time: "1 min" },
+    { num: "7", title: "Role-Based Access + User Management", desc: "Login as Admin vs Manager, per-user data isolation,\nuser management page, dark mode toggle", time: "1 min" },
   ];
 
   demos.forEach((d, i) => {
@@ -675,7 +675,7 @@ let sn = 0;
   });
 
   s.addShape(pptx.ShapeType.rect, { x: 0.8, y: 7.0 - 0.6, w: 11.5, h: 0.04, fill: { color: C.grayLight } });
-  s.addText("Total demo time: ~15 minutes  |  URL: http://localhost:3600  |  Admin: admin@company.com", { x: 0.8, y: 6.55, w: 11.5, h: 0.35, fontSize: 10, fontFace: "Arial", color: C.gray, align: "center" });
+  s.addText("Total demo time: ~15 minutes  |  URL: http://localhost:3600  |  Admin: admin@servicenow.com", { x: 0.8, y: 6.55, w: 11.5, h: 0.35, fontSize: 10, fontFace: "Arial", color: C.gray, align: "center" });
 
   addFooter(s, sn, TOTAL);
 }
@@ -691,7 +691,7 @@ let sn = 0;
   s.addShape(pptx.ShapeType.rect, { x: 0.8, y: 0.9, w: 1.5, h: 0.05, fill: { color: C.accent } });
 
   const phases = [
-    { phase: "Phase 1 — Current", items: ["✅ ServiceNow integration (90+ fields)", "✅ 4-layer impact scoring framework", "✅ ML content analysis engine", "✅ Code change analysis + feature impact", "✅ Production outage & performance detection", "✅ Analytics suite (4 tabs)", "✅ RBAC with 3 roles"], color: C.green },
+    { phase: "Phase 1 — Current", items: ["✅ ServiceNow integration (90+ fields)", "✅ 4-layer impact scoring framework", "✅ ML content analysis engine", "✅ Code change analysis + feature impact", "✅ Per-user data isolation & credentials", "✅ Analytics suite (4 tabs)", "✅ 113 unit tests + architecture docs"], color: C.green },
     { phase: "Phase 2 — Q2 2026", items: ["🔲 PostgreSQL production database", "🔲 Automated SN sync (webhook/cron)", "🔲 Email notifications for high-risk CRs", "🔲 Custom scoring weight presets", "🔲 Exportable reports (PDF/Excel)", "🔲 E2E tests with Playwright"], color: C.blue },
     { phase: "Phase 3 — Q3 2026", items: ["🔲 LLM-powered plan quality analysis", "🔲 Predictive risk modeling (ML)", "🔲 Multi-instance SN support", "🔲 Release approval workflow", "🔲 Slack/Teams integration", "🔲 Audit trail & compliance reports"], color: C.purple },
   ];
@@ -721,7 +721,7 @@ let sn = 0;
   s.addText("Thank You", { x: 1.0, y: 2.0, w: 11, h: 1.5, fontSize: 52, fontFace: "Arial", color: C.white, bold: true });
   s.addShape(pptx.ShapeType.rect, { x: 1.0, y: 3.6, w: 2.5, h: 0.06, fill: { color: C.accent } });
   s.addText("Questions & Discussion", { x: 1.0, y: 3.9, w: 11, h: 0.8, fontSize: 24, fontFace: "Arial", color: C.gray });
-  s.addText("GCS Change & Release Management Dashboard\nhttp://localhost:3600  |  admin@company.com", { x: 1.0, y: 5.2, w: 11, h: 0.8, fontSize: 14, fontFace: "Arial", color: C.gray });
+  s.addText("GCS Change & Release Management Dashboard\nhttp://localhost:3600  |  admin@servicenow.com / admin123!", { x: 1.0, y: 5.2, w: 11, h: 0.8, fontSize: 14, fontFace: "Arial", color: C.gray });
   addFooter(s, sn, TOTAL);
 }
 
