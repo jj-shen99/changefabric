@@ -120,7 +120,7 @@ function ImpactPageContent() {
   const [weights, setWeights] = useState<Weights>({ ...DEFAULT_WEIGHTS });
   const [activeTab, setActiveTab] = useState<"plans"|"mlTab">("plans");
   const [weightsOpen, setWeightsOpen] = useState(false);
-  const [planWeights, setPlanWeights] = useState({ implementation: 0.25, backout: 0.25, testPlan: 0.20, riskAnalysis: 0.15, changePlan: 0.10, justification: 0.05 });
+  const [planWeights, setPlanWeights] = useState({ implementation: 0.30, backout: 0.25, testPlan: 0.20, riskAnalysis: 0.15, justification: 0.10 });
   const [planSearch, setPlanSearch] = useState(crParam || "");
   const [selectedPlanCR, setSelectedPlanCR] = useState<string | null>(crParam);
   const [expandedPlanContent, setExpandedPlanContent] = useState<string | null>(null);
@@ -196,16 +196,15 @@ function ImpactPageContent() {
 
 
   const planResults = useMemo(() => changeRequests.map((c) => {
-    const implementation = scorePlan(c.implementation_plan, IMPL_KW, "implementation plan");
-    const backout = scorePlan(c.backout_plan, BACK_KW, "backout plan");
-    const testPlan = scorePlan(c.test_plan, TEST_KW, "test plan");
-    const changePlan = scorePlan(c.change_plan, IMPL_KW, "change plan");
-    const riskAnalysis = scorePlan(c.risk_impact_analysis, RISK_KW, "risk/impact analysis");
+    const implementation = scorePlan(c.implementationPlan, IMPL_KW, "implementation plan");
+    const backout = scorePlan(c.backoutPlan, BACK_KW, "backout plan");
+    const testPlan = scorePlan(c.testPlan, TEST_KW, "test plan");
+    const riskAnalysis = scorePlan(c.riskAndImpactAnalysis, RISK_KW, "risk/impact analysis");
     const justification = scorePlan(c.justification, JUST_KW, "justification");
-    const overallScore = Math.round(implementation.quality*planWeights.implementation + backout.quality*planWeights.backout + testPlan.quality*planWeights.testPlan + riskAnalysis.quality*planWeights.riskAnalysis + changePlan.quality*planWeights.changePlan + justification.quality*planWeights.justification);
-    const gapCount = [implementation, backout, testPlan, changePlan, riskAnalysis, justification].filter(p => !p.present).length;
+    const overallScore = Math.round(implementation.quality*planWeights.implementation + backout.quality*planWeights.backout + testPlan.quality*planWeights.testPlan + riskAnalysis.quality*planWeights.riskAnalysis + justification.quality*planWeights.justification);
+    const gapCount = [implementation, backout, testPlan, riskAnalysis, justification].filter(p => !p.present).length;
     const riskLevel = overallScore>=75?"low":overallScore>=50?"medium":overallScore>=25?"high":"critical";
-    return { cr: c, implementation, backout, testPlan, changePlan, riskAnalysis, justification, overallScore, riskLevel, gapCount };
+    return { cr: c, implementation, backout, testPlan, riskAnalysis, justification, overallScore, riskLevel, gapCount };
   }).sort((a, b) => a.overallScore - b.overallScore), [changeRequests, planWeights]);
 
   if (loading) return <div className="space-y-4">{[1,2,3].map((i) => <div key={i} className="h-40 animate-pulse rounded-xl bg-gray-100 dark:bg-gray-800" />)}</div>;
@@ -231,12 +230,11 @@ function ImpactPageContent() {
     { key: "backout" as const, label: "Backout Plan", icon: RotateCcw },
     { key: "testPlan" as const, label: "Test Plan", icon: CheckCircle2 },
     { key: "riskAnalysis" as const, label: "Risk/Impact Analysis", icon: AlertTriangle },
-    { key: "changePlan" as const, label: "Change Plan", icon: ClipboardCheck },
     { key: "justification" as const, label: "Justification", icon: Info },
   ];
   const planWeightTotal = Object.values(planWeights).reduce((a, b) => a + b, 0);
   const setPlanWeight = (key: keyof typeof planWeights, val: number) => setPlanWeights(prev => redistributeWeights(prev, key, val));
-  const resetPlanWeights = () => setPlanWeights({ implementation: 0.25, backout: 0.25, testPlan: 0.20, riskAnalysis: 0.15, changePlan: 0.10, justification: 0.05 });
+  const resetPlanWeights = () => setPlanWeights({ implementation: 0.30, backout: 0.25, testPlan: 0.20, riskAnalysis: 0.15, justification: 0.10 });
 
   /* ═══ Save Analysis Function ═══ */
   async function saveCurrentAnalysis() {
@@ -446,7 +444,6 @@ function ImpactPageContent() {
                       { key: "backout" as const, label: "Backout Plan", desc: "revert, rollback, restore, undo, previous, snapshot, backup, recovery, failover, downtime" },
                       { key: "testPlan" as const, label: "Test Plan", desc: "test, verify, validate, smoke, regression, acceptance, integration, unit, performance, security, coverage" },
                       { key: "riskAnalysis" as const, label: "Risk/Impact Analysis", desc: "risk, impact, mitigation, contingency, fallback, probability, severity, exposure, vulnerability, dependency" },
-                      { key: "changePlan" as const, label: "Change Plan", desc: "Same keywords as Implementation. Overall change execution strategy." },
                       { key: "justification" as const, label: "Justification", desc: "business, requirement, need, value, benefit, compliance, security, improvement" },
                     ].map(dim => (
                       <div key={dim.key} className="rounded-lg border border-teal-100 dark:border-teal-800 p-3 space-y-2">
@@ -630,11 +627,10 @@ function ImpactPageContent() {
                           </CardHeader>
                           <div className="space-y-3">
                             {[
-                              { key: "implementation_plan", label: "Implementation Plan", score: selectedPlan.implementation, icon: FileText },
-                              { key: "backout_plan", label: "Backout Plan", score: selectedPlan.backout, icon: RotateCcw },
-                              { key: "test_plan", label: "Test Plan", score: selectedPlan.testPlan, icon: CheckCircle2 },
-                              { key: "change_plan", label: "Change Plan", score: selectedPlan.changePlan, icon: ClipboardCheck },
-                              { key: "risk_impact_analysis", label: "Risk/Impact Analysis", score: selectedPlan.riskAnalysis, icon: AlertTriangle },
+                              { key: "implementationPlan", label: "Implementation Plan", score: selectedPlan.implementation, icon: FileText },
+                              { key: "backoutPlan", label: "Backout Plan", score: selectedPlan.backout, icon: RotateCcw },
+                              { key: "testPlan", label: "Test Plan", score: selectedPlan.testPlan, icon: CheckCircle2 },
+                              { key: "riskAndImpactAnalysis", label: "Risk/Impact Analysis", score: selectedPlan.riskAnalysis, icon: AlertTriangle },
                               { key: "justification", label: "Justification", score: selectedPlan.justification, icon: Info },
                             ].map((plan) => {
                               const text = (selectedPlan.cr as Record<string, unknown>)[plan.key] as string || "";
