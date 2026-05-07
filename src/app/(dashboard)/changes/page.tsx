@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Plus, AlertTriangle, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Search, Plus, AlertTriangle, Clock, CheckCircle2, XCircle, Info } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 
@@ -138,11 +138,11 @@ export default function ChangesPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Stat icon={<Clock className="h-4 w-4" />} label="Pending" value={counts.pending} tone="amber" />
-        <Stat icon={<AlertTriangle className="h-4 w-4" />} label="In flight" value={counts.inFlight} tone="indigo" />
-        <Stat icon={<CheckCircle2 className="h-4 w-4" />} label="Closed" value={counts.closed} tone="emerald" />
-        <Stat icon={<XCircle className="h-4 w-4" />} label="Rejected" value={counts.rejected} tone="rose" />
-        <Stat icon={<Search className="h-4 w-4" />} label="Total" value={counts.total} tone="gray" />
+        <Stat icon={<Clock className="h-4 w-4" />} label="Pending" value={counts.pending} tone="amber" tooltip="CRs in: Draft, Submitted, Assessing, Awaiting Approval" />
+        <Stat icon={<AlertTriangle className="h-4 w-4" />} label="In Flight" value={counts.inFlight} tone="indigo" tooltip="CRs in: Approved, Scheduled, In Progress, Implemented, Reviewing" />
+        <Stat icon={<CheckCircle2 className="h-4 w-4" />} label="Closed" value={counts.closed} tone="emerald" tooltip="Successfully completed change requests" />
+        <Stat icon={<XCircle className="h-4 w-4" />} label="Rejected" value={counts.rejected} tone="rose" tooltip="CRs that were canceled or rejected" />
+        <Stat icon={<Search className="h-4 w-4" />} label="Total" value={counts.total} tone="gray" tooltip="Total number of change requests" />
       </div>
 
       <Card>
@@ -220,7 +220,7 @@ export default function ChangesPage() {
   );
 }
 
-function Stat({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: number; tone: string }) {
+function Stat({ icon, label, value, tone, tooltip }: { icon: React.ReactNode; label: string; value: number; tone: string; tooltip: string }) {
   const tones: Record<string, string> = {
     amber: "text-amber-600 dark:text-amber-400",
     indigo: "text-indigo-600 dark:text-indigo-400",
@@ -229,11 +229,20 @@ function Stat({ icon, label, value, tone }: { icon: React.ReactNode; label: stri
     gray: "text-gray-600 dark:text-gray-300",
   };
   return (
-    <Card>
+    <Card className="group relative">
       <div className="p-4">
-        <div className={`flex items-center gap-2 text-xs font-medium ${tones[tone]}`}>
-          {icon}
-          {label}
+        <div className={`flex items-center justify-between`}>
+          <div className={`flex items-center gap-2 text-xs font-medium ${tones[tone]}`}>
+            {icon}
+            {label}
+          </div>
+          <div className="relative">
+            <Info className="h-3.5 w-3.5 text-gray-300 hover:text-gray-500 cursor-help dark:text-gray-600 dark:hover:text-gray-400" />
+            <div className="absolute right-0 top-5 z-50 hidden w-48 rounded-lg bg-gray-900 p-2 text-xs text-white shadow-lg group-hover:block dark:bg-gray-700">
+              {tooltip}
+              <div className="absolute -top-1 right-2 h-2 w-2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+            </div>
+          </div>
         </div>
         <div className="mt-2 text-2xl font-semibold text-gray-900 dark:text-gray-100">{value}</div>
       </div>

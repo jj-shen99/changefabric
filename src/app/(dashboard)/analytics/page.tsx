@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   AlertTriangle, TrendingDown, RotateCcw, XCircle, Target, Zap, Clock, Users,
-  GitPullRequest, TrendingUp, Timer, BarChart3, Calendar, Shield, CheckCircle2, FileText,
+  GitPullRequest, TrendingUp, Timer, BarChart3, Calendar, Shield, CheckCircle2, FileText, Info,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
@@ -144,16 +144,25 @@ export default function AnalyticsPage() {
           {/* KPI Row */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
             {[
-              { label: "Total Changes", value: totalChanges, icon: Target, color: "#3b82f6" },
-              { label: "Deployed", value: deployed, icon: Target, color: "#22c55e" },
-              { label: "Failed", value: failed, icon: XCircle, color: "#ef4444" },
-              { label: "Rolled Back", value: rolledBack, icon: RotateCcw, color: "#f97316" },
-              { label: "Failure Rate", value: `${changeFailureRate}%`, icon: TrendingDown, color: changeFailureRate > 15 ? "#ef4444" : changeFailureRate > 5 ? "#eab308" : "#22c55e" },
+              { label: "Total Changes", value: totalChanges, icon: Target, color: "#3b82f6", tooltip: "Total number of change requests in selected period" },
+              { label: "Deployed", value: deployed, icon: Target, color: "#22c55e", tooltip: "Successfully deployed/closed change requests" },
+              { label: "Failed", value: failed, icon: XCircle, color: "#ef4444", tooltip: "Change requests that failed or were rejected" },
+              { label: "Rolled Back", value: rolledBack, icon: RotateCcw, color: "#f97316", tooltip: "Changes that required rollback after deployment" },
+              { label: "Failure Rate", value: `${changeFailureRate}%`, icon: TrendingDown, color: changeFailureRate > 15 ? "#ef4444" : changeFailureRate > 5 ? "#eab308" : "#22c55e", tooltip: "Percentage of changes that failed (Failed / Total)" },
             ].map((kpi) => (
-              <Card key={kpi.label} className="p-4">
-                <div className="flex items-center gap-2">
-                  <kpi.icon className="h-4 w-4" style={{ color: kpi.color }} />
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{kpi.label}</span>
+              <Card key={kpi.label} className="p-4 group relative">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <kpi.icon className="h-4 w-4" style={{ color: kpi.color }} />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{kpi.label}</span>
+                  </div>
+                  <div className="relative">
+                    <Info className="h-3.5 w-3.5 text-gray-300 hover:text-gray-500 cursor-help dark:text-gray-600 dark:hover:text-gray-400" />
+                    <div className="absolute right-0 top-5 z-50 hidden w-48 rounded-lg bg-gray-900 p-2 text-xs text-white shadow-lg group-hover:block dark:bg-gray-700">
+                      {kpi.tooltip}
+                      <div className="absolute -top-1 right-2 h-2 w-2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+                    </div>
+                  </div>
                 </div>
                 <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{kpi.value}</p>
               </Card>
@@ -384,15 +393,24 @@ export default function AnalyticsPage() {
           {/* KPI Row */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {[
-              { label: "Total Changes", value: totalChangesVel, icon: GitPullRequest, color: "#3b82f6" },
-              { label: "Deployed", value: totalDeployed, icon: Zap, color: "#22c55e" },
-              { label: "Avg Lead Time", value: `${avgLeadTime}h`, icon: Clock, color: "#8b5cf6" },
-              { label: "Teams Active", value: teamVelocity.length, icon: Users, color: "#f59e0b" },
+              { label: "Total Changes", value: totalChangesVel, icon: GitPullRequest, color: "#3b82f6", tooltip: "Total changes across all teams" },
+              { label: "Deployed", value: totalDeployed, icon: Zap, color: "#22c55e", tooltip: "Successfully deployed changes" },
+              { label: "Avg Lead Time", value: `${avgLeadTime}h`, icon: Clock, color: "#8b5cf6", tooltip: "Average time from creation to deployment (hours)" },
+              { label: "Teams Active", value: teamVelocity.length, icon: Users, color: "#f59e0b", tooltip: "Number of teams with change activity" },
             ].map((kpi) => (
-              <Card key={kpi.label} className="p-4">
-                <div className="flex items-center gap-2">
-                  <kpi.icon className="h-4 w-4" style={{ color: kpi.color }} />
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{kpi.label}</span>
+              <Card key={kpi.label} className="p-4 group relative">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <kpi.icon className="h-4 w-4" style={{ color: kpi.color }} />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{kpi.label}</span>
+                  </div>
+                  <div className="relative">
+                    <Info className="h-3.5 w-3.5 text-gray-300 hover:text-gray-500 cursor-help dark:text-gray-600 dark:hover:text-gray-400" />
+                    <div className="absolute right-0 top-5 z-50 hidden w-48 rounded-lg bg-gray-900 p-2 text-xs text-white shadow-lg group-hover:block dark:bg-gray-700">
+                      {kpi.tooltip}
+                      <div className="absolute -top-1 right-2 h-2 w-2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+                    </div>
+                  </div>
                 </div>
                 <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{kpi.value}</p>
               </Card>
@@ -641,17 +659,26 @@ export default function AnalyticsPage() {
             <h2 className="text-sm font-semibold uppercase text-gray-400 mb-3">DORA Metrics</h2>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               {[
-                { label: "Deployment Frequency", value: "3.2/day", target: "4/day", icon: GitPullRequest, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950", status: "good" },
-                { label: "Lead Time for Changes", value: dashboardMetrics?.changeLeadTime || "N/A", target: "< 3 days", icon: Timer, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950", status: "needs_improvement" },
-                { label: "Mean Time to Recovery", value: dashboardMetrics?.mttr || "N/A", target: "< 30 min", icon: RotateCcw, color: "text-green-600", bg: "bg-green-50 dark:bg-green-950", status: "good" },
-                { label: "Change Failure Rate", value: `${dashboardMetrics?.rollbackRate || 0}%`, target: "< 5%", icon: Target, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950", status: "good" },
+                { label: "Deployment Frequency", value: "3.2/day", target: "4/day", icon: GitPullRequest, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950", status: "good", tooltip: "How often code is deployed to production. Elite: multiple per day" },
+                { label: "Lead Time for Changes", value: dashboardMetrics?.changeLeadTime || "N/A", target: "< 3 days", icon: Timer, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950", status: "needs_improvement", tooltip: "Time from code commit to production deployment. Elite: < 1 day" },
+                { label: "Mean Time to Recovery", value: dashboardMetrics?.mttr || "N/A", target: "< 30 min", icon: RotateCcw, color: "text-green-600", bg: "bg-green-50 dark:bg-green-950", status: "good", tooltip: "Time to restore service after an incident. Elite: < 1 hour" },
+                { label: "Change Failure Rate", value: `${dashboardMetrics?.rollbackRate || 0}%`, target: "< 5%", icon: Target, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950", status: "good", tooltip: "Percentage of deployments causing failures. Elite: < 5%" },
               ].map((metric) => (
-                <Card key={metric.label} className="p-4">
+                <Card key={metric.label} className="p-4 group relative">
                   <div className="flex items-start justify-between">
                     <div className={`rounded-lg p-2 ${metric.bg}`}><metric.icon className={`h-4 w-4 ${metric.color}`} /></div>
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${metric.status === "good" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"}`}>
-                      {metric.status === "good" ? "On Target" : "Needs Improvement"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${metric.status === "good" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"}`}>
+                        {metric.status === "good" ? "On Target" : "Needs Improvement"}
+                      </span>
+                      <div className="relative">
+                        <Info className="h-3.5 w-3.5 text-gray-300 hover:text-gray-500 cursor-help dark:text-gray-600 dark:hover:text-gray-400" />
+                        <div className="absolute right-0 top-5 z-50 hidden w-48 rounded-lg bg-gray-900 p-2 text-xs text-white shadow-lg group-hover:block dark:bg-gray-700">
+                          {metric.tooltip}
+                          <div className="absolute -top-1 right-2 h-2 w-2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div className="mt-3">
                     <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{metric.value}</p>
@@ -916,14 +943,23 @@ export default function AnalyticsPage() {
             {/* Health KPIs */}
             <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
               {[
-                { label: "Overall Health", value: `${healthScore}/100`, sub: healthLabel, icon: Shield, color: healthColor },
-                { label: "Avg Deploy Rate", value: `${avgDeployRate}%`, sub: avgDeployRate >= 80 ? "On Target" : "Below Target", icon: CheckCircle2, color: avgDeployRate >= 80 ? "text-green-600" : "text-amber-600" },
-                { label: "Avg Team Risk", value: `${avgTeamRisk}`, sub: avgTeamRisk < 40 ? "Low" : avgTeamRisk < 60 ? "Medium" : "High", icon: AlertTriangle, color: avgTeamRisk < 40 ? "text-green-600" : avgTeamRisk < 60 ? "text-amber-600" : "text-red-600" },
-                { label: "Failure Rate", value: `${changeFailureRate}%`, sub: changeFailureRate < 5 ? "Excellent" : changeFailureRate < 15 ? "Acceptable" : "High", icon: XCircle, color: changeFailureRate < 5 ? "text-green-600" : changeFailureRate < 15 ? "text-amber-600" : "text-red-600" },
-                { label: "Active Teams", value: `${teamVelocity.length}`, sub: `${totalDeployed} deployed`, icon: Users, color: "text-blue-600" },
+                { label: "Overall Health", value: `${healthScore}/100`, sub: healthLabel, icon: Shield, color: healthColor, tooltip: "Composite score: Deploy Rate (40%) + Risk Inverse (30%) + Failure Inverse (30%)" },
+                { label: "Avg Deploy Rate", value: `${avgDeployRate}%`, sub: avgDeployRate >= 80 ? "On Target" : "Below Target", icon: CheckCircle2, color: avgDeployRate >= 80 ? "text-green-600" : "text-amber-600", tooltip: "Average percentage of changes successfully deployed across all teams" },
+                { label: "Avg Team Risk", value: `${avgTeamRisk}`, sub: avgTeamRisk < 40 ? "Low" : avgTeamRisk < 60 ? "Medium" : "High", icon: AlertTriangle, color: avgTeamRisk < 40 ? "text-green-600" : avgTeamRisk < 60 ? "text-amber-600" : "text-red-600", tooltip: "Average risk score across all teams (0-100). Lower is better" },
+                { label: "Failure Rate", value: `${changeFailureRate}%`, sub: changeFailureRate < 5 ? "Excellent" : changeFailureRate < 15 ? "Acceptable" : "High", icon: XCircle, color: changeFailureRate < 5 ? "text-green-600" : changeFailureRate < 15 ? "text-amber-600" : "text-red-600", tooltip: "Percentage of changes that failed or were rejected" },
+                { label: "Active Teams", value: `${teamVelocity.length}`, sub: `${totalDeployed} deployed`, icon: Users, color: "text-blue-600", tooltip: "Number of teams with change activity in selected period" },
               ].map((kpi) => (
-                <Card key={kpi.label} className="p-4">
-                  <div className="flex items-center gap-2"><kpi.icon className={`h-4 w-4 ${kpi.color}`} /><span className="text-xs text-gray-500 dark:text-gray-400">{kpi.label}</span></div>
+                <Card key={kpi.label} className="p-4 group relative">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2"><kpi.icon className={`h-4 w-4 ${kpi.color}`} /><span className="text-xs text-gray-500 dark:text-gray-400">{kpi.label}</span></div>
+                    <div className="relative">
+                      <Info className="h-3.5 w-3.5 text-gray-300 hover:text-gray-500 cursor-help dark:text-gray-600 dark:hover:text-gray-400" />
+                      <div className="absolute right-0 top-5 z-50 hidden w-48 rounded-lg bg-gray-900 p-2 text-xs text-white shadow-lg group-hover:block dark:bg-gray-700">
+                        {kpi.tooltip}
+                        <div className="absolute -top-1 right-2 h-2 w-2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+                      </div>
+                    </div>
+                  </div>
                   <p className={`mt-1 text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
                   <p className="text-[10px] text-gray-400">{kpi.sub}</p>
                 </Card>
