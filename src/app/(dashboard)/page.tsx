@@ -62,15 +62,27 @@ export default function OverviewPage() {
   if (error) return <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">{error}</div>;
   if (!dashboardMetrics) return <div className="text-gray-500">No data available</div>;
 
+  // Calculate accurate KPIs from actual change request data
+  const pendingStates = new Set(["draft", "submitted", "assessing", "awaiting_approval"]);
+  const inProgressStates = new Set(["approved", "scheduled", "in_progress", "implemented", "reviewing"]);
+  const pendingCount = changeRequests.filter(cr => pendingStates.has(cr.state)).length;
+  const inProgressCount = changeRequests.filter(cr => inProgressStates.has(cr.state)).length;
+  const closedCount = changeRequests.filter(cr => cr.state === "closed").length;
+  const canceledCount = changeRequests.filter(cr => cr.state === "canceled" || cr.state === "rejected").length;
+  const totalCount = changeRequests.length;
+  const avgRisk = totalCount > 0 ? Math.round(changeRequests.reduce((a, c) => a + (c.impact?.overallRisk || 0), 0) / totalCount) : 0;
+  const closeRate = totalCount > 0 ? Math.round((closedCount / totalCount) * 100) : 0;
+  const cancelRate = totalCount > 0 ? Math.round((canceledCount / totalCount) * 100) : 0;
+
   const kpiCards = [
-    { label: "Total Changes", value: dashboardMetrics.totalChanges, icon: GitPullRequest, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Pending / In Progress", value: dashboardMetrics.pendingChanges, icon: Clock, color: "text-amber-600", bg: "bg-amber-50" },
-    { label: "Implemented", value: dashboardMetrics.deployedToday, icon: Rocket, color: "text-green-600", bg: "bg-green-50" },
-    { label: "Canceled", value: dashboardMetrics.failedDeployments, icon: XCircle, color: "text-red-600", bg: "bg-red-50" },
-    { label: "Avg Risk Score", value: dashboardMetrics.avgRiskScore, icon: AlertTriangle, color: "text-yellow-600", bg: "bg-yellow-50" },
-    { label: "Close Rate", value: `${dashboardMetrics.validationPassRate}%`, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "Avg Lead Time", value: dashboardMetrics.avgDeployTime, icon: Activity, color: "text-purple-600", bg: "bg-purple-50" },
-    { label: "Cancel Rate", value: `${dashboardMetrics.rollbackRate}%`, icon: TrendingDown, color: "text-orange-600", bg: "bg-orange-50" },
+    { label: "Total Changes", value: totalCount, icon: GitPullRequest, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "Pending Approval", value: pendingCount, icon: Clock, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "In Progress", value: inProgressCount, icon: Rocket, color: "text-green-600", bg: "bg-green-50" },
+    { label: "Closed", value: closedCount, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: "Canceled/Rejected", value: canceledCount, icon: XCircle, color: "text-red-600", bg: "bg-red-50" },
+    { label: "Avg Risk Score", value: avgRisk, icon: AlertTriangle, color: "text-yellow-600", bg: "bg-yellow-50" },
+    { label: "Close Rate", value: `${closeRate}%`, icon: Activity, color: "text-purple-600", bg: "bg-purple-50" },
+    { label: "Cancel Rate", value: `${cancelRate}%`, icon: TrendingDown, color: "text-orange-600", bg: "bg-orange-50" },
   ];
 
   const highRiskChanges = changeRequests.filter((cr) => cr.impact?.overallRisk >= 60);

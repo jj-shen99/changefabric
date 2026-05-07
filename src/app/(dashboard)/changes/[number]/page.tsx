@@ -300,7 +300,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
               <button
                 onClick={startEdit}
                 disabled={isClosed}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:hover:bg-gray-800"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 title={isClosed ? "Cannot edit closed/canceled/rejected CRs" : "Edit change request"}
               >
                 <Pencil className="h-3 w-3" /> Edit
