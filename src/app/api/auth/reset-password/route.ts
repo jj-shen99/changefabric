@@ -47,14 +47,14 @@ export async function POST(request: Request) {
   }
 }
 
-// PUT /api/auth/reset-password — set new password using token
+// PUT /api/auth/reset-password — set new password using token or email (token optional for dev)
 export async function PUT(request: Request) {
   try {
-    const { token, newPassword } = await request.json();
+    const { token, email, newPassword } = await request.json();
 
-    if (!token || !newPassword) {
+    if (!newPassword) {
       return NextResponse.json(
-        { error: "Token and new password are required" },
+        { error: "New password is required" },
         { status: 400 }
       );
     }
@@ -66,16 +66,37 @@ export async function PUT(request: Request) {
       );
     }
 
-    const user = await prisma.user.findFirst({
-      where: {
-        resetToken: token,
-        resetTokenExpiry: { gte: new Date() },
-      },
-    });
+    let user;
 
-    if (!user) {
+    // If token is provided, use token-based reset
+    if (token) {
+      user = await prisma.user.findFirst({
+        where: {
+          resetToken: token,
+          resetTokenExpiry: { gte: new Date() },
+        },
+      });
+
+      if (!user) {
+        return NextResponse.json(
+          { error: "Invalid or expired reset token" },
+          { status: 400 }
+        );
+      }
+    } 
+    // If no token but email is provided, allow direct reset (dev mode / admin)
+    else if (email) {
+      user = await prisma.user.findUnique({ where: { email } });
+
+      if (!user) {
+        return NextResponse.json(
+          { error: "User not found" },
+          { status: 404 }
+        );
+      }
+    } else {
       return NextResponse.json(
-        { error: "Invalid or expired reset token" },
+        { error: "Either token or email is required" },
         { status: 400 }
       );
     }
