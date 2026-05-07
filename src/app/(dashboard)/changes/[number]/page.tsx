@@ -219,7 +219,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
   if (error || !cr) return <div className="p-6 text-sm text-rose-600">Error: {error ?? "not found"}</div>;
 
   return (
-    <div className="space-y-4 p-6">
+    <>
       <PageHeader
         title={`${cr.number} — ${cr.title}`}
         actions={
@@ -228,7 +228,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
           </Link>
         }
       />
-
+    <div className="space-y-4 p-4 md:p-6">
       {/* Header summary */}
       <Card>
         <div className="flex flex-wrap items-center gap-3 p-4">
@@ -440,6 +440,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
         <AnalysisTab cr={cr} analysis={analysis} onRun={runAnalysis} busy={busy} />
       )}
     </div>
+    </>
   );
 }
 
