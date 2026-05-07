@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Send, MessageSquare, ShieldCheck, Activity } from "lucide-react";
+import { ArrowLeft, Send, MessageSquare, ShieldCheck, Activity, Pencil, Save, X, Lock } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 
@@ -85,6 +85,8 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"overview" | "approvals" | "comments" | "analysis">("overview");
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<CR>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -171,6 +173,48 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
     }
   }
 
+  function startEdit() {
+    if (!cr) return;
+    setEditForm({
+      title: cr.title,
+      description: cr.description,
+      justification: cr.justification,
+      implementationPlan: cr.implementationPlan,
+      backoutPlan: cr.backoutPlan,
+      testPlan: cr.testPlan,
+      riskAndImpactAnalysis: cr.riskAndImpactAnalysis,
+      assignedTo: cr.assignedTo,
+      assignmentGroup: cr.assignmentGroup,
+      riskLevel: cr.riskLevel,
+      impactLevel: cr.impactLevel,
+      priority: cr.priority,
+      category: cr.category,
+    });
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/v2/changes/${crNumber}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        alert(e.error || "Update failed");
+      } else {
+        setEditing(false);
+        await load();
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isClosed = cr?.state === "closed" || cr?.state === "canceled" || cr?.state === "rejected";
+
   if (loading) return <div className="p-6 text-sm text-gray-500">Loading…</div>;
   if (error || !cr) return <div className="p-6 text-sm text-rose-600">Error: {error ?? "not found"}</div>;
 
@@ -225,56 +269,167 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-gray-200 dark:border-gray-800">
-        {(["overview", "approvals", "comments", "analysis"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium ${tab === t ? "border-b-2 border-indigo-600 text-indigo-700 dark:text-indigo-400" : "text-gray-500 hover:text-gray-700"}`}
-          >
-            {t}
-          </button>
-        ))}
+        {(["overview", "approvals", "comments", "analysis"] as const).map((t) => {
+          const isDisabled = t === "approvals" && isClosed;
+          return (
+            <button
+              key={t}
+              onClick={() => !isDisabled && setTab(t)}
+              disabled={isDisabled}
+              className={`px-4 py-2 text-sm font-medium flex items-center gap-1.5 ${
+                isDisabled
+                  ? "text-gray-300 dark:text-gray-600 cursor-not-allowed"
+                  : tab === t
+                  ? "border-b-2 border-indigo-600 text-indigo-700 dark:text-indigo-400"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+              title={isDisabled ? "Approvals are locked for closed/canceled/rejected CRs" : undefined}
+            >
+              {isDisabled && <Lock className="h-3 w-3" />}
+              {t}
+            </button>
+          );
+        })}
       </div>
 
       {tab === "overview" && (
         <Card>
-          <div className="grid gap-6 p-4 md:grid-cols-2">
-            <Section title="Description" body={cr.description} />
-            <Section title="Justification" body={cr.justification} />
-            <Section title="Implementation Plan" body={cr.implementationPlan} />
-            <Section title="Backout Plan" body={cr.backoutPlan} />
-            <Section title="Test Plan" body={cr.testPlan} />
-            <Section title="Risk & Impact Analysis" body={cr.riskAndImpactAnalysis} />
-            <div>
-              <H>People</H>
-              <Kv k="Requested by" v={cr.requestedBy} />
-              <Kv k="Assigned to" v={cr.assignedTo ?? "—"} />
-              <Kv k="Group" v={cr.assignmentGroup ?? "—"} />
-            </div>
-            <div>
-              <H>Schedule</H>
-              <Kv k="Planned start" v={cr.plannedStart ? new Date(cr.plannedStart).toLocaleString() : "—"} />
-              <Kv k="Planned end" v={cr.plannedEnd ? new Date(cr.plannedEnd).toLocaleString() : "—"} />
-              <Kv k="Created" v={new Date(cr.createdAt).toLocaleString()} />
-            </div>
-            <div className="md:col-span-2">
-              <H>Affected Services</H>
-              <div className="flex flex-wrap gap-1">
-                {cr.affectedServices.length === 0 ? (
-                  <span className="text-xs text-gray-400">none</span>
-                ) : (
-                  cr.affectedServices.map((s) => (
-                    <span key={s} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs dark:bg-gray-800">{s}</span>
-                  ))
-                )}
+          {/* Edit/Save buttons */}
+          <div className="flex items-center justify-end gap-2 border-b border-gray-100 px-4 py-2 dark:border-gray-800">
+            {!editing ? (
+              <button
+                onClick={startEdit}
+                disabled={isClosed}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:hover:bg-gray-800"
+                title={isClosed ? "Cannot edit closed/canceled/rejected CRs" : "Edit change request"}
+              >
+                <Pencil className="h-3 w-3" /> Edit
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => setEditing(false)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                >
+                  <X className="h-3 w-3" /> Cancel
+                </button>
+                <button
+                  onClick={saveEdit}
+                  disabled={busy}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  <Save className="h-3 w-3" /> Save Changes
+                </button>
+              </>
+            )}
+          </div>
+
+          {!editing ? (
+            /* View Mode */
+            <div className="grid gap-6 p-4 md:grid-cols-2">
+              <Section title="Description" body={cr.description} />
+              <Section title="Justification" body={cr.justification} />
+              <Section title="Implementation Plan" body={cr.implementationPlan} />
+              <Section title="Backout Plan" body={cr.backoutPlan} />
+              <Section title="Test Plan" body={cr.testPlan} />
+              <Section title="Risk & Impact Analysis" body={cr.riskAndImpactAnalysis} />
+              <div>
+                <H>People</H>
+                <Kv k="Requested by" v={cr.requestedBy} />
+                <Kv k="Assigned to" v={cr.assignedTo ?? "—"} />
+                <Kv k="Group" v={cr.assignmentGroup ?? "—"} />
+              </div>
+              <div>
+                <H>Schedule</H>
+                <Kv k="Planned start" v={cr.plannedStart ? new Date(cr.plannedStart).toLocaleString() : "—"} />
+                <Kv k="Planned end" v={cr.plannedEnd ? new Date(cr.plannedEnd).toLocaleString() : "—"} />
+                <Kv k="Created" v={new Date(cr.createdAt).toLocaleString()} />
+              </div>
+              <div className="md:col-span-2">
+                <H>Affected Services</H>
+                <div className="flex flex-wrap gap-1">
+                  {cr.affectedServices.length === 0 ? (
+                    <span className="text-xs text-gray-400">none</span>
+                  ) : (
+                    cr.affectedServices.map((s) => (
+                      <span key={s} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs dark:bg-gray-800">{s}</span>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            /* Edit Mode */
+            <div className="grid gap-4 p-4 md:grid-cols-2">
+              <EditField label="Title" value={editForm.title ?? ""} onChange={(v) => setEditForm({ ...editForm, title: v })} />
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Risk Level</label>
+                  <select
+                    value={editForm.riskLevel ?? ""}
+                    onChange={(e) => setEditForm({ ...editForm, riskLevel: e.target.value })}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                  >
+                    <option value="low">Low</option>
+                    <option value="moderate">Moderate</option>
+                    <option value="high">High</option>
+                    <option value="very_high">Very High</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Impact Level</label>
+                  <select
+                    value={editForm.impactLevel ?? ""}
+                    onChange={(e) => setEditForm({ ...editForm, impactLevel: e.target.value })}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                  >
+                    <option value="1">1 - High</option>
+                    <option value="2">2 - Medium</option>
+                    <option value="3">3 - Low</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Priority</label>
+                  <select
+                    value={editForm.priority ?? ""}
+                    onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                  >
+                    <option value="1">1 - Critical</option>
+                    <option value="2">2 - High</option>
+                    <option value="3">3 - Moderate</option>
+                    <option value="4">4 - Low</option>
+                  </select>
+                </div>
+              </div>
+              <EditTextarea label="Description" value={editForm.description ?? ""} onChange={(v) => setEditForm({ ...editForm, description: v })} />
+              <EditTextarea label="Justification" value={editForm.justification ?? ""} onChange={(v) => setEditForm({ ...editForm, justification: v })} />
+              <EditTextarea label="Implementation Plan" value={editForm.implementationPlan ?? ""} onChange={(v) => setEditForm({ ...editForm, implementationPlan: v })} rows={6} />
+              <EditTextarea label="Backout Plan" value={editForm.backoutPlan ?? ""} onChange={(v) => setEditForm({ ...editForm, backoutPlan: v })} rows={6} />
+              <EditTextarea label="Test Plan" value={editForm.testPlan ?? ""} onChange={(v) => setEditForm({ ...editForm, testPlan: v })} rows={6} />
+              <EditTextarea label="Risk & Impact Analysis" value={editForm.riskAndImpactAnalysis ?? ""} onChange={(v) => setEditForm({ ...editForm, riskAndImpactAnalysis: v })} rows={6} />
+              <div className="grid grid-cols-2 gap-2">
+                <EditField label="Assigned To" value={editForm.assignedTo ?? ""} onChange={(v) => setEditForm({ ...editForm, assignedTo: v || null })} placeholder="email@example.com" />
+                <EditField label="Assignment Group" value={editForm.assignmentGroup ?? ""} onChange={(v) => setEditForm({ ...editForm, assignmentGroup: v || null })} placeholder="Team name" />
+              </div>
+              <EditField label="Category" value={editForm.category ?? ""} onChange={(v) => setEditForm({ ...editForm, category: v })} />
+            </div>
+          )}
         </Card>
       )}
 
-      {tab === "approvals" && (
+      {tab === "approvals" && !isClosed && (
         <ApprovalsTab steps={steps} crNumber={cr.number} onDecide={decide} onChange={load} busy={busy} />
+      )}
+
+      {tab === "approvals" && isClosed && (
+        <Card>
+          <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
+            <Lock className="h-8 w-8 text-gray-400" />
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Approvals are locked</p>
+            <p className="text-xs text-gray-500">This change request is {cr.state}. Approval actions are no longer available.</p>
+          </div>
+        </Card>
       )}
 
       {tab === "comments" && (
@@ -504,5 +659,56 @@ function AnalysisTab({ cr, analysis, onRun, busy }: { cr: CR; analysis: { impact
         )}
       </div>
     </Card>
+  );
+}
+
+/* ─── Edit Form Components ─────────────────────────────────────── */
+
+function EditField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-gray-500">{label}</label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+      />
+    </div>
+  );
+}
+
+function EditTextarea({
+  label,
+  value,
+  onChange,
+  rows = 4,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  rows?: number;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-gray-500">{label}</label>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+      />
+    </div>
   );
 }
