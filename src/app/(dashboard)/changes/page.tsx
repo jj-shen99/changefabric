@@ -123,7 +123,7 @@ export default function ChangesPage() {
   }, [items]);
 
   return (
-    <div className="space-y-6 p-6">
+    <>
       <PageHeader
         title="Change Requests"
         subtitle="Native, vendor-neutral change management"
@@ -136,7 +136,7 @@ export default function ChangesPage() {
           </Link>
         }
       />
-
+    <div className="space-y-6 p-4 md:p-6">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat icon={<Clock className="h-4 w-4" />} label="Pending" value={counts.pending} tone="amber" tooltip="CRs in: Draft, Submitted, Assessing, Awaiting Approval" />
         <Stat icon={<AlertTriangle className="h-4 w-4" />} label="In Flight" value={counts.inFlight} tone="indigo" tooltip="CRs in: Approved, Scheduled, In Progress, Implemented, Reviewing" />
@@ -217,6 +217,7 @@ export default function ChangesPage() {
         )}
       </Card>
     </div>
+    </>
   );
 }
 
