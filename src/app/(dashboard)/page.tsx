@@ -99,7 +99,6 @@ export default function OverviewPage() {
     backout: ["revert","rollback","restore","undo","previous","snapshot","backup","recovery","failover","downtime"],
     testPlan: ["test","verify","validate","smoke","regression","acceptance","integration","unit","performance","security","coverage"],
     riskAnalysis: ["risk","impact","mitigation","contingency","fallback","probability","severity","exposure","vulnerability","dependency"],
-    changePlan: ["step","deploy","install","configure","verify","validate","monitor","rollout","pre-check","post-check","approval","schedule"],
     justification: ["business","requirement","need","value","benefit","compliance","security","improvement"],
   };
   function scorePlanText(text: string, keywords: string[]): { present: boolean; quality: number } {
@@ -116,13 +115,12 @@ export default function OverviewPage() {
     if (/@|email|phone|contact|notify|team/i.test(t)) q += 5;
     return { present: true, quality: Math.min(100, q) };
   }
-  const PLAN_WEIGHTS = { implementation: 0.25, backout: 0.25, testPlan: 0.20, riskAnalysis: 0.15, changePlan: 0.10, justification: 0.05 };
+  const PLAN_WEIGHTS = { implementation: 0.30, backout: 0.25, testPlan: 0.20, riskAnalysis: 0.15, justification: 0.10 };
   const PLAN_DIM_DEFS = [
-    { key: "implementation", label: "Implementation", icon: FileText, field: "implementation_plan" },
-    { key: "backout", label: "Backout", icon: RotateCcw, field: "backout_plan" },
-    { key: "testPlan", label: "Test Plan", icon: CheckCircle2, field: "test_plan" },
-    { key: "riskAnalysis", label: "Risk Analysis", icon: AlertTriangle, field: "risk_impact_analysis" },
-    { key: "changePlan", label: "Change Plan", icon: ClipboardCheck, field: "change_plan" },
+    { key: "implementation", label: "Implementation", icon: FileText, field: "implementationPlan" },
+    { key: "backout", label: "Backout", icon: RotateCcw, field: "backoutPlan" },
+    { key: "testPlan", label: "Test Plan", icon: CheckCircle2, field: "testPlan" },
+    { key: "riskAnalysis", label: "Risk Analysis", icon: AlertTriangle, field: "riskAndImpactAnalysis" },
     { key: "justification", label: "Justification", icon: Info, field: "justification" },
   ];
   const planResults = changeRequests.map(cr => {
