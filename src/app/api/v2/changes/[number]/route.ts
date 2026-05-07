@@ -28,7 +28,11 @@ export async function GET(
   try {
     const cr = await svc.get(params.number);
     if (!cr) return notFound();
-    if (!ctx.perms.canViewAllData && cr.requestedBy !== ctx.email) {
+    // Allow viewing if: admin, OR user requested it, OR user is assigned, OR it's an external import
+    const isOwner = cr.requestedBy === ctx.email;
+    const isAssigned = cr.assignedTo === ctx.email;
+    const isExternalImport = cr.externalSource && cr.externalSource !== "native";
+    if (!ctx.perms.canViewAllData && !isOwner && !isAssigned && !isExternalImport) {
       return forbidden();
     }
     const repo = new PrismaChangeRequestRepository(prisma);
