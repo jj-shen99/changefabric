@@ -70,6 +70,11 @@ export interface ChangeRequest {
   change_plan: string;
   risk_impact_analysis: string;
   justification: string;
+  // CamelCase aliases (used by native CR system)
+  implementationPlan?: string;
+  backoutPlan?: string;
+  testPlan?: string;
+  riskAndImpactAnalysis?: string;
   cmdb_ci: string;
   business_service: string;
   service_offering: string;

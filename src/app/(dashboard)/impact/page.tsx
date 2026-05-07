@@ -196,11 +196,11 @@ function ImpactPageContent() {
 
 
   const planResults = useMemo(() => changeRequests.map((c) => {
-    const implementation = scorePlan(c.implementationPlan, IMPL_KW, "implementation plan");
-    const backout = scorePlan(c.backoutPlan, BACK_KW, "backout plan");
-    const testPlan = scorePlan(c.testPlan, TEST_KW, "test plan");
-    const riskAnalysis = scorePlan(c.riskAndImpactAnalysis, RISK_KW, "risk/impact analysis");
-    const justification = scorePlan(c.justification, JUST_KW, "justification");
+    const implementation = scorePlan(c.implementationPlan || c.implementation_plan || "", IMPL_KW, "implementation plan");
+    const backout = scorePlan(c.backoutPlan || c.backout_plan || "", BACK_KW, "backout plan");
+    const testPlan = scorePlan(c.testPlan || c.test_plan || "", TEST_KW, "test plan");
+    const riskAnalysis = scorePlan(c.riskAndImpactAnalysis || c.risk_impact_analysis || "", RISK_KW, "risk/impact analysis");
+    const justification = scorePlan(c.justification || "", JUST_KW, "justification");
     const overallScore = Math.round(implementation.quality*planWeights.implementation + backout.quality*planWeights.backout + testPlan.quality*planWeights.testPlan + riskAnalysis.quality*planWeights.riskAnalysis + justification.quality*planWeights.justification);
     const gapCount = [implementation, backout, testPlan, riskAnalysis, justification].filter(p => !p.present).length;
     const riskLevel = overallScore>=75?"low":overallScore>=50?"medium":overallScore>=25?"high":"critical";
