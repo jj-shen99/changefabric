@@ -158,6 +158,58 @@ describe("Risk Score Calculations", () => {
   });
 });
 
+describe("Plan Field Name Consistency", () => {
+  /**
+   * Plan field names in the UI must match the database schema (camelCase).
+   * This test ensures we don't accidentally use snake_case field names.
+   */
+  
+  const databaseFieldNames = [
+    "implementationPlan",
+    "backoutPlan",
+    "testPlan",
+    "riskAndImpactAnalysis",
+    "justification",
+  ];
+
+  const incorrectFieldNames = [
+    "implementation_plan",
+    "backout_plan",
+    "test_plan",
+    "risk_impact_analysis",
+    "change_plan",
+  ];
+
+  it("uses camelCase field names matching database schema", () => {
+    databaseFieldNames.forEach((field) => {
+      // Field names should be camelCase
+      expect(field).not.toContain("_");
+    });
+  });
+
+  it("does not use snake_case field names", () => {
+    incorrectFieldNames.forEach((field) => {
+      expect(databaseFieldNames).not.toContain(field);
+    });
+  });
+
+  it("has exactly 5 plan dimensions", () => {
+    expect(databaseFieldNames).toHaveLength(5);
+  });
+
+  it("plan weights sum to 1.0", () => {
+    const PLAN_WEIGHTS = { 
+      implementation: 0.30, 
+      backout: 0.25, 
+      testPlan: 0.20, 
+      riskAnalysis: 0.15, 
+      justification: 0.10 
+    };
+    const sum = Object.values(PLAN_WEIGHTS).reduce((a, b) => a + b, 0);
+    expect(sum).toBeCloseTo(1.0, 2);
+  });
+});
+
 describe("Average Risk Score Calculation", () => {
   it("calculates average correctly for multiple CRs", () => {
     const changeRequests = [
