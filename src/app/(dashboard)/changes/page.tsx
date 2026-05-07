@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Plus, AlertTriangle, Clock, CheckCircle2, XCircle, Info, Download } from "lucide-react";
+import { Search, Plus, AlertTriangle, Clock, CheckCircle2, XCircle, Info, Download, Eye, EyeOff } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 
@@ -77,6 +77,10 @@ export default function ChangesPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [snowInstance, setSnowInstance] = useState("");
+  const [snowUser, setSnowUser] = useState("");
+  const [snowPassword, setSnowPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     void load();
@@ -98,18 +102,26 @@ export default function ChangesPage() {
   }
 
   async function importFromServiceNow() {
+    if (!snowInstance || !snowUser || !snowPassword) {
+      setImportError("Please fill in all fields");
+      return;
+    }
     setImporting(true);
     setImportError(null);
     try {
       const res = await fetch("/api/v2/changes/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instance: snowInstance, user: snowUser, password: snowPassword }),
       });
       if (!res.ok) {
         const e = await res.json();
         setImportError(e.error || "Import failed");
       } else {
         setShowImportModal(false);
+        setSnowInstance("");
+        setSnowUser("");
+        setSnowPassword("");
         await load();
       }
     } catch (e) {
@@ -154,18 +166,18 @@ export default function ChangesPage() {
         subtitle="Native, vendor-neutral change management"
         actions={
           <div className="flex gap-2">
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-3 py-2 text-sm font-medium text-white hover:bg-white/10"
-            >
-              <Download className="h-4 w-4" /> Import from ServiceNow
-            </button>
             <Link
               href="/changes/new"
               className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700"
             >
               <Plus className="h-4 w-4" /> New Change Request
             </Link>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-3 py-2 text-sm font-medium text-white hover:bg-white/10"
+            >
+              <Download className="h-4 w-4" /> Import from ServiceNow
+            </button>
           </div>
         }
       />
@@ -257,16 +269,59 @@ export default function ChangesPage() {
           <div className="space-y-4 p-6">
             <h2 className="text-lg font-semibold">Import from ServiceNow</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              This will import all change requests from your ServiceNow instance. This may take a few moments.
+              Enter your ServiceNow instance credentials to import change requests.
             </p>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Instance URL</label>
+                <input
+                  type="url"
+                  value={snowInstance}
+                  onChange={(e) => setSnowInstance(e.target.value)}
+                  placeholder="https://your-instance.service-now.com"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                <input
+                  type="text"
+                  value={snowUser}
+                  onChange={(e) => setSnowUser(e.target.value)}
+                  placeholder="admin"
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={snowPassword}
+                    onChange={(e) => setSnowPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 pr-10 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {importError && (
               <div className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-300">
                 {importError}
               </div>
             )}
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               <button
-                onClick={() => setShowImportModal(false)}
+                onClick={() => { setShowImportModal(false); setImportError(null); }}
                 disabled={importing}
                 className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
               >
@@ -274,7 +329,7 @@ export default function ChangesPage() {
               </button>
               <button
                 onClick={importFromServiceNow}
-                disabled={importing}
+                disabled={importing || !snowInstance || !snowUser || !snowPassword}
                 className="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
               >
                 {importing ? "Importing..." : "Import"}
