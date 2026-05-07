@@ -87,6 +87,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
   const [tab, setTab] = useState<"overview" | "approvals" | "comments" | "analysis">("overview");
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CR>>({});
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,6 +113,21 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
   }, [crNumber]);
 
   useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    async function fetchCurrentUser() {
+      try {
+        const res = await fetch("/api/auth/session");
+        if (res.ok) {
+          const session = await res.json();
+          setCurrentUserEmail(session.user?.email || null);
+        }
+      } catch {
+        // Session fetch failed, user will see approval buttons disabled
+      }
+    }
+    fetchCurrentUser();
+  }, []);
 
   async function fireTransition(event: string) {
     setBusy(true);
@@ -419,7 +435,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
       )}
 
       {tab === "approvals" && !isClosed && (
-        <ApprovalsTab steps={steps} crNumber={cr.number} onDecide={decide} onChange={load} busy={busy} />
+        <ApprovalsTab steps={steps} crNumber={cr.number} onDecide={decide} onChange={load} busy={busy} currentUserEmail={currentUserEmail} />
       )}
 
       {tab === "approvals" && isClosed && (
@@ -482,12 +498,14 @@ function ApprovalsTab({
   onDecide,
   onChange,
   busy,
+  currentUserEmail,
 }: {
   steps: ApprovalStep[];
   crNumber: string;
   onDecide: (stepId: string, d: "approved" | "rejected", c?: string) => void;
   onChange: () => void;
   busy: boolean;
+  currentUserEmail: string | null;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
@@ -564,7 +582,7 @@ function ApprovalsTab({
                         {a.comment ? <span className="ml-2 italic text-gray-500">“{a.comment}”</span> : null}
                       </div>
                     </div>
-                    {a.decision === "pending" && s.status === "pending" && (
+                    {a.decision === "pending" && s.status === "pending" && currentUserEmail === a.approverEmail && (
                       <div className="flex gap-1">
                         <button onClick={() => onDecide(s.id, "approved")} disabled={busy} className="rounded-md bg-emerald-600 px-2 py-1 text-xs text-white hover:bg-emerald-700 disabled:opacity-50">Approve</button>
                         <button onClick={() => onDecide(s.id, "rejected")} disabled={busy} className="rounded-md bg-rose-600 px-2 py-1 text-xs text-white hover:bg-rose-700 disabled:opacity-50">Reject</button>
