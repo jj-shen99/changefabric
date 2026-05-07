@@ -75,14 +75,14 @@ export default function OverviewPage() {
   const cancelRate = totalCount > 0 ? Math.round((canceledCount / totalCount) * 100) : 0;
 
   const kpiCards = [
-    { label: "Total Changes", value: totalCount, icon: GitPullRequest, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Pending Approval", value: pendingCount, icon: Clock, color: "text-amber-600", bg: "bg-amber-50" },
-    { label: "In Progress", value: inProgressCount, icon: Rocket, color: "text-green-600", bg: "bg-green-50" },
-    { label: "Closed", value: closedCount, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "Canceled/Rejected", value: canceledCount, icon: XCircle, color: "text-red-600", bg: "bg-red-50" },
-    { label: "Avg Risk Score", value: avgRisk, icon: AlertTriangle, color: "text-yellow-600", bg: "bg-yellow-50" },
-    { label: "Close Rate", value: `${closeRate}%`, icon: Activity, color: "text-purple-600", bg: "bg-purple-50" },
-    { label: "Cancel Rate", value: `${cancelRate}%`, icon: TrendingDown, color: "text-orange-600", bg: "bg-orange-50" },
+    { label: "Total Changes", value: totalCount, icon: GitPullRequest, color: "text-blue-600", bg: "bg-blue-50", tooltip: "Total number of change requests in the selected time period" },
+    { label: "Pending Approval", value: pendingCount, icon: Clock, color: "text-amber-600", bg: "bg-amber-50", tooltip: "CRs in: Draft, Submitted, Assessing, Awaiting Approval" },
+    { label: "In Progress", value: inProgressCount, icon: Rocket, color: "text-green-600", bg: "bg-green-50", tooltip: "CRs in: Approved, Scheduled, In Progress, Implemented, Reviewing" },
+    { label: "Closed", value: closedCount, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", tooltip: "Successfully completed change requests" },
+    { label: "Canceled/Rejected", value: canceledCount, icon: XCircle, color: "text-red-600", bg: "bg-red-50", tooltip: "CRs that were canceled or rejected" },
+    { label: "Avg Risk Score", value: avgRisk, icon: AlertTriangle, color: "text-yellow-600", bg: "bg-yellow-50", tooltip: "Average computed risk score across all CRs (0-100)" },
+    { label: "Close Rate", value: `${closeRate}%`, icon: Activity, color: "text-purple-600", bg: "bg-purple-50", tooltip: "Percentage of CRs successfully closed (Closed / Total)" },
+    { label: "Cancel Rate", value: `${cancelRate}%`, icon: TrendingDown, color: "text-orange-600", bg: "bg-orange-50", tooltip: "Percentage of CRs canceled or rejected ((Canceled + Rejected) / Total)" },
   ];
 
   const highRiskChanges = changeRequests.filter((cr) => cr.impact?.overallRisk >= 60);
@@ -163,10 +163,17 @@ export default function OverviewPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4">
         {kpiCards.map((kpi) => (
-          <Card key={kpi.label} className="p-4">
+          <Card key={kpi.label} className="p-4 group relative">
             <div className="flex items-start justify-between">
               <div className={`rounded-lg p-2 ${kpi.bg}`}>
                 <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
+              </div>
+              <div className="relative">
+                <Info className="h-3.5 w-3.5 text-gray-300 hover:text-gray-500 cursor-help dark:text-gray-600 dark:hover:text-gray-400" />
+                <div className="absolute right-0 top-5 z-50 hidden w-48 rounded-lg bg-gray-900 p-2 text-xs text-white shadow-lg group-hover:block dark:bg-gray-700">
+                  {kpi.tooltip}
+                  <div className="absolute -top-1 right-2 h-2 w-2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+                </div>
               </div>
             </div>
             <div className="mt-3">
