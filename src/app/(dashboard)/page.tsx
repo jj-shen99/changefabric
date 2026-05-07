@@ -20,6 +20,9 @@ import {
   Info,
   Layers,
   PieChart as PieChartIcon,
+  ArrowRight,
+  Circle,
+  GitBranch,
 } from "lucide-react";
 import {
   BarChart,
@@ -161,6 +164,155 @@ export default function OverviewPage() {
           </Card>
         ))}
       </div>
+
+      {/* Change Request Workflow State Flow */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-indigo-500" />
+            Change Request Workflow
+          </CardTitle>
+          <CardDescription>Standard workflow state transitions from creation to closure</CardDescription>
+        </CardHeader>
+        <div className="px-4 pb-6 overflow-x-auto">
+          {/* Workflow Flow Diagram */}
+          <div className="min-w-[900px]">
+            {/* Main Flow */}
+            <div className="flex items-center justify-center gap-1">
+              {/* Draft */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600">
+                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Draft</span>
+                </div>
+                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'draft').length}</span>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              
+              {/* Submitted */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-950 border-2 border-blue-300 dark:border-blue-700">
+                  <span className="text-xs font-semibold text-blue-600 dark:text-blue-300">Submitted</span>
+                </div>
+                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'submitted').length}</span>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              
+              {/* Assessing */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-950 border-2 border-purple-300 dark:border-purple-700">
+                  <span className="text-xs font-semibold text-purple-600 dark:text-purple-300">Assessing</span>
+                </div>
+                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'assessing').length}</span>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              
+              {/* Awaiting Approval */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-28 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-950 border-2 border-amber-300 dark:border-amber-700">
+                  <span className="text-xs font-semibold text-amber-600 dark:text-amber-300 text-center leading-tight">Awaiting<br/>Approval</span>
+                </div>
+                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'awaiting_approval').length}</span>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              
+              {/* Approved */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-teal-50 dark:bg-teal-950 border-2 border-teal-300 dark:border-teal-700">
+                  <span className="text-xs font-semibold text-teal-600 dark:text-teal-300">Approved</span>
+                </div>
+                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'approved').length}</span>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              
+              {/* Scheduled */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-indigo-50 dark:bg-indigo-950 border-2 border-indigo-300 dark:border-indigo-700">
+                  <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-300">Scheduled</span>
+                </div>
+                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'scheduled').length}</span>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              
+              {/* In Progress */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950 border-2 border-orange-400 dark:border-orange-600 animate-pulse">
+                  <span className="text-xs font-semibold text-orange-600 dark:text-orange-300">In Progress</span>
+                </div>
+                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'in_progress').length}</span>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              
+              {/* Implemented */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-cyan-50 dark:bg-cyan-950 border-2 border-cyan-300 dark:border-cyan-700">
+                  <span className="text-xs font-semibold text-cyan-600 dark:text-cyan-300">Implemented</span>
+                </div>
+                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'implemented').length}</span>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              
+              {/* Reviewing */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-950 border-2 border-violet-300 dark:border-violet-700">
+                  <span className="text-xs font-semibold text-violet-600 dark:text-violet-300">Reviewing</span>
+                </div>
+                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'reviewing').length}</span>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              
+              {/* Closed */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900 border-2 border-green-500 dark:border-green-600">
+                  <span className="text-xs font-semibold text-green-700 dark:text-green-300">Closed</span>
+                </div>
+                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'closed').length}</span>
+              </div>
+            </div>
+
+            {/* Terminal States Row */}
+            <div className="mt-6 flex items-center justify-center gap-8">
+              <div className="flex items-center gap-2">
+                <Circle className="h-3 w-3 text-red-500 fill-red-500" />
+                <div className="flex h-10 w-24 items-center justify-center rounded-lg bg-red-50 dark:bg-red-950 border-2 border-red-300 dark:border-red-700">
+                  <span className="text-xs font-semibold text-red-600 dark:text-red-300">Rejected</span>
+                </div>
+                <span className="text-[10px] text-gray-400">({changeRequests.filter(c => c.state === 'rejected').length})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Circle className="h-3 w-3 text-gray-400 fill-gray-400" />
+                <div className="flex h-10 w-24 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 border-2 border-gray-400 dark:border-gray-600">
+                  <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Canceled</span>
+                </div>
+                <span className="text-[10px] text-gray-400">({changeRequests.filter(c => c.state === 'canceled').length})</span>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="mt-6 flex items-center justify-center gap-6 text-[10px] text-gray-500 dark:text-gray-400">
+              <div className="flex items-center gap-1.5">
+                <div className="h-3 w-3 rounded border-2 border-gray-300 bg-gray-100" />
+                <span>Initial</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="h-3 w-3 rounded border-2 border-amber-300 bg-amber-50" />
+                <span>Pending</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="h-3 w-3 rounded border-2 border-orange-400 bg-orange-50 animate-pulse" />
+                <span>Active</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="h-3 w-3 rounded border-2 border-green-500 bg-green-100" />
+                <span>Complete</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Circle className="h-3 w-3 text-red-500 fill-red-500" />
+                <span>Terminal (can exit from any state)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {/* High Risk Changes & Risk Gauges */}
       <div className="grid grid-cols-3 gap-6">
