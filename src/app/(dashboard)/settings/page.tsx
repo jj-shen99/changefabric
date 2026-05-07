@@ -1,8 +1,17 @@
 "use client";
 
-import { Bell, Shield, Users, Database } from "lucide-react";
+import { useState } from "react";
+import Link from "next/link";
+import { Bell, Shield, Users, Database, Plug, ChevronRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
+
+const TABS = [
+  { id: "general", label: "General" },
+  { id: "integrations", label: "Integrations" },
+] as const;
+
+type TabId = typeof TABS[number]["id"];
 
 const settingSections = [
   {
@@ -50,39 +59,110 @@ const settingSections = [
   },
 ];
 
+const integrationLinks = [
+  {
+    icon: Database,
+    title: "ServiceNow",
+    description: "Connect to ServiceNow to import and sync change requests",
+    href: "/settings/integrations",
+  },
+  {
+    icon: Plug,
+    title: "Git Repository",
+    description: "Configure Git credentials for repository access",
+    href: "/settings/integrations",
+  },
+  {
+    icon: Plug,
+    title: "LLM Provider",
+    description: "Configure AI/LLM for summarization, plan analysis, and risk assessment",
+    href: "/settings/integrations",
+  },
+];
+
 export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState<TabId>("general");
+
   return (
     <>
       <PageHeader title="Settings" subtitle="Configure dashboard policies, alert thresholds, and validation requirements" />
-    <div className="space-y-6 p-4 md:p-6">
+      <div className="space-y-6 p-4 md:p-6">
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                activeTab === tab.id
+                  ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
+                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-      <div className="space-y-6">
-        {settingSections.map((section) => (
-          <Card key={section.title}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <section.icon className="h-4 w-4 text-gray-500" />
-                {section.title}
-              </CardTitle>
-              <CardDescription>{section.description}</CardDescription>
-            </CardHeader>
-            <div className="space-y-3">
-              {section.items.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3"
-                >
-                  <span className="text-sm font-medium text-gray-700">{item.label}</span>
-                  <span className="rounded bg-white border border-gray-200 px-3 py-1 text-sm text-gray-600">
-                    {item.value}
-                  </span>
+        {/* General Tab */}
+        {activeTab === "general" && (
+          <div className="space-y-6">
+            {settingSections.map((section) => (
+              <Card key={section.title}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <section.icon className="h-4 w-4 text-gray-500" />
+                    {section.title}
+                  </CardTitle>
+                  <CardDescription>{section.description}</CardDescription>
+                </CardHeader>
+                <div className="space-y-3">
+                  {section.items.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800"
+                    >
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.label}</span>
+                      <span className="rounded bg-white border border-gray-200 px-3 py-1 text-sm text-gray-600 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-400">
+                        {item.value}
+                      </span>
+                    </div>
+                  ))}
                 </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Integrations Tab */}
+        {activeTab === "integrations" && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Configure external service connections for data synchronization and AI-powered features.
+            </p>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {integrationLinks.map((integration) => (
+                <Link
+                  key={integration.title}
+                  href={integration.href}
+                  className="group flex items-start gap-4 rounded-xl border border-gray-200 bg-white p-4 transition-all hover:border-indigo-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-600"
+                >
+                  <div className="rounded-lg bg-indigo-50 p-2.5 dark:bg-indigo-950">
+                    <integration.icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-gray-900 dark:text-gray-100">{integration.title}</h3>
+                      <ChevronRight className="h-4 w-4 text-gray-400 transition-transform group-hover:translate-x-1" />
+                    </div>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{integration.description}</p>
+                  </div>
+                </Link>
               ))}
             </div>
-          </Card>
-        ))}
+          </div>
+        )}
       </div>
-    </div>
     </>
   );
 }
