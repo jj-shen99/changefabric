@@ -25,9 +25,13 @@ export async function GET() {
     for (const setting of settings) {
       if (!result[setting.type]) result[setting.type] = {};
       
-      // Don't return actual passwords, just indicate if they exist
+      // Don't return actual passwords/keys, just indicate if they exist
       if (setting.key === "password") {
         result[setting.type].hasPassword = !!setting.value;
+      } else if (setting.key === "openaiKey") {
+        result[setting.type].hasOpenaiKey = !!setting.value;
+      } else if (setting.key === "anthropicKey") {
+        result[setting.type].hasAnthropicKey = !!setting.value;
       } else {
         // Decrypt non-password values
         try {
@@ -57,7 +61,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { type, ...settings } = body;
 
-    if (!type || !["snow", "git"].includes(type)) {
+    if (!type || !["snow", "git", "llm"].includes(type)) {
       return NextResponse.json({ error: "Invalid integration type" }, { status: 400 });
     }
 
@@ -68,7 +72,7 @@ export async function POST(request: Request) {
       if (value === undefined) continue; // Skip undefined values (masked passwords)
       
       const strValue = String(value);
-      const shouldEncrypt = key === "password" || key === "instance";
+      const shouldEncrypt = key === "password" || key === "instance" || key === "openaiKey" || key === "anthropicKey";
       const encryptedValue = shouldEncrypt ? encrypt(strValue) : strValue;
 
       await prisma.integrationSetting.upsert({
