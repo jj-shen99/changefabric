@@ -930,6 +930,544 @@ Current Pain Points:
       riskAndImpactAnalysis: "Improved resilience; minimal risk.",
       justification: "Prevent cascade failures from external dependencies.",
     },
+    // ── HIGH READINESS SCORE CHANGES (exemplary documentation) ─────
+    {
+      number: "CHG0000021",
+      title: "Kubernetes Cluster Upgrade to v1.29",
+      description: "Upgrade production Kubernetes cluster from v1.27 to v1.29 LTS with zero-downtime rolling update strategy. This upgrade includes security patches, performance improvements, and new features for workload management.",
+      type: "normal",
+      category: "infrastructure",
+      priority: "2",
+      riskLevel: "moderate",
+      impactLevel: "2",
+      state: "approved",
+      approvalState: "approved",
+      workflowKey: "standard",
+      requestedBy: "raj@example.com",
+      assignedTo: "raj@example.com",
+      assignmentGroup: "Infrastructure",
+      businessService: "platform",
+      affectedServices: ["k8s-control-plane", "k8s-worker-nodes", "ingress-controller", "cert-manager"],
+      plannedStart: new Date(NOW + 7 * DAY),
+      plannedEnd: new Date(NOW + 7 * DAY + 4 * HOUR),
+      implementationPlan: `1. Pre-upgrade Preparation (T-7 days):
+   - Review Kubernetes v1.29 release notes and breaking changes
+   - Audit all deployed workloads for deprecated API versions
+   - Update Helm charts to use supported API versions
+   - Create cluster snapshot and etcd backup
+   - Notify all application teams of maintenance window
+
+2. Staging Environment Upgrade (T-5 days):
+   - Upgrade staging cluster control plane to v1.29
+   - Upgrade staging worker nodes using rolling update
+   - Run full integration test suite against staging
+   - Verify all workloads healthy for 48 hours
+   - Document any issues and mitigations
+
+3. Production Control Plane Upgrade (T-0):
+   - Enable maintenance mode for non-critical workloads
+   - Upgrade control plane components (api-server, controller-manager, scheduler)
+   - Verify control plane health via kubectl and monitoring
+   - Run smoke tests against critical services
+
+4. Production Worker Node Upgrade (T+1h):
+   - Cordon and drain worker nodes one at a time
+   - Upgrade kubelet and container runtime
+   - Uncordon and verify node ready status
+   - Monitor pod scheduling and resource utilization
+   - Repeat for all worker nodes (rolling, max 1 unavailable)
+
+5. Post-upgrade Validation (T+3h):
+   - Verify all deployments, statefulsets, and daemonsets healthy
+   - Run end-to-end test suite
+   - Verify ingress and certificate management
+   - Confirm monitoring and logging operational
+   - Update runbooks with new cluster version`,
+      backoutPlan: `1. Immediate Rollback (< 30 minutes into upgrade):
+   - Restore control plane from etcd snapshot
+   - Revert worker node images to v1.27
+   - Verify cluster stability
+
+2. Partial Rollback (worker nodes upgraded):
+   - Control plane supports n-2 worker versions
+   - Drain and rollback affected worker nodes
+   - Keep control plane at v1.29 if stable
+
+3. Full Rollback (if critical issues):
+   - Restore full cluster from backup
+   - Redeploy workloads from GitOps repository
+   - Estimated recovery time: 45 minutes
+
+4. Communication:
+   - Notify stakeholders via Slack #platform-alerts
+   - Update status page
+   - Create incident ticket for post-mortem`,
+      testPlan: `1. Pre-upgrade Tests:
+   - API deprecation scanner (kubent) - verify no deprecated APIs
+   - Node readiness checks across all availability zones
+   - etcd health and backup verification
+   - Certificate expiration check (> 30 days remaining)
+
+2. Staging Validation:
+   - Full integration test suite (Jest + Playwright)
+   - Load test at 2x production traffic
+   - Chaos engineering: node failure, network partition
+   - Security scan with Trivy and Falco
+
+3. Production Smoke Tests:
+   - kubectl get nodes - all Ready
+   - kubectl get pods -A - no CrashLoopBackOff
+   - Ingress health checks (HTTP 200 on /healthz)
+   - Prometheus metrics collection verified
+   - Grafana dashboards loading correctly
+
+4. Post-upgrade Validation:
+   - End-to-end user journey tests
+   - API latency within SLO (p99 < 200ms)
+   - Error rate < 0.1%
+   - Resource utilization within bounds`,
+      riskAndImpactAnalysis: `Risk Assessment:
+- Severity: Medium (infrastructure change affecting all workloads)
+- Likelihood: Low (well-tested upgrade path, staging validated)
+- Blast Radius: High (all services run on this cluster)
+
+Mitigations:
+1. Rolling update strategy ensures no downtime
+2. Staging environment validates upgrade path
+3. Comprehensive monitoring detects issues early
+4. Automated rollback procedures tested quarterly
+5. Maintenance window during low-traffic period (2 AM - 6 AM UTC)
+
+Impact Analysis:
+- Expected downtime: 0 minutes (rolling update)
+- Potential degradation: Brief pod rescheduling (< 30 seconds per node)
+- Affected users: None (transparent to end users)
+- Dependent systems: All services (mitigated by rolling update)`,
+      justification: `Business Justification:
+1. Security: v1.27 reaches end-of-support in 60 days; v1.29 includes critical CVE patches
+2. Compliance: SOC2 requires running supported software versions
+3. Features: v1.29 includes improved pod scheduling and resource management
+4. Cost: New features enable better bin-packing, estimated 15% cost reduction
+5. Reliability: Bug fixes for known issues affecting our workloads`,
+    },
+    {
+      number: "CHG0000022",
+      title: "Implement Distributed Tracing with OpenTelemetry",
+      description: "Deploy OpenTelemetry collectors and instrument all microservices for distributed tracing. This enables end-to-end request visibility, performance bottleneck identification, and improved debugging capabilities.",
+      type: "standard",
+      category: "feature",
+      priority: "3",
+      riskLevel: "low",
+      impactLevel: "3",
+      state: "scheduled",
+      approvalState: "approved",
+      workflowKey: "standard",
+      requestedBy: "mike@example.com",
+      assignedTo: "mike@example.com",
+      assignmentGroup: "Platform",
+      businessService: "observability",
+      affectedServices: ["otel-collector", "api-gateway", "user-service", "order-service", "payment-service"],
+      plannedStart: new Date(NOW + 3 * DAY),
+      plannedEnd: new Date(NOW + 3 * DAY + 2 * HOUR),
+      implementationPlan: `1. Infrastructure Setup (Week 1):
+   - Deploy OpenTelemetry Collector as DaemonSet
+   - Configure Jaeger backend for trace storage
+   - Set up Grafana Tempo for long-term retention
+   - Create Kubernetes ConfigMaps for collector configuration
+   - Verify collector health and connectivity
+
+2. SDK Integration (Week 2):
+   - Add OpenTelemetry SDK to each service (Node.js: @opentelemetry/sdk-node)
+   - Configure automatic instrumentation for HTTP, gRPC, and database calls
+   - Add custom spans for business-critical operations
+   - Implement context propagation via W3C Trace Context headers
+   - Set sampling rate to 10% for production (100% for errors)
+
+3. Service-by-Service Rollout:
+   - Day 1: api-gateway (entry point, validates propagation)
+   - Day 2: user-service, auth-service
+   - Day 3: order-service, inventory-service
+   - Day 4: payment-service, notification-service
+   - Day 5: Background workers and async processors
+
+4. Validation and Tuning:
+   - Verify end-to-end traces in Jaeger UI
+   - Tune sampling rates based on volume
+   - Set up trace-based alerts for latency anomalies
+   - Create runbook for trace-based debugging
+
+5. Documentation and Training:
+   - Update developer onboarding guide
+   - Create trace analysis playbook
+   - Conduct team training session`,
+      backoutPlan: `1. Per-Service Rollback:
+   - Remove OTEL_* environment variables from deployment
+   - Redeploy service without tracing SDK
+   - Service continues to function without tracing
+
+2. Collector Rollback:
+   - Scale collector DaemonSet to 0 replicas
+   - Services gracefully handle missing collector (no-op exporter)
+   - No impact to application functionality
+
+3. Full Rollback:
+   - Revert all service deployments to pre-tracing versions
+   - Remove collector infrastructure
+   - Estimated time: 15 minutes per service
+
+Note: Tracing is additive and non-blocking. Failure modes result in missing traces, not service failures.`,
+      testPlan: `1. Unit Tests:
+   - Verify span creation for HTTP handlers
+   - Test context propagation across async boundaries
+   - Validate custom attribute injection
+   - Test sampling decision logic
+
+2. Integration Tests:
+   - End-to-end trace verification across 3+ services
+   - Verify trace ID consistency in logs
+   - Test error span creation and status codes
+   - Validate baggage propagation
+
+3. Performance Tests:
+   - Measure latency overhead (target: < 1ms p99)
+   - Memory usage impact (target: < 50MB per service)
+   - CPU overhead (target: < 2%)
+   - Collector throughput test (10k spans/second)
+
+4. Chaos Tests:
+   - Collector unavailable: verify graceful degradation
+   - Network partition: verify no data loss with buffering
+   - High cardinality: verify memory bounds
+
+5. Acceptance Criteria:
+   - [ ] Traces visible in Jaeger within 5 seconds
+   - [ ] Service maps accurately reflect dependencies
+   - [ ] Latency histograms match Prometheus metrics
+   - [ ] Error traces include stack traces`,
+      riskAndImpactAnalysis: `Risk Assessment:
+- Severity: Low (additive feature, non-blocking)
+- Likelihood: Very Low (well-tested SDK, gradual rollout)
+- Blast Radius: Low (failure results in missing traces only)
+
+Technical Risks:
+1. Performance overhead - Mitigated by sampling and async export
+2. Storage costs - Mitigated by retention policies and sampling
+3. Cardinality explosion - Mitigated by attribute allow-lists
+
+Operational Risks:
+1. Learning curve - Mitigated by training and documentation
+2. Alert fatigue - Mitigated by tuned thresholds
+
+Impact Analysis:
+- User impact: None (transparent instrumentation)
+- Performance impact: < 1ms latency increase
+- Storage impact: ~500GB/month at 10% sampling`,
+      justification: `Business Value:
+1. MTTR Reduction: Distributed tracing reduces debugging time by 60% based on industry benchmarks
+2. Performance Optimization: Identify bottlenecks across service boundaries
+3. SLO Monitoring: Trace-based SLIs provide accurate latency measurements
+4. Incident Response: Faster root cause analysis during outages
+5. Developer Productivity: Self-service debugging without log correlation
+
+Cost-Benefit:
+- Implementation cost: 2 engineer-weeks
+- Infrastructure cost: $500/month (Jaeger + storage)
+- Expected savings: 4 hours/week in debugging time = $2000/month`,
+    },
+    {
+      number: "CHG0000023",
+      title: "Zero-Downtime PostgreSQL Major Version Upgrade (14 to 16)",
+      description: "Upgrade production PostgreSQL cluster from version 14 to version 16 using logical replication for zero-downtime migration. Includes performance optimizations and security enhancements.",
+      type: "normal",
+      category: "database",
+      priority: "2",
+      riskLevel: "high",
+      impactLevel: "1",
+      state: "awaiting_approval",
+      approvalState: "pending",
+      workflowKey: "standard",
+      requestedBy: "mike@example.com",
+      assignedTo: "mike@example.com",
+      assignmentGroup: "Data Engineering",
+      businessService: "database",
+      affectedServices: ["postgresql-primary", "postgresql-replicas", "order-service", "user-service", "inventory-service"],
+      plannedStart: new Date(NOW + 14 * DAY),
+      plannedEnd: new Date(NOW + 14 * DAY + 6 * HOUR),
+      implementationPlan: `1. Pre-Migration Preparation (T-14 days):
+   - Provision new PostgreSQL 16 cluster in parallel
+   - Configure logical replication from PG14 to PG16
+   - Verify all extensions compatible with PG16
+   - Update connection pooler (PgBouncer) configuration
+   - Create comprehensive backup of PG14 cluster
+
+2. Logical Replication Setup (T-7 days):
+   - Enable logical replication on PG14 (wal_level = logical)
+   - Create publication for all tables
+   - Create subscription on PG16 cluster
+   - Verify initial data sync completes successfully
+   - Monitor replication lag (target: < 100ms)
+
+3. Application Preparation (T-3 days):
+   - Update connection strings in Kubernetes secrets (not activated)
+   - Prepare feature flags for database cutover
+   - Test application against PG16 in staging
+   - Verify query plans and performance benchmarks
+   - Brief on-call team on cutover procedure
+
+4. Cutover Execution (T-0):
+   - Enable read-only mode on application (feature flag)
+   - Wait for replication lag to reach 0
+   - Promote PG16 as new primary
+   - Update DNS/connection strings to point to PG16
+   - Disable read-only mode
+   - Verify application connectivity and functionality
+
+5. Post-Migration Validation:
+   - Run ANALYZE on all tables for fresh statistics
+   - Verify query performance matches baseline
+   - Monitor error rates and latency for 24 hours
+   - Keep PG14 cluster available for 7 days (rollback option)
+   - Decommission PG14 after validation period`,
+      backoutPlan: `1. Immediate Rollback (during cutover):
+   - Re-enable PG14 as primary
+   - Update DNS/connection strings to PG14
+   - Disable read-only mode
+   - Estimated time: 5 minutes
+
+2. Post-Cutover Rollback (< 24 hours):
+   - Set up reverse logical replication (PG16 → PG14)
+   - Wait for sync to complete
+   - Execute cutover procedure in reverse
+   - Estimated time: 30 minutes
+
+3. Extended Rollback (> 24 hours):
+   - Restore PG14 from backup
+   - Replay WAL logs to point-in-time
+   - May result in data loss for period after cutover
+   - Estimated time: 2-4 hours
+
+4. Rollback Decision Criteria:
+   - Error rate > 1% for > 5 minutes
+   - Latency p99 > 500ms for > 5 minutes
+   - Any data integrity issues detected
+   - Replication lag > 1 second sustained`,
+      testPlan: `1. Pre-Migration Testing:
+   - pg_upgrade --check dry run
+   - Extension compatibility verification
+   - Query plan comparison (pg_stat_statements)
+   - Connection pooler compatibility test
+
+2. Staging Environment:
+   - Full migration rehearsal with production-like data
+   - Load test at 150% production traffic
+   - Measure cutover time (target: < 30 seconds)
+   - Test rollback procedure
+
+3. Data Integrity Verification:
+   - Row count comparison across all tables
+   - Checksum verification for critical tables
+   - Foreign key constraint validation
+   - Sequence value verification
+
+4. Performance Benchmarks:
+   - Top 100 queries by execution time
+   - Index usage statistics
+   - Buffer cache hit ratio (target: > 99%)
+   - Connection handling under load
+
+5. Application Testing:
+   - Full regression test suite
+   - Transaction isolation verification
+   - Prepared statement compatibility
+   - ORM query generation validation`,
+      riskAndImpactAnalysis: `Risk Assessment:
+- Severity: High (primary database, all services affected)
+- Likelihood: Low (proven migration path, staging validated)
+- Blast Radius: Critical (database serves all applications)
+
+Technical Risks:
+1. Replication lag during high write load
+   - Mitigation: Schedule during low-traffic window
+   - Mitigation: Pre-warm PG16 with batch operations
+
+2. Query plan regression
+   - Mitigation: Analyze all tables post-migration
+   - Mitigation: Pin critical query plans if needed
+
+3. Extension incompatibility
+   - Mitigation: Test all extensions in staging
+   - Mitigation: Have extension upgrade scripts ready
+
+4. Connection handling differences
+   - Mitigation: Update PgBouncer configuration
+   - Mitigation: Test connection limits
+
+Operational Risks:
+1. Cutover timing
+   - Mitigation: Automated cutover script
+   - Mitigation: Clear go/no-go criteria
+
+2. Rollback complexity
+   - Mitigation: Keep PG14 running for 7 days
+   - Mitigation: Tested rollback procedure
+
+Impact Analysis:
+- Expected downtime: 0 (logical replication)
+- Read-only period: < 30 seconds during cutover
+- Performance impact: Expected 10-15% improvement`,
+      justification: `Business Justification:
+1. Security: PG14 EOL in 12 months; PG16 includes security enhancements
+2. Performance: PG16 offers 20% improvement in OLTP workloads
+3. Features: Improved JSON support, better parallel query execution
+4. Compliance: Maintain supported software per security policy
+5. Cost: Better query optimization reduces compute requirements
+
+Technical Debt:
+- Addresses 3 known PG14 bugs affecting our workload
+- Enables use of new partitioning features
+- Improves vacuum performance for large tables`,
+      approvalSteps: [
+        {
+          name: "DBA Review",
+          ordering: 1,
+          policy: "all",
+          approvers: [
+            { email: "mike@example.com", group: "Data Engineering" },
+            { email: "raj@example.com", group: "Data Engineering" },
+          ],
+          decisions: [
+            { email: "mike@example.com", decision: "approved", comment: "Migration plan reviewed and approved" },
+          ],
+        },
+        {
+          name: "Security Review",
+          ordering: 2,
+          policy: "any",
+          approvers: [{ email: "security@example.com", group: "Security" }],
+        },
+        {
+          name: "CAB Approval",
+          ordering: 3,
+          policy: "quorum:1",
+          approvers: [
+            { email: "cab@example.com", group: "CAB" },
+            { email: "admin@example.com", group: "CAB" },
+          ],
+        },
+      ],
+    },
+    {
+      number: "CHG0000024",
+      title: "Deploy Automated Canary Analysis Pipeline",
+      description: "Implement automated canary deployment analysis using Kayenta and Spinnaker. Enables data-driven deployment decisions based on statistical comparison of canary vs baseline metrics.",
+      type: "standard",
+      category: "feature",
+      priority: "3",
+      riskLevel: "low",
+      impactLevel: "3",
+      state: "in_progress",
+      approvalState: "approved",
+      workflowKey: "standard",
+      requestedBy: "lisa@example.com",
+      assignedTo: "lisa@example.com",
+      assignmentGroup: "DevOps",
+      businessService: "deployment-platform",
+      affectedServices: ["spinnaker", "kayenta", "prometheus", "deployment-pipeline"],
+      plannedStart: new Date(NOW - 2 * DAY),
+      plannedEnd: new Date(NOW + 1 * DAY),
+      implementationPlan: `1. Infrastructure Setup:
+   - Deploy Kayenta service in Kubernetes
+   - Configure Prometheus as metrics source
+   - Set up Kayenta storage (S3 for analysis results)
+   - Integrate with existing Spinnaker installation
+
+2. Metric Configuration:
+   - Define canary metrics (latency, error rate, CPU, memory)
+   - Configure metric groups (critical, important, informational)
+   - Set scoring thresholds (marginal: 50, pass: 75)
+   - Create metric templates for common service types
+
+3. Pipeline Integration:
+   - Add canary analysis stage to deployment pipelines
+   - Configure baseline vs canary comparison window (30 min)
+   - Set up automatic rollback on canary failure
+   - Add manual judgment gate for marginal scores
+
+4. Validation and Rollout:
+   - Test with non-critical service deployment
+   - Validate scoring accuracy against known-bad deployments
+   - Roll out to all production pipelines
+   - Create dashboard for canary analysis history
+
+5. Documentation:
+   - Canary configuration guide for service owners
+   - Metric selection best practices
+   - Troubleshooting guide for failed canaries`,
+      backoutPlan: `1. Pipeline Rollback:
+   - Remove canary analysis stage from pipelines
+   - Revert to manual deployment approval
+   - No impact to deployed services
+
+2. Infrastructure Rollback:
+   - Scale Kayenta to 0 replicas
+   - Pipelines skip analysis stage gracefully
+   - Estimated time: 5 minutes
+
+Note: Canary analysis is advisory. Rollback simply removes the analysis gate; deployments continue with manual approval.`,
+      testPlan: `1. Unit Tests:
+   - Metric query generation
+   - Score calculation logic
+   - Threshold evaluation
+
+2. Integration Tests:
+   - Prometheus connectivity
+   - Spinnaker stage execution
+   - S3 result storage
+
+3. End-to-End Tests:
+   - Deploy known-good version: expect pass
+   - Deploy known-bad version: expect fail
+   - Deploy marginal version: expect manual judgment
+
+4. Performance Tests:
+   - Analysis completion time (target: < 5 min)
+   - Concurrent analysis capacity (target: 10)
+
+5. Acceptance Criteria:
+   - [ ] Canary analysis completes within SLA
+   - [ ] Failed canaries trigger automatic rollback
+   - [ ] Results visible in Spinnaker UI
+   - [ ] Historical analysis accessible`,
+      riskAndImpactAnalysis: `Risk Assessment:
+- Severity: Low (deployment tooling, not production services)
+- Likelihood: Very Low (well-tested integration)
+- Blast Radius: Low (affects deployment process only)
+
+Risks:
+1. False positives blocking good deployments
+   - Mitigation: Tuned thresholds, manual override available
+
+2. False negatives allowing bad deployments
+   - Mitigation: Conservative initial thresholds, iterative tuning
+
+3. Analysis delays slowing deployments
+   - Mitigation: Parallel analysis, timeout configuration
+
+Impact:
+- Deployment time increase: +35 minutes (analysis window)
+- Developer experience: Improved confidence in deployments
+- Incident reduction: Expected 30% fewer deployment-related incidents`,
+      justification: `Business Value:
+1. Reliability: Automated detection of deployment regressions
+2. Speed: Faster rollback on detected issues (< 5 min vs 30 min manual)
+3. Confidence: Data-driven deployment decisions
+4. Learning: Historical analysis informs future improvements
+
+ROI Analysis:
+- Implementation: 3 engineer-weeks
+- Operational cost: $200/month (Kayenta infrastructure)
+- Expected savings: 2 incidents/month prevented = $10,000/month`,
+    },
   ];
 
   for (const s of sample) {
