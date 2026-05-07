@@ -8,7 +8,9 @@ generator client {
 //   sqlite:     "file:./dev.db"
 //   postgresql: "postgresql://user:pass@host:5432/release_change_ai?schema=public"
 datasource db {
-  provider = env("DATABASE_PROVIDER")
+  // NOTE: provider must be a string literal in Prisma v6+. To swap to
+  // postgresql for production, change this line and re-run `prisma db push`.
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -27,134 +29,237 @@ model User {
   resetTokenExpiry DateTime?
 }
 
-// ── Domain Models (ServiceNow change_request) ────────────────
+// ── Generic Change Management Domain ─────────────────────────
+// Re-architected: framework-agnostic change-request schema, inspired by the
+// ServiceNow change_request table but free of any vendor coupling. The
+// ServiceNow connector (under src/lib/integrations/servicenow) is now an
+// optional plugin; the core schema below stands on its own.
 
 model ChangeRequest {
-  number              String  @id
-  sys_id              String  @unique
-  short_description   String  @default("")
-  description         String  @default("")
-  category            String  @default("")
-  state               String  @default("")
-  type                String  @default("")
-  priority            String  @default("")
-  risk                String  @default("")
-  impact              String  @default("")
-  urgency             String  @default("")
-  scope               String  @default("")
-  approval            String  @default("")
-  assigned_to         String  @default("")
-  assignment_group    String  @default("")
-  opened_by           String  @default("")
-  opened_at           String  @default("")
-  closed_at           String  @default("")
-  closed_by           String  @default("")
-  close_code          String  @default("")
-  close_notes         String  @default("")
-  start_date          String  @default("")
-  end_date            String  @default("")
-  work_start          String  @default("")
-  work_end            String  @default("")
-  expected_start      String  @default("")
-  implementation_plan String  @default("")
-  backout_plan        String  @default("")
-  test_plan           String  @default("")
-  change_plan         String  @default("")
-  risk_impact_analysis String @default("")
-  justification       String  @default("")
-  cmdb_ci             String  @default("")
-  business_service    String  @default("")
-  service_offering    String  @default("")
-  company             String  @default("")
-  contact_type        String  @default("")
-  location            String  @default("")
-  requested_by        String  @default("")
-  requested_by_date   String  @default("")
-  parent              String  @default("")
-  reason              String  @default("")
-  route_reason        String  @default("")
-  conflict_status     String  @default("")
-  conflict_last_run   String  @default("")
-  cab_required        String  @default("")
-  cab_recommendation  String  @default("")
-  cab_delegate        String  @default("")
-  cab_date_time       String  @default("")
-  upon_approval       String  @default("")
-  upon_reject         String  @default("")
-  approval_set        String  @default("")
-  approval_history    String  @default("")
-  escalation          String  @default("")
-  made_sla            String  @default("")
-  sla_due             String  @default("")
-  due_date            String  @default("")
-  active              String  @default("")
-  phase               String  @default("")
-  phase_state         String  @default("")
-  knowledge           String  @default("")
-  order               String  @default("")
-  unauthorized        String  @default("")
-  on_hold             String  @default("")
-  on_hold_reason      String  @default("")
-  on_hold_task        String  @default("")
-  production_system   String  @default("")
-  outside_maintenance_schedule String @default("")
-  review_status       String  @default("")
-  review_date         String  @default("")
-  review_comments     String  @default("")
-  follow_up           String  @default("")
-  user_input          String  @default("")
-  watch_list          String  @default("")
-  group_list          String  @default("")
-  additional_assignee_list String @default("")
-  work_notes          String  @default("")
-  work_notes_list     String  @default("")
-  comments            String  @default("")
-  comments_and_work_notes String @default("")
-  correlation_id      String  @default("")
-  correlation_display String  @default("")
-  copied_from         String  @default("")
-  delivery_plan       String  @default("")
-  delivery_task       String  @default("")
-  contract            String  @default("")
-  universal_request   String  @default("")
-  std_change_producer_version String @default("")
-  chg_model           String  @default("")
-  task_effective_number String @default("")
-  sys_class_name      String  @default("")
-  sys_created_by      String  @default("")
-  sys_created_on      String  @default("")
-  sys_updated_by      String  @default("")
-  sys_updated_on      String  @default("")
-  sys_domain          String  @default("")
-  sys_domain_path     String  @default("")
-  sys_mod_count       String  @default("")
-  sys_tags            String  @default("")
-  activity_due        String  @default("")
-  time_worked         String  @default("")
-  reassignment_count  String  @default("")
-  business_duration   String  @default("")
-  calendar_duration   String  @default("")
-  
-  // Track who synced this change request
-  syncedBy            String  @default("")
+  // Identity
+  number          String   @id                       // e.g. CHG0001234, generated locally
+  externalId      String?  @unique                   // optional foreign system id (e.g. ServiceNow sys_id)
+  externalSource  String?                            // "servicenow" | "jira" | null
+  workflowKey     String   @default("standard")      // FK-by-key to WorkflowDefinition.key
 
-  validations Validation[]
+  // Core descriptive fields (generic — superset of typical ITSM CR)
+  title           String
+  description     String   @default("")
+  type            String   @default("normal")        // standard | normal | emergency
+  category        String   @default("other")
+  priority        String   @default("3")             // 1..4
+  riskLevel       String   @default("moderate")      // low | moderate | high | very_high
+  impactLevel     String   @default("3")             // 1..3
+  urgency         String   @default("3")             // 1..3
+  state           String   @default("draft")         // workflow state key (see WorkflowDefinition)
+  approvalState   String   @default("not_requested") // not_requested | pending | approved | rejected
+
+  // Plans & narrative
+  justification         String @default("")
+  implementationPlan    String @default("")
+  backoutPlan           String @default("")
+  testPlan              String @default("")
+  riskAndImpactAnalysis String @default("")
+  closeCode             String @default("")
+  closeNotes            String @default("")
+
+  // Scheduling
+  plannedStart    DateTime?
+  plannedEnd      DateTime?
+  actualStart     DateTime?
+  actualEnd       DateTime?
+
+  // People & ownership
+  requestedBy     String                        // user email
+  assignedTo      String?                       // user email
+  assignmentGroup String?
+
+  // CI / business context
+  configurationItem String?
+  businessService   String?
+  affectedServices  String  @default("[]")      // JSON array<string>
+  tags              String  @default("[]")      // JSON array<string>
+
+  // Risk scoring (computed; cached for fast queries)
+  computedRiskScore Float   @default(0)
+  computedImpactScore Float @default(0)
+  mlRiskScore        Float? 
+  mlConfidence       Float?
+  mlExplanation      String? @default("")
+
+  // Bookkeeping
+  releaseId        String?
+  release          Release? @relation(fields: [releaseId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  createdBy        String                       // user email
+  closedAt         DateTime?
+  closedBy         String?
+
+  // Relations
+  validations     Validation[]
+  approvals       Approval[]
+  approvalSteps   ApprovalStep[]
+  comments        Comment[]
+  attachments     Attachment[]
+  auditEvents     AuditEvent[]
+  transitions     WorkflowTransitionLog[]
+
+  @@index([state])
+  @@index([requestedBy])
+  @@index([assignedTo])
+  @@index([releaseId])
+  @@index([createdAt])
 }
 
 model Validation {
-  id              String   @id
+  id              String   @id @default(uuid())
   changeRequestId String
   type            String
   name            String
-  status          String   @default("pending")
+  status          String   @default("pending")     // pending | running | passed | failed | skipped
   startedAt       DateTime?
   completedAt     DateTime?
   duration        String?
   coverage        Float?
   details         String?
-  blockers        String   @default("[]") // JSON array
+  blockers        String   @default("[]")          // JSON array
 
   changeRequest ChangeRequest @relation(fields: [changeRequestId], references: [number], onDelete: Cascade)
+
+  @@index([changeRequestId])
+}
+
+// ── Workflow Engine ──────────────────────────────────────────
+// A WorkflowDefinition is a versioned, declarative state machine. Code-defined
+// defaults are seeded into the DB so admins can override per-tenant.
+
+model WorkflowDefinition {
+  key         String  @id                    // e.g. "standard", "emergency"
+  name        String
+  description String  @default("")
+  version     Int     @default(1)
+  // JSON-encoded { initial: string, states: Record<state, StateDef>, transitions: TransitionDef[] }
+  definition  String
+  isDefault   Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WorkflowTransitionLog {
+  id              String   @id @default(uuid())
+  changeRequestId String
+  fromState       String
+  toState         String
+  event           String                     // transition event name
+  actor           String                     // user email
+  reason          String?                    // optional comment
+  createdAt       DateTime @default(now())
+
+  changeRequest ChangeRequest @relation(fields: [changeRequestId], references: [number], onDelete: Cascade)
+
+  @@index([changeRequestId])
+}
+
+// ── Multi-Person Approvals ───────────────────────────────────
+// An ApprovalStep is one logical gate (e.g. "Tech Lead", "CAB"). It has a
+// policy ("all" / "any" / "quorum:N") and one or more Approval rows for the
+// individuals/groups required to vote.
+
+model ApprovalStep {
+  id              String   @id @default(uuid())
+  changeRequestId String
+  name            String                     // "Tech Review", "CAB", "Security"
+  ordering        Int      @default(0)       // sequential order; same value => parallel
+  policy          String   @default("all")   // "all" | "any" | "quorum:N"
+  status          String   @default("pending") // pending | approved | rejected | skipped
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  changeRequest ChangeRequest @relation(fields: [changeRequestId], references: [number], onDelete: Cascade)
+  approvals     Approval[]
+
+  @@index([changeRequestId])
+}
+
+model Approval {
+  id              String   @id @default(uuid())
+  changeRequestId String
+  stepId          String?
+  approverEmail   String                     // individual approver
+  approverGroup   String?                    // optional group label
+  decision        String   @default("pending") // pending | approved | rejected | delegated
+  comment         String?
+  delegatedTo     String?
+  decidedAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  changeRequest ChangeRequest @relation(fields: [changeRequestId], references: [number], onDelete: Cascade)
+  step          ApprovalStep? @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@index([changeRequestId])
+  @@index([approverEmail])
+}
+
+// ── Collaboration ────────────────────────────────────────────
+
+model Comment {
+  id              String   @id @default(uuid())
+  changeRequestId String
+  authorEmail     String
+  body            String
+  visibility      String   @default("public") // public | internal
+  createdAt       DateTime @default(now())
+
+  changeRequest ChangeRequest @relation(fields: [changeRequestId], references: [number], onDelete: Cascade)
+
+  @@index([changeRequestId])
+}
+
+model Attachment {
+  id              String   @id @default(uuid())
+  changeRequestId String
+  filename        String
+  mimeType        String
+  size            Int
+  url             String                     // presigned/local path
+  uploadedBy      String
+  uploadedAt      DateTime @default(now())
+
+  changeRequest ChangeRequest @relation(fields: [changeRequestId], references: [number], onDelete: Cascade)
+
+  @@index([changeRequestId])
+}
+
+// ── Audit & Notifications ────────────────────────────────────
+
+model AuditEvent {
+  id              String   @id @default(uuid())
+  changeRequestId String?
+  actor           String                     // user email or "system"
+  action          String                     // e.g. "cr.create", "cr.transition", "approval.decide"
+  // JSON-encoded payload describing the event
+  payload         String   @default("{}")
+  createdAt       DateTime @default(now())
+
+  changeRequest ChangeRequest? @relation(fields: [changeRequestId], references: [number], onDelete: SetNull)
+
+  @@index([changeRequestId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model Notification {
+  id          String   @id @default(uuid())
+  recipient   String                          // user email
+  subject     String
+  body        String
+  link        String?
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([recipient])
+  @@index([read])
 }
 
 model Release {
@@ -167,6 +272,8 @@ model Release {
   overallRisk     Int      @default(0)
   releaseManager  String
   notes           String?
+
+  changeRequests  ChangeRequest[]
 }
 
 model DashboardMetric {
@@ -229,4 +336,42 @@ model SavedAnalysis {
   @@index([changeRequestId])
   @@index([analysisType])
   @@index([createdBy])
+}
+
+// ── Change Request Templates ────────────────────────────────────
+// Reusable templates for creating new change requests with pre-filled values
+
+model ChangeRequestTemplate {
+  id              String   @id @default(uuid())
+  name            String   @unique                // e.g. "Database Migration", "Feature Flag Rollout"
+  description     String   @default("")
+  category        String   @default("other")      // infrastructure | feature | hotfix | database | config | security | other
+  
+  // Pre-filled values
+  type            String   @default("normal")     // standard | normal | emergency
+  workflowKey     String   @default("standard")   // standard | emergency | standard_preapproved
+  priority        String   @default("3")          // 1 | 2 | 3 | 4
+  riskLevel       String   @default("moderate")   // low | moderate | high | very_high
+  impactLevel     String   @default("3")          // 1 | 2 | 3
+  urgency         String   @default("3")          // 1 | 2 | 3
+  assignmentGroup String?
+  
+  // Template plans (placeholders encouraged)
+  implementationPlan    String @default("")
+  backoutPlan           String @default("")
+  testPlan              String @default("")
+  riskAndImpactAnalysis String @default("")
+  justification         String @default("")
+  
+  // Suggested approval steps as JSON array
+  suggestedApprovalSteps String @default("[]")    // JSON array of step definitions
+  
+  // Metadata
+  isActive        Boolean  @default(true)
+  createdBy       String                          // user email
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
 }

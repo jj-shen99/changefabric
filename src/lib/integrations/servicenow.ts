@@ -167,17 +167,57 @@ export async function syncChangeRequests(
   for (const rec of records) {
     try {
       const row = toRow(rec);
-      const { number: num, ...rest } = row;
-      
-      // Add syncedBy to track who synced this record
-      const dataWithSyncedBy = { ...rest, syncedBy };
-      const createWithSyncedBy = { ...row, syncedBy };
+      const num = row.number;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // Map ServiceNow's flat row → the new generic ChangeRequest schema.
+      // ServiceNow's `risk` ("low"/"moderate"/"high"/"very high") maps
+      // directly; impact/priority are kept as their numeric character.
+      const riskLevel = (row.risk || "moderate").toLowerCase().includes("very high")
+        ? "very_high"
+        : row.risk?.toLowerCase().includes("high")
+          ? "high"
+          : row.risk?.toLowerCase().includes("low")
+            ? "low"
+            : "moderate";
+
+      const generic = {
+        number: num,
+        externalId: row.sys_id || null,
+        externalSource: "servicenow",
+        workflowKey: "standard",
+        title: row.short_description || `Imported from ServiceNow (${num})`,
+        description: row.description || "",
+        type: (row.type || "normal").toLowerCase(),
+        category: row.category || "other",
+        priority: (row.priority || "3").toString(),
+        riskLevel,
+        impactLevel: (row.impact || "3").toString().match(/[1-3]/)?.[0] || "3",
+        urgency: (row.urgency || "3").toString().match(/[1-3]/)?.[0] || "3",
+        state: row.state || "draft",
+        approvalState: row.approval || "not_requested",
+        justification: row.justification || "",
+        implementationPlan: row.implementation_plan || "",
+        backoutPlan: row.backout_plan || "",
+        testPlan: row.test_plan || "",
+        riskAndImpactAnalysis: row.risk_impact_analysis || "",
+        closeCode: row.close_code || "",
+        closeNotes: row.close_notes || "",
+        plannedStart: row.start_date ? new Date(row.start_date) : null,
+        plannedEnd: row.end_date ? new Date(row.end_date) : null,
+        requestedBy: row.requested_by || syncedBy || "import@example.com",
+        assignedTo: row.assigned_to || null,
+        assignmentGroup: row.assignment_group || null,
+        configurationItem: row.cmdb_ci || null,
+        businessService: row.business_service || null,
+        affectedServices: JSON.stringify([]),
+        tags: JSON.stringify([]),
+        createdBy: syncedBy || row.opened_by || "servicenow",
+      };
+
       await prisma.changeRequest.upsert({
         where: { number: num },
-        update: dataWithSyncedBy as any,
-        create: createWithSyncedBy as any,
+        update: generic,
+        create: generic,
       });
       result.upserted++;
     } catch (err) {

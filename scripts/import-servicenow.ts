@@ -6,7 +6,7 @@
  */
 
 import { PrismaClient } from "@prisma/client";
-import { syncChangeRequests } from "../src/lib/servicenow";
+import { syncChangeRequests } from "../src/lib/integrations/servicenow";
 
 const prisma = new PrismaClient();
 

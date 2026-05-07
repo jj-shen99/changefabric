@@ -55,7 +55,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
         <div className="flex h-6 w-6 items-center justify-center rounded-md bg-white/20">
           <GitPullRequest className="h-3.5 w-3.5 text-white" aria-hidden="true" />
         </div>
-        <h1 className="text-base font-bold text-white tracking-tight">GCS Release Change Analysis Dashboard</h1>
+        <h1 className="text-sm font-bold text-white tracking-tight">Change Request Management</h1>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Primary">

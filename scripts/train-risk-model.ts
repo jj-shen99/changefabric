@@ -38,19 +38,21 @@ async function main() {
   }
 
   const outcomes: Outcome[] = all.map(cr => {
-    const code = (cr.close_code || "").toLowerCase();
+    // Adapter: map re-architected CR -> legacy SN-shape consumed by predictRisk.
+    const code = (cr.closeCode || "").toLowerCase();
     const state = (cr.state || "").toLowerCase();
     const failed = code.includes("unsuccess")
       || code.includes("fail")
       || state.includes("incomplete")
-      || state.includes("cancel");
+      || state.includes("cancel")
+      || state === "rejected";
     const pred = predictRisk({
       type: cr.type, priority: cr.priority, urgency: cr.urgency,
-      risk: cr.risk, impact: cr.impact, scope: cr.scope,
-      category: cr.category, short_description: cr.short_description,
-      description: cr.description, implementation_plan: cr.implementation_plan,
-      backout_plan: cr.backout_plan, test_plan: cr.test_plan,
-      risk_impact_analysis: cr.risk_impact_analysis,
+      risk: cr.riskLevel, impact: cr.impactLevel, scope: "",
+      category: cr.category, short_description: cr.title,
+      description: cr.description, implementation_plan: cr.implementationPlan,
+      backout_plan: cr.backoutPlan, test_plan: cr.testPlan,
+      risk_impact_analysis: cr.riskAndImpactAnalysis,
     });
     return { failed, predictedScore: pred.riskScore };
   });

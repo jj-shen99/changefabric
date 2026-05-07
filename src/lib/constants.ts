@@ -71,10 +71,103 @@ export const CHART_STYLES = {
 
 // Application metadata
 export const APP_CONFIG = {
-  name: "GCS Release Change Analysis Dashboard",
+  name: "Change Request Management Dashboard",
   description: "Software change validation and release impact analysis dashboard",
   url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3600",
 } as const;
+
+// ── Consistent Dropdown Options ─────────────────────────────────
+// Single source of truth for all dropdown values across the application
+
+export const CR_TYPES = [
+  { value: "standard", label: "Standard" },
+  { value: "normal", label: "Normal" },
+  { value: "emergency", label: "Emergency" },
+] as const;
+
+export const CR_CATEGORIES = [
+  { value: "infrastructure", label: "Infrastructure" },
+  { value: "feature", label: "Feature" },
+  { value: "hotfix", label: "Hotfix" },
+  { value: "database", label: "Database" },
+  { value: "config", label: "Configuration" },
+  { value: "security", label: "Security" },
+  { value: "network", label: "Network" },
+  { value: "application", label: "Application" },
+  { value: "other", label: "Other" },
+] as const;
+
+export const CR_PRIORITIES = [
+  { value: "1", label: "1 - Critical" },
+  { value: "2", label: "2 - High" },
+  { value: "3", label: "3 - Moderate" },
+  { value: "4", label: "4 - Low" },
+] as const;
+
+export const CR_RISK_LEVELS = [
+  { value: "low", label: "Low" },
+  { value: "moderate", label: "Moderate" },
+  { value: "high", label: "High" },
+  { value: "very_high", label: "Very High" },
+] as const;
+
+export const CR_IMPACT_LEVELS = [
+  { value: "1", label: "1 - High" },
+  { value: "2", label: "2 - Medium" },
+  { value: "3", label: "3 - Low" },
+] as const;
+
+export const CR_URGENCY_LEVELS = [
+  { value: "1", label: "1 - High" },
+  { value: "2", label: "2 - Medium" },
+  { value: "3", label: "3 - Low" },
+] as const;
+
+export const CR_WORKFLOWS = [
+  { value: "standard", label: "Standard" },
+  { value: "emergency", label: "Emergency" },
+  { value: "standard_preapproved", label: "Pre-approved" },
+] as const;
+
+export const CR_STATES = [
+  { value: "draft", label: "Draft", tag: "editable" },
+  { value: "submitted", label: "Submitted", tag: "in-flight" },
+  { value: "assessing", label: "Assessing", tag: "in-flight" },
+  { value: "awaiting_approval", label: "Awaiting Approval", tag: "in-flight" },
+  { value: "approved", label: "Approved", tag: "in-flight" },
+  { value: "scheduled", label: "Scheduled", tag: "in-flight" },
+  { value: "in_progress", label: "In Progress", tag: "in-flight" },
+  { value: "implemented", label: "Implemented", tag: "in-flight" },
+  { value: "reviewing", label: "Reviewing", tag: "in-flight" },
+  { value: "closed", label: "Closed", tag: "done" },
+  { value: "rejected", label: "Rejected", tag: "done" },
+  { value: "canceled", label: "Canceled", tag: "done" },
+] as const;
+
+export const CR_APPROVAL_STATES = [
+  { value: "not_requested", label: "Not Requested" },
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+] as const;
+
+export const ASSIGNMENT_GROUPS = [
+  { value: "Platform", label: "Platform" },
+  { value: "Payments", label: "Payments" },
+  { value: "Identity", label: "Identity" },
+  { value: "Data Engineering", label: "Data Engineering" },
+  { value: "Infrastructure", label: "Infrastructure" },
+  { value: "Security", label: "Security" },
+  { value: "DevOps", label: "DevOps" },
+  { value: "Frontend", label: "Frontend" },
+  { value: "Backend", label: "Backend" },
+  { value: "Mobile", label: "Mobile" },
+  { value: "QA", label: "QA" },
+  { value: "Product", label: "Product" },
+  { value: "SRE", label: "SRE" },
+  { value: "Database", label: "Database" },
+  { value: "Network", label: "Network" },
+] as const;
 
 // Navigation items (single source of truth for sidebar + breadcrumbs)
 export type NavItem = { href: string; label: string; segment: string | null };

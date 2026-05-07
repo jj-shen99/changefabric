@@ -594,8 +594,33 @@ export async function GET(request: Request) {
   if (!crNumber) return NextResponse.json({ error: "Missing 'number' query parameter" }, { status: 400 });
 
   try {
-    const cr = await prisma.changeRequest.findUnique({ where: { number: crNumber } });
-    if (!cr) return NextResponse.json({ error: `Change request ${crNumber} not found` }, { status: 404 });
+    const newCR = await prisma.changeRequest.findUnique({ where: { number: crNumber } });
+    if (!newCR) return NextResponse.json({ error: `Change request ${crNumber} not found` }, { status: 404 });
+
+    // Adapter: map the re-architected CR shape onto the legacy SN-shaped
+    // fields the local helpers were written against. Keeps this analyzer
+    // working without rewriting it.
+    const cr = {
+      number: newCR.number,
+      type: newCR.type,
+      priority: newCR.priority,
+      urgency: newCR.urgency,
+      scope: "",
+      risk: newCR.riskLevel,
+      impact: newCR.impactLevel,
+      category: newCR.category,
+      short_description: newCR.title,
+      description: newCR.description,
+      implementation_plan: newCR.implementationPlan,
+      backout_plan: newCR.backoutPlan,
+      test_plan: newCR.testPlan,
+      risk_impact_analysis: newCR.riskAndImpactAnalysis,
+      change_plan: "",
+      assignment_group: newCR.assignmentGroup ?? "",
+      cmdb_ci: newCR.configurationItem ?? "",
+      business_service: newCR.businessService ?? "",
+      service_offering: "",
+    };
 
     // Run all analyses
     const changeProfile = classifyChangeNature(cr);

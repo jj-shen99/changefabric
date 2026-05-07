@@ -1,18 +1,24 @@
-# GCS Change & Release Management Dashboard
+# Change Request Management AI Dashboard
 
-A full-stack **software change validation and release impact analysis dashboard** built with Next.js 14, Prisma, and NextAuth.js.
+A full-stack **software change validation and release impact analysis dashboard** built with Next.js 14, Prisma, and NextAuth.js. Features a complete **workflow state machine** for change request lifecycle management, **ML-powered risk analysis**, and **comprehensive plan quality scoring**.
 
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8?logo=tailwindcss)
 ![Prisma](https://img.shields.io/badge/Prisma-6.x-2D3748?logo=prisma)
+![Tests](https://img.shields.io/badge/Tests-450+-green)
 
 ## Features
 
 ### Core Dashboard
 - **Overview** — KPI cards, risk gauges, deployment frequency charts, recent change requests, **change status/risk/category/team distribution charts**
-- **Change Requests** — Searchable/filterable list with detail panel, validation progress bars, **CRUD operations** (create, delete), **pagination**
-- **Impact Analysis** — 4-tab interface:
+- **Change Requests** — Full CRUD with workflow state machine:
+  - **List View** — Searchable/filterable list with risk scores, state badges, pagination
+  - **Detail View** — Tabbed interface (Overview, Approvals, Comments, Analysis)
+  - **Create New** — Template-based creation, copy from existing CR
+  - **Workflow Transitions** — State machine with guards (e.g., `hasPlannedWindow`, `allApprovalStepsApproved`)
+  - **Approval Management** — Multi-step approval with configurable policies (all/any)
+- **Impact Analysis** — 2-tab interface with URL parameter support (`/impact?cr=CHG0000001`):
   - **Overview** — KPI summary (impact + risk + plan readiness), impact/risk/state/type/priority distribution charts, plan coverage, readiness by team and SN risk level, **top risk CRs table**, **risk vs readiness correlation insights**
   - **Plan Analysis** — Per-CR plan readiness scoring with editable dimension weights, radar chart, plan content viewer, ML quality score integration
   - **ML Analysis** — Deep ML content analysis per CR: structure/completeness/clarity/risk-awareness scores, **quality radar chart**, **ML vs readiness comparison**, detected actions/risks, recommendations with severity
@@ -86,8 +92,25 @@ A full-stack **software change validation and release impact analysis dashboard*
 - **ARIA labels** on navigation, form controls, and icons
 - **Inter font** via `next/font/google`
 
+### Workflow State Machine
+- **Three workflow types**: Standard, Pre-approved, Emergency
+- **State transitions** with configurable guards and effects
+- **Guards**: `hasPlannedWindow`, `allApprovalStepsApproved`, `hasBackoutPlan`, `hasImplementationPlan`
+- **Effects**: `setActualStart`, `setActualEnd`, `setClosed`, `startApprovalSteps`
+- **Helpful error messages** when guards fail (e.g., "Please set Planned Start and Planned End dates before scheduling")
+
+### Change Request Templates
+- **19 pre-built templates** covering various workflows and categories
+- Templates include: Database Migration, API Deployment, Security Patch, Feature Flag, Infrastructure, and more
+- **Copy from existing CR** feature for quick duplication
+
 ### Testing & Code Quality
-- **Jest + React Testing Library** with **291 unit tests** covering utils, constants, auth-types, crypto, access control, API authorization, page accessibility, page/tab structure, predictive ML risk model, LLM quality analysis, database configuration, boundary cases, and negative cases
+- **Jest + React Testing Library** with **450+ unit tests** covering:
+  - Core modules: workflow runtime, state machine, impact analysis, approval engine, analytics
+  - API routes: changes, templates, transitions, approvals
+  - Components: risk badge, navigation links
+  - Pages: dashboard, changes list, change detail, impact analysis, new change
+  - Libraries: utils, constants, auth-types, crypto, access control, ML risk, LLM quality
 - **ESLint** with Next.js + TypeScript + Prettier rules
 - **Prettier** with Tailwind CSS class sorting
 - **Strict TypeScript** (`noUnusedLocals`, `noUnusedParameters`, `noFallthroughCasesInSwitch`)
@@ -185,9 +208,9 @@ This loads all closed CRs from the DB, computes the Brier score, and prints cali
 
 | Email | Password | Role |
 |---|---|---|
-| `admin@servicenow.com` | `admin123!` | Admin |
-| `manager@servicenow.com` | `manager123!` | Manager |
-| `jane@servicenow.com` | `manager123!` | Manager |
+| `admin@example.com` | `admin123!` | Admin |
+| `manager@example.com` | `manager123!` | Manager |
+| `user@example.com` | `user123!` | User |
 
 ## Scripts
 
@@ -219,9 +242,12 @@ src/
 │   │   └── reset-password/
 │   ├── (dashboard)/         # Dashboard pages (with sidebar)
 │   │   ├── analytics/       # CHG Analytics (4-tab)
-│   │   ├── changes/         # Change Requests (CRUD + sync)
+│   │   ├── changes/         # Change Requests
+│   │   │   ├── page.tsx     # List view with filters
+│   │   │   ├── new/         # Create new CR (templates + copy)
+│   │   │   └── [number]/    # Detail view with tabs
 │   │   ├── code-analysis/   # Git commit risk analysis
-│   │   ├── impact/          # Impact Analysis (4-tab)
+│   │   ├── impact/          # Impact Analysis (2-tab)
 │   │   ├── reports/         # Saved analysis reports
 │   │   ├── settings/
 │   │   │   ├── account/     # User's own account
@@ -232,18 +258,24 @@ src/
 │   │   ├── admin/users/     # Admin-only user CRUD API
 │   │   ├── analysis/        # Saved analysis CRUD + HTML reports
 │   │   ├── auth/            # NextAuth + register + reset-password + account
-│   │   ├── data/
-│   │   │   ├── route.ts     # Dashboard data API (user-filtered)
-│   │   │   ├── analytics/   # Analytics API (user-filtered)
-│   │   │   ├── changes/     # Change request CRUD API
-│   │   │   ├── git-analysis/ # Git commit risk analysis API
-│   │   │   └── plan-analysis/ # ML plan content analysis API
-│   │   ├── settings/integrations/ # Per-user credential storage
-│   │   └── sync/            # ServiceNow sync (sets syncedBy)
+│   │   ├── data/            # Dashboard data APIs
+│   │   └── v2/              # V2 API routes
+│   │       ├── changes/     # CR CRUD + transitions + approvals + comments
+│   │       └── templates/   # CR template management
 │   ├── error.tsx            # Global error boundary
 │   ├── not-found.tsx        # Custom 404
 │   ├── globals.css
 │   └── layout.tsx           # Root layout with providers + Toaster
+├── core/                     # Core business logic
+│   ├── workflow/            # State machine + runtime
+│   │   ├── definitions.ts   # Workflow definitions (standard, preapproved, emergency)
+│   │   ├── state-machine.ts # State machine engine
+│   │   └── runtime.ts       # Guards and effects
+│   ├── approval/            # Approval engine
+│   ├── impact/              # Impact analysis
+│   ├── ml/                  # ML risk scoring
+│   ├── analytics/           # Analytics calculations
+│   └── schema.ts            # Core domain types
 ├── components/
 │   ├── card.tsx
 │   ├── command-palette.tsx   # ⌘K global search
@@ -268,15 +300,18 @@ src/
 │   ├── auth-types.ts         # Role types + permission matrix
 │   ├── constants.ts          # App-wide constants
 │   ├── crypto.ts             # AES-256-GCM encryption/decryption
-│   ├── data.ts               # Static mock data (legacy fallback)
 │   ├── prisma.ts             # Prisma client singleton
 │   ├── servicenow.ts         # ServiceNow sync client
-│   ├── types.ts              # Domain types
 │   └── utils.ts              # Utility functions
+├── __tests__/                # Additional test suites
+│   ├── api/                  # API route tests
+│   ├── components/           # Component tests
+│   ├── navigation/           # Link validation tests
+│   └── pages/                # Page tests
 ├── middleware.ts              # Auth middleware
 prisma/
-├── schema.prisma             # Database schema
-├── seed.ts                   # Database seeder
+├── schema.prisma             # Database schema (20+ models)
+├── seed.ts                   # Database seeder (20 CRs, 19 templates)
 └── dev.db                    # SQLite database
 ```
 

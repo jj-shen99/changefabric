@@ -1,7 +1,14 @@
+/**
+ * Legacy /api/data/analytics — facade over the new core analytics module.
+ * Returns the same payload keys consumed by existing dashboard pages.
+ */
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { PrismaChangeRequestRepository } from "@/core/adapters/prisma-repository";
+import { impactByCategory } from "@/core/analytics";
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -9,69 +16,78 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const days = parseInt(searchParams.get("days") || "0", 10);
-
-  // Build where clause with date filter and user filter
   const userRole = (session.user as { role?: string }).role;
   const userEmail = session.user.email || "";
 
-  const whereClause: Record<string, unknown> = {};
-  if (days > 0) {
-    whereClause.opened_at = { gte: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString() };
-  }
-  // Non-admin users can only see analytics for change requests they synced
-  if (userRole !== "admin") {
-    whereClause.syncedBy = userEmail;
-  }
+  const repo = new PrismaChangeRequestRepository(prisma);
+  const since = days > 0 ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
 
-  const [changeRequests, releases] = await Promise.all([
-    prisma.changeRequest.findMany({ where: whereClause, include: { validations: true }, orderBy: { opened_at: "desc" } }),
+  const [allCRs, releases] = await Promise.all([
+    repo.list(userRole !== "admin" ? { requestedBy: userEmail } : undefined),
     prisma.release.findMany({ orderBy: { scheduledDate: "desc" } }),
   ]);
+  const crs = since ? allCRs.filter((c) => new Date(c.createdAt) >= since) : allCRs;
 
-  // ── Release Risk Radar (stub — releases no longer link to CRs) ──
-  const releaseRiskRadar = releases.map((rel) => ({
-    releaseId: rel.id,
-    releaseName: rel.name,
-    version: rel.version,
-    status: rel.status,
-    overallRisk: rel.overallRisk,
-    changeCount: 0,
-    totalCodeChurn: 0,
-    totalFilesChanged: 0,
-    servicesImpacted: 0,
-    servicesList: [] as string[],
-    avgTestCoverage: 0,
-    validationPassRate: 0,
-    scheduledDate: rel.scheduledDate.toISOString(),
-    riskFactors: { codeChurn: "low", serviceSpread: "low", testCoverage: "low", rollbackComplexity: "low" },
-  }));
-
-  // ── Blast Radius (based on business_service) ──
-  const serviceMap: Record<string, { changeCount: number; changes: string[] }> = {};
-  changeRequests.forEach((cr) => {
-    const svc = cr.business_service || "Unknown";
-    if (!serviceMap[svc]) serviceMap[svc] = { changeCount: 0, changes: [] };
-    serviceMap[svc].changeCount++;
-    serviceMap[svc].changes.push(cr.number);
+  // Per-release rollups using the new releaseId link
+  const releaseRiskRadar = releases.map((rel) => {
+    const inRel = crs.filter((c) => c.releaseId === rel.id);
+    const totalRisk = inRel.reduce((a, b) => a + (b.computedRiskScore || 0), 0);
+    const services = new Set<string>();
+    inRel.forEach((c) => c.affectedServices.forEach((s) => services.add(s)));
+    return {
+      releaseId: rel.id,
+      releaseName: rel.name,
+      version: rel.version,
+      status: rel.status,
+      overallRisk: inRel.length > 0 ? Math.round(totalRisk / inRel.length) : rel.overallRisk,
+      changeCount: inRel.length,
+      totalCodeChurn: 0,
+      totalFilesChanged: 0,
+      servicesImpacted: services.size,
+      servicesList: [...services],
+      avgTestCoverage: 0,
+      validationPassRate: 0,
+      scheduledDate: rel.scheduledDate.toISOString(),
+      riskFactors: {
+        codeChurn: "low",
+        serviceSpread: services.size > 5 ? "high" : services.size > 2 ? "medium" : "low",
+        testCoverage: "low",
+        rollbackComplexity: "low",
+      },
+    };
   });
+
+  // Blast radius by service
+  const serviceMap: Record<string, { changeCount: number; changes: string[]; risk: number }> = {};
+  for (const c of crs) {
+    for (const svc of c.affectedServices) {
+      if (!serviceMap[svc]) serviceMap[svc] = { changeCount: 0, changes: [], risk: 0 };
+      serviceMap[svc].changeCount++;
+      serviceMap[svc].changes.push(c.number);
+      serviceMap[svc].risk += c.computedRiskScore;
+    }
+  }
   const blastRadius = Object.entries(serviceMap)
-    .map(([service, data]) => ({
+    .map(([service, d]) => ({
       service,
-      changeCount: data.changeCount,
-      avgRisk: 0,
-      changes: data.changes,
+      changeCount: d.changeCount,
+      avgRisk: d.changeCount ? Math.round(d.risk / d.changeCount) : 0,
+      changes: d.changes,
       releases: [] as string[],
     }))
     .sort((a, b) => b.changeCount - a.changeCount);
 
-  // ── Release Confidence Scores ──
   const confidenceScores = releases.map((rel) => ({
     releaseId: rel.id,
     releaseName: rel.name,
     version: rel.version,
     status: rel.status,
     confidence: Math.max(0, 100 - rel.overallRisk),
-    recommendation: rel.overallRisk < 20 ? "continue" as const : rel.overallRisk < 50 ? "pause" as const : "rollback" as const,
+    recommendation: (rel.overallRisk < 20
+      ? "continue"
+      : rel.overallRisk < 50
+        ? "pause"
+        : "rollback") as "continue" | "pause" | "rollback",
     breakdown: {
       testPassRate: 0,
       testCoverage: 0,
@@ -85,73 +101,82 @@ export async function GET(request: Request) {
     failedValidations: 0,
   }));
 
-  // ── Change Failure Analysis (by SN state) ──
-  const allChanges = changeRequests;
-  const closed = allChanges.filter((c) => c.state.toLowerCase().includes("closed"));
-  const stateStats: Record<string, number> = {};
-  allChanges.forEach((cr) => {
-    const s = cr.state || "Unknown";
-    stateStats[s] = (stateStats[s] || 0) + 1;
-  });
+  const closed = crs.filter((c) => c.state === "closed");
+  const rejected = crs.filter((c) => c.state === "rejected" || c.state === "canceled");
 
-  // Per-team (assignment_group) stats
-  const teamStats: Record<string, { total: number; deployed: number; failed: number; rolledBack: number; avgRisk: number }> = {};
-  allChanges.forEach((cr) => {
-    const team = cr.assignment_group || "Unassigned";
-    if (!teamStats[team]) teamStats[team] = { total: 0, deployed: 0, failed: 0, rolledBack: 0, avgRisk: 0 };
+  const teamStats: Record<string, { total: number; deployed: number; failed: number; risk: number }> = {};
+  for (const c of crs) {
+    const team = c.assignmentGroup || "Unassigned";
+    if (!teamStats[team]) teamStats[team] = { total: 0, deployed: 0, failed: 0, risk: 0 };
     teamStats[team].total++;
-    if (cr.state.toLowerCase().includes("closed")) teamStats[team].deployed++;
-  });
-  const failureByTeam = Object.entries(teamStats).map(([team, stats]) => ({
+    teamStats[team].risk += c.computedRiskScore;
+    if (c.state === "closed") teamStats[team].deployed++;
+    if (c.state === "rejected" || c.state === "canceled") teamStats[team].failed++;
+  }
+  const failureByTeam = Object.entries(teamStats).map(([team, s]) => ({
     team,
-    total: stats.total,
-    deployed: stats.deployed,
-    failed: stats.failed,
-    rolledBack: stats.rolledBack,
-    avgRisk: 0,
-    failureRate: 0,
+    total: s.total,
+    deployed: s.deployed,
+    failed: s.failed,
+    rolledBack: 0,
+    avgRisk: s.total ? Math.round(s.risk / s.total) : 0,
+    failureRate: s.total ? Math.round((s.failed / s.total) * 100) : 0,
+  }));
+  const teamVelocity = Object.entries(teamStats).map(([team, s]) => ({
+    team,
+    totalChanges: s.total,
+    deployed: s.deployed,
+    avgRisk: s.total ? Math.round(s.risk / s.total) : 0,
+    deployRate: s.total ? Math.round((s.deployed / s.total) * 100) : 0,
   }));
 
-  // ── Deployment Velocity ──
-  const teamVelocity = Object.entries(teamStats).map(([team, stats]) => ({
-    team,
-    totalChanges: stats.total,
-    deployed: stats.deployed,
-    avgRisk: 0,
-    deployRate: stats.total > 0 ? Math.round((stats.deployed / stats.total) * 100) : 0,
+  const categoryBreakdown = impactByCategory(crs).map((b) => ({
+    category: b.category,
+    count: b.count,
   }));
-
-  // Category breakdown
-  const categoryStats: Record<string, number> = {};
-  allChanges.forEach((cr) => {
-    categoryStats[cr.category || "Uncategorized"] = (categoryStats[cr.category || "Uncategorized"] || 0) + 1;
-  });
-  const categoryBreakdown = Object.entries(categoryStats)
-    .map(([category, count]) => ({ category, count }))
-    .sort((a, b) => b.count - a.count);
 
   return NextResponse.json({
     releaseRiskRadar,
     blastRadius,
     confidenceScores,
     failureAnalysis: {
-      totalChanges: allChanges.length,
+      totalChanges: crs.length,
       deployed: closed.length,
-      failed: 0,
+      failed: rejected.length,
       rolledBack: 0,
-      changeFailureRate: 0,
+      changeFailureRate:
+        crs.length > 0 ? Math.round((rejected.length / crs.length) * 100) : 0,
       failureByTeam,
-      serviceRiskRanking: [] as { service: string; avgRiskExposure: number; changeCount: number }[],
+      serviceRiskRanking: blastRadius.slice(0, 10).map((b) => ({
+        service: b.service,
+        avgRiskExposure: b.avgRisk,
+        changeCount: b.changeCount,
+      })),
     },
     velocity: {
       teamVelocity,
       categoryBreakdown,
-      approvalEfficiency: [] as { id: string; title: string; team: string; approverCount: number; leadTimeHours: number; category: string }[],
+      approvalEfficiency: [] as {
+        id: string;
+        title: string;
+        team: string;
+        approverCount: number;
+        leadTimeHours: number;
+        category: string;
+      }[],
     },
     rollbackIntelligence: {
       rollbackCount: 0,
       rollbackRate: 0,
-      rollbackData: [] as { id: string; title: string; team: string; category: string; risk: number; rollbackComplexity: string; services: string[] }[],
+      rollbackData: [] as {
+        id: string;
+        title: string;
+        team: string;
+        category: string;
+        risk: number;
+        rollbackComplexity: string;
+        services: string[];
+      }[],
       rollbackByService: [] as { service: string; count: number }[],
     },
   });

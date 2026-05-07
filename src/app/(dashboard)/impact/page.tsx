@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
@@ -101,6 +102,17 @@ function scorePlan(text: string, keywords: string[], planName: string): PlanScor
 /* ═══════════════════════════════════════════════════════════════════ */
 
 export default function ImpactPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-gray-500">Loading...</div>}>
+      <ImpactPageContent />
+    </Suspense>
+  );
+}
+
+function ImpactPageContent() {
+  const searchParams = useSearchParams();
+  const crParam = searchParams.get("cr");
+  
   const [days] = useState(7);
   const { changeRequests, loading, error } = useData(days);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -109,18 +121,31 @@ export default function ImpactPage() {
   const [activeTab, setActiveTab] = useState<"plans"|"mlTab">("plans");
   const [weightsOpen, setWeightsOpen] = useState(false);
   const [planWeights, setPlanWeights] = useState({ implementation: 0.25, backout: 0.25, testPlan: 0.20, riskAnalysis: 0.15, changePlan: 0.10, justification: 0.05 });
-  const [planSearch, setPlanSearch] = useState("");
-  const [selectedPlanCR, setSelectedPlanCR] = useState<string | null>(null);
+  const [planSearch, setPlanSearch] = useState(crParam || "");
+  const [selectedPlanCR, setSelectedPlanCR] = useState<string | null>(crParam);
   const [expandedPlanContent, setExpandedPlanContent] = useState<string | null>(null);
   const [planFilterRisk, setPlanFilterRisk] = useState<string>("all");
   const [planFilterState, setPlanFilterState] = useState<string>("all");
   const [planFilterGroup, setPlanFilterGroup] = useState<string>("all");
   const [planScoringOpen, setPlanScoringOpen] = useState(false);
-  const [mlSearch, setMlSearch] = useState("");
+  const [mlSearch, setMlSearch] = useState(crParam || "");
   const [mlFilterRisk, setMlFilterRisk] = useState<string>("all");
   const [mlFilterState, setMlFilterState] = useState<string>("all");
   const [mlFilterGroup, setMlFilterGroup] = useState<string>("all");
-  const [selectedMlCR, setSelectedMlCR] = useState<string | null>(null);
+  const [selectedMlCR, setSelectedMlCR] = useState<string | null>(crParam);
+
+  // Auto-select CR from URL param
+  useEffect(() => {
+    if (crParam && changeRequests.length > 0) {
+      const cr = changeRequests.find((c) => c.number === crParam);
+      if (cr) {
+        setSelectedPlanCR(crParam);
+        setPlanSearch(crParam);
+        setSelectedMlCR(crParam);
+        setMlSearch(crParam);
+      }
+    }
+  }, [crParam, changeRequests]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [mlAnalysis, setMlAnalysis] = useState<Record<string, any> | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -152,17 +177,20 @@ export default function ImpactPage() {
 
   const uniqueStates = useMemo(() => {
     const fromData = changeRequests.map((c) => c.state).filter(Boolean);
-    const standard = ["New", "Open", "In Progress", "Pending", "Closed", "Canceled", "Review", "Scheduled", "Implement", "Assess", "Authorize"];
+    // Use workflow states from the new schema
+    const standard = ["draft", "submitted", "assessing", "awaiting_approval", "approved", "scheduled", "in_progress", "implemented", "reviewing", "closed", "rejected", "canceled"];
     return [...new Set([...standard, ...fromData])].sort();
   }, [changeRequests]);
   const uniqueGroups = useMemo(() => {
     const fromData = changeRequests.map((c) => c.assignment_group).filter(Boolean);
-    const standard = ["CAB Approval", "Change Management", "Database", "Hardware", "Network", "Security", "Service Desk", "Software"];
+    // Use assignment groups from the new schema
+    const standard = ["Platform", "Payments", "Identity", "Data Engineering", "Infrastructure", "Security", "DevOps", "Frontend", "Backend", "Mobile", "QA", "Product", "SRE", "Database", "Network"];
     return [...new Set([...standard, ...fromData])].sort();
   }, [changeRequests]);
   const uniqueRiskLevels = useMemo(() => {
     const fromData = changeRequests.map((c) => c.risk).filter(Boolean);
-    const standard = ["None", "Low", "Moderate", "High", "Very High"];
+    // Use risk levels from the new schema (lowercase)
+    const standard = ["low", "moderate", "high", "very_high"];
     return [...new Set([...standard, ...fromData])].sort();
   }, [changeRequests]);
 
@@ -339,7 +367,11 @@ export default function ImpactPage() {
       {/* ═══ PLAN ANALYSIS TAB ═══ */}
       {activeTab === "plans" && (() => {
         const pq = planSearch.toLowerCase();
-        let filteredPlans = pq ? planResults.filter((p) => p.cr.number.toLowerCase().includes(pq) || p.cr.short_description.toLowerCase().includes(pq) || p.cr.assignment_group.toLowerCase().includes(pq)) : planResults;
+        let filteredPlans = pq ? planResults.filter((p) => 
+          (p.cr.number || "").toLowerCase().includes(pq) || 
+          (p.cr.short_description || "").toLowerCase().includes(pq) || 
+          (p.cr.assignment_group || "").toLowerCase().includes(pq)
+        ) : planResults;
         if (planFilterRisk !== "all") filteredPlans = filteredPlans.filter((p) => p.cr.risk === planFilterRisk);
         if (planFilterState !== "all") filteredPlans = filteredPlans.filter((p) => p.cr.state === planFilterState);
         if (planFilterGroup !== "all") filteredPlans = filteredPlans.filter((p) => p.cr.assignment_group === planFilterGroup);
@@ -379,7 +411,7 @@ export default function ImpactPage() {
               </select>
               </>)}
               {selectedPlanCR && (
-                <button onClick={() => { setSelectedPlanCR(null); setExpandedPlanContent(null); setMlAnalysis(null); setMlError(null); }} className="rounded-lg bg-teal-600 px-4 py-2 text-xs font-medium text-white hover:bg-teal-700 dark:bg-teal-700 dark:hover:bg-teal-600">← Back to List</button>
+                <button onClick={() => { setSelectedPlanCR(null); setPlanSearch(""); setExpandedPlanContent(null); setMlAnalysis(null); setMlError(null); }} className="rounded-lg bg-teal-600 px-4 py-2 text-xs font-medium text-white hover:bg-teal-700 dark:bg-teal-700 dark:hover:bg-teal-600">← Back to List</button>
               )}
             </div>
 
@@ -800,7 +832,11 @@ export default function ImpactPage() {
       {/* ═══ ML ANALYSIS TAB ═══ */}
       {activeTab === "mlTab" && (() => {
         const mq = mlSearch.toLowerCase();
-        let mlFiltered = mq ? planResults.filter((p) => p.cr.number.toLowerCase().includes(mq) || p.cr.short_description.toLowerCase().includes(mq) || p.cr.assignment_group.toLowerCase().includes(mq)) : planResults;
+        let mlFiltered = mq ? planResults.filter((p) => 
+          (p.cr.number || "").toLowerCase().includes(mq) || 
+          (p.cr.short_description || "").toLowerCase().includes(mq) || 
+          (p.cr.assignment_group || "").toLowerCase().includes(mq)
+        ) : planResults;
         if (mlFilterRisk !== "all") mlFiltered = mlFiltered.filter((p) => p.cr.risk === mlFilterRisk);
         if (mlFilterState !== "all") mlFiltered = mlFiltered.filter((p) => p.cr.state === mlFilterState);
         if (mlFilterGroup !== "all") mlFiltered = mlFiltered.filter((p) => p.cr.assignment_group === mlFilterGroup);
@@ -834,7 +870,7 @@ export default function ImpactPage() {
               </select>
               </>)}
               {selectedMlCR && (
-                <button onClick={() => { setSelectedMlCR(null); setMlAnalysis(null); setMlRisk(null); setLlmQuality(null); setMlError(null); }} className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600">← Back to List</button>
+                <button onClick={() => { setSelectedMlCR(null); setMlSearch(""); setMlAnalysis(null); setMlRisk(null); setLlmQuality(null); setMlError(null); }} className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600">← Back to List</button>
               )}
             </div>
 
