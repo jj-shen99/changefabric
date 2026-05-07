@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Plus, AlertTriangle, Clock, CheckCircle2, XCircle, Info } from "lucide-react";
+import { Search, Plus, AlertTriangle, Clock, CheckCircle2, XCircle, Info, Download } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 
@@ -74,6 +74,9 @@ export default function ChangesPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<string>("all");
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   useEffect(() => {
     void load();
@@ -91,6 +94,28 @@ export default function ChangesPage() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function importFromServiceNow() {
+    setImporting(true);
+    setImportError(null);
+    try {
+      const res = await fetch("/api/v2/changes/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        setImportError(e.error || "Import failed");
+      } else {
+        setShowImportModal(false);
+        await load();
+      }
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : "Import failed");
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -128,12 +153,20 @@ export default function ChangesPage() {
         title="Change Requests"
         subtitle="Native, vendor-neutral change management"
         actions={
-          <Link
-            href="/changes/new"
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700"
-          >
-            <Plus className="h-4 w-4" /> New Change Request
-          </Link>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-white/30 px-3 py-2 text-sm font-medium text-white hover:bg-white/10"
+            >
+              <Download className="h-4 w-4" /> Import from ServiceNow
+            </button>
+            <Link
+              href="/changes/new"
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow hover:bg-indigo-700"
+            >
+              <Plus className="h-4 w-4" /> New Change Request
+            </Link>
+          </div>
         }
       />
     <div className="space-y-6 p-4 md:p-6">
@@ -217,6 +250,40 @@ export default function ChangesPage() {
         )}
       </Card>
     </div>
+
+    {showImportModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <Card className="w-full max-w-md">
+          <div className="space-y-4 p-6">
+            <h2 className="text-lg font-semibold">Import from ServiceNow</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              This will import all change requests from your ServiceNow instance. This may take a few moments.
+            </p>
+            {importError && (
+              <div className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                {importError}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowImportModal(false)}
+                disabled={importing}
+                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:hover:bg-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={importFromServiceNow}
+                disabled={importing}
+                className="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {importing ? "Importing..." : "Import"}
+              </button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    )}
     </>
   );
 }
