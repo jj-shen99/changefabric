@@ -1,483 +1,202 @@
-# Deployment Guide — GCS Change & Release Management Dashboard
+# Deployment Guide
 
-> **Version**: 1.3.0
-> **Last Updated**: April 23, 2026
+## Prerequisites
 
----
+- Node.js 18+
+- npm 9+
+- PostgreSQL (production) or SQLite (development)
 
-## Table of Contents
-
-1. [Prerequisites](#1-prerequisites)
-2. [Local Development Setup](#2-local-development-setup)
-3. [Environment Configuration](#3-environment-configuration)
-4. [Database Setup](#4-database-setup)
-5. [ServiceNow Integration](#5-servicenow-integration)
-6. [Production Build](#6-production-build)
-7. [Deployment Options](#7-deployment-options)
-8. [Post-Deployment Verification](#8-post-deployment-verification)
-9. [Maintenance & Operations](#9-maintenance--operations)
-10. [Troubleshooting](#10-troubleshooting)
-
----
-
-## 1. Prerequisites
-
-| Requirement | Minimum Version | Notes |
-|-------------|----------------|-------|
-| **Node.js** | 18.0+ | LTS recommended (20.x or 22.x) |
-| **npm** | 9.0+ | Bundled with Node.js |
-| **Git** | 2.30+ | For cloning the repository |
-| **Disk Space** | 500 MB | For node_modules + SQLite DB |
-
-Optional (for ServiceNow sync):
-- Access to a ServiceNow instance with `change_request` table API enabled
-- ServiceNow credentials with read access to the change_request table
-
----
-
-## 2. Local Development Setup
-
-### 2.1 Clone and Install
+## Local Development
 
 ```bash
-git clone <repo-url>
-cd release_change_ai
+# Clone and install
+git clone https://github.com/jj-shen99/change-request-management-ai.git
+cd change-request-management-ai
 npm install
-```
 
-The `postinstall` script automatically runs `prisma generate` to create the Prisma client.
+# Set up environment
+cp .env.example .env
+# Edit .env and set NEXTAUTH_SECRET to a secure random string
 
-### 2.2 Start Development Server
-
-```bash
-# Initialize the database
+# Set up database (SQLite)
 npm run db:push
 npm run db:seed
 
-# Start the dev server (port 3600)
+# Start development server (port 3600)
 npm run dev
 ```
 
-Open [http://localhost:3600](http://localhost:3600) in your browser.
+Open [http://localhost:3600](http://localhost:3600)
 
-### 2.3 Demo Accounts
-
-The seed script creates three demo users:
-
-| Email | Password | Role |
-|-------|----------|------|
-| `admin@servicenow.com` | `admin123!` | Admin |
-| `manager@servicenow.com` | `manager123!` | Manager |
-| `jane@servicenow.com` | `manager123!` | Manager |
-
-> ⚠️ **Change these credentials before any production deployment.**
-
----
-
-## 3. Environment Configuration
-
-### 3.1 Create Environment File
+## Environment Variables
 
 ```bash
-cp .env.example .env
+# Required
+NEXTAUTH_SECRET="your-secret-key-here"
+NEXTAUTH_URL="http://localhost:3600"
+
+# Database (SQLite for dev)
+DATABASE_URL="file:./dev.db"
+
+# Database (PostgreSQL for prod)
+DATABASE_URL="postgresql://user:pass@host:5432/dbname?schema=public"
+
+# Optional: LLM Provider
+LLM_PROVIDER="openai"           # openai | anthropic | ollama | disabled
+OPENAI_API_KEY="sk-..."
+OPENAI_MODEL="gpt-4o-mini"
+
+# Optional: Anthropic
+ANTHROPIC_API_KEY="sk-ant-..."
+ANTHROPIC_MODEL="claude-3-5-sonnet-20241022"
+
+# Optional: Ollama (local)
+OLLAMA_BASE_URL="http://localhost:11434"
+OLLAMA_MODEL="llama3.2"
+
+# Optional: ML Risk Model
+ML_RISK_ENABLED="true"
 ```
 
-### 3.2 Required Variables
+## Production Deployment
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | Prisma database connection string | `file:./dev.db` |
-| `NEXTAUTH_SECRET` | Secret key for JWT signing (min 32 chars) | `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | Full URL of the deployed application | `http://localhost:3600` |
-
-### 3.3 Optional Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_APP_NAME` | Application display name | `Change & Release Dashboard` |
-| `NEXT_PUBLIC_APP_URL` | Public-facing URL | `http://localhost:3600` |
-| `SNOW_INSTANCE` | ServiceNow instance URL | `https://your-instance.service-now.com` |
-| `SNOW_USER` | ServiceNow API username | `admin` |
-| `SNOW_PASSWORD` | ServiceNow API password | _(none)_ |
-| `NEXT_PUBLIC_ENABLE_ANALYTICS` | Enable analytics features | `false` |
-| `NEXT_PUBLIC_ENABLE_NOTIFICATIONS` | Enable notifications | `false` |
-
-### 3.4 Generate a Secure Secret
+### PostgreSQL Setup
 
 ```bash
-# Using openssl
-openssl rand -base64 32
+# 1. Provision PostgreSQL (Docker example)
+docker run -d --name change-mgmt-pg \
+  -e POSTGRES_USER=changemgmt \
+  -e POSTGRES_PASSWORD=secure-password \
+  -e POSTGRES_DB=change_management \
+  -p 5432:5432 postgres:16
 
-# Using Node.js
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+# 2. Update .env
+DATABASE_URL="postgresql://changemgmt:secure-password@localhost:5432/change_management?schema=public"
+
+# 3. Apply schema and seed
+npm run db:push
+npm run db:seed
+
+# 4. Build and start
+npm run build
+npm start
 ```
 
----
+### Docker Deployment
 
-## 4. Database Setup
+```dockerfile
+# Dockerfile
+FROM node:18-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
 
-### 4.1 SQLite (Default — Development & Small Deployments)
-
-SQLite requires no external database server. The database file is stored at `prisma/dev.db`.
+FROM node:18-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+EXPOSE 3600
+CMD ["node", "server.js"]
+```
 
 ```bash
-# Push schema to database (creates tables)
+# Build and run
+docker build -t change-mgmt .
+docker run -p 3600:3600 \
+  -e DATABASE_URL="postgresql://..." \
+  -e NEXTAUTH_SECRET="..." \
+  change-mgmt
+```
+
+### Vercel Deployment
+
+1. Connect your GitHub repository to Vercel
+2. Set environment variables in Vercel dashboard
+3. Deploy
+
+### Netlify Deployment
+
+1. Connect your GitHub repository to Netlify
+2. Build command: `npm run build`
+3. Publish directory: `.next`
+4. Set environment variables
+
+## Database Operations
+
+```bash
+# Push schema changes
 npm run db:push
 
 # Seed with demo data
 npm run db:seed
 
-# Full reset (drops all data and re-seeds)
+# Reset database (destructive)
 npm run db:reset
-```
 
-### 4.2 Switching to PostgreSQL (Production Recommended)
-
-The Prisma schema is already provider-agnostic — it reads `DATABASE_PROVIDER` from the environment (auto-detected from `DATABASE_URL` if unset). **No schema edits required.**
-
-1. **Provision a PostgreSQL database**:
-```bash
-docker run -d --name release-pg \
-  -e POSTGRES_USER=release \
-  -e POSTGRES_PASSWORD=changeme \
-  -e POSTGRES_DB=change_dashboard \
-  -p 5432:5432 postgres:16
-```
-
-2. **Update `.env`**:
-```env
-DATABASE_PROVIDER="postgresql"
-DATABASE_URL="postgresql://release:changeme@localhost:5432/change_dashboard?schema=public"
-```
-
-3. **Regenerate client and push schema**:
-```bash
+# Generate Prisma client
 npx prisma generate
-npm run db:push
+
+# Open Prisma Studio (GUI)
+npx prisma studio
 ```
 
-### 4.3 Switching to MySQL
+## Scripts Reference
 
-1. **Update `prisma/schema.prisma`**:
-```prisma
-datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
-}
-```
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start dev server (port 3600) |
+| `npm run build` | Production build |
+| `npm start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm run lint:fix` | Fix lint issues |
+| `npm run format` | Format with Prettier |
+| `npm test` | Run tests |
+| `npm run test:coverage` | Tests with coverage |
+| `npm run typecheck` | TypeScript check |
+| `npm run validate` | typecheck + lint + format |
+| `npm run db:push` | Push Prisma schema |
+| `npm run db:seed` | Seed database |
+| `npm run db:reset` | Reset + re-seed |
 
-2. **Update `.env`**:
-```env
-DATABASE_URL="mysql://user:password@host:3306/change_dashboard"
-```
-
-3. **Regenerate and push**:
-```bash
-npx prisma generate
-npm run db:push
-```
-
----
-
-## 5. ServiceNow Integration
-
-### 5.1 Configuration
-
-Set the following environment variables to connect to your ServiceNow instance:
-
-```env
-SNOW_INSTANCE=https://your-instance.service-now.com
-SNOW_USER=api_user
-SNOW_PASSWORD=api_password
-```
-
-### 5.2 Sync Methods
-
-**Method A — CLI Import Script** (one-time or cron):
-```bash
-npx tsx scripts/import-servicenow.ts
-```
-
-**Method B — API-Triggered Sync** (from the UI):
-- Click the **"Pull Data"** button on the Change Requests page
-- This calls `POST /api/sync` which fetches all change requests from ServiceNow and upserts them into the local database
-
-### 5.3 What Gets Synced
-
-- All records from the `change_request` table
-- All 90+ fields are stored verbatim (display values for reference fields)
-- Paginated fetch (100 records per page) to handle large datasets
-- Upsert logic: existing records are updated, new records are created
-
-### 5.4 Running Without ServiceNow
-
-The application works fully with seeded demo data. The ServiceNow connection is optional. Use `npm run db:seed` to populate the database with sample change requests.
-
----
-
-## 6. Production Build
-
-### 6.1 Build
+## Health Checks
 
 ```bash
-# Run all quality checks
-npm run validate
+# API health
+curl http://localhost:3600/api/health
 
-# Build for production
-npm run build
+# Database connectivity
+curl http://localhost:3600/api/v2/changes?limit=1
 ```
 
-This creates an optimized production bundle in `.next/`.
+## Troubleshooting
 
-### 6.2 Start Production Server
+### Database Connection Issues
 
 ```bash
-npm run start
-```
+# Check DATABASE_URL format
+# SQLite: file:./dev.db
+# PostgreSQL: postgresql://user:pass@host:5432/db
 
-The production server runs on **port 3600** by default.
-
-### 6.3 Custom Port
-
-To change the port, update both:
-- `package.json` → `scripts.dev` and `scripts.start`
-- `next.config.js` → `env.PORT`
-- `.env` → `NEXTAUTH_URL` (must match)
-
----
-
-## 7. Deployment Options
-
-### 7.1 Vercel (Recommended for Next.js)
-
-1. Push your code to GitHub/GitLab/Bitbucket
-2. Import the project in [Vercel Dashboard](https://vercel.com/new)
-3. Set environment variables in Vercel project settings:
-   - `DATABASE_URL` — use a cloud database (PostgreSQL recommended)
-   - `NEXTAUTH_SECRET` — generate a secure secret
-   - `NEXTAUTH_URL` — your Vercel deployment URL
-4. Deploy
-
-> ⚠️ Vercel's serverless functions don't support SQLite. **Switch to PostgreSQL** (e.g., Vercel Postgres, Neon, Supabase) before deploying.
-
-### 7.2 Docker
-
-Create a `Dockerfile`:
-
-```dockerfile
-FROM node:20-alpine AS base
-
-# Install dependencies
-FROM base AS deps
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-
-# Build
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN npx prisma generate
-RUN npm run build
-
-# Production
-FROM base AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-
-EXPOSE 3600
-ENV PORT=3600
-
-CMD ["node", "server.js"]
-```
-
-Build and run:
-
-```bash
-docker build -t change-dashboard .
-docker run -p 3600:3600 \
-  -e DATABASE_URL="file:./dev.db" \
-  -e NEXTAUTH_SECRET="your-secret" \
-  -e NEXTAUTH_URL="http://localhost:3600" \
-  change-dashboard
-```
-
-> **Note**: For Docker + SQLite, mount a volume for the database to persist data:
-> ```bash
-> docker run -v $(pwd)/data:/app/prisma -p 3600:3600 ... change-dashboard
-> ```
-
-### 7.3 Traditional Server (PM2)
-
-```bash
-# Install PM2 globally
-npm install -g pm2
-
-# Build the application
-npm run build
-
-# Start with PM2
-pm2 start npm --name "change-dashboard" -- start
-
-# Auto-restart on crash
-pm2 save
-pm2 startup
-```
-
-### 7.4 Netlify
-
-```bash
-# Install Netlify CLI
-npm install -g netlify-cli
-
-# Build and deploy
-npm run build
-netlify deploy --prod
-```
-
-> ⚠️ Like Vercel, Netlify requires a cloud database (not SQLite).
-
----
-
-## 8. Post-Deployment Verification
-
-### 8.1 Health Check Checklist
-
-| Check | How to Verify |
-|-------|--------------|
-| Application loads | Visit the root URL → login page appears |
-| Authentication works | Login with demo credentials |
-| Database connection | Navigate to Change Requests page → data loads |
-| API endpoints | `GET /api/data` returns JSON with `changeRequests` array |
-| Dark mode | Toggle theme → persists across page refresh |
-| ServiceNow sync | Click "Pull Data" → toast shows success/failure |
-| Impact Analysis tabs | Navigate to Impact → all 4 tabs render correctly (Overview, Plan Analysis, ML Analysis, Code Change) |
-| Analytics tabs | Navigate to Analytics → all 4 tabs render (Failure Analysis, Velocity, Metrics & Trends, Change Health) |
-| ML Analysis | Select a CR in ML Analysis tab → quality scores, radar chart, and recommendations display |
-
-### 8.2 Automated Checks
-
-```bash
-# Run unit tests
-npm test
-
-# Run linter
-npm run lint
-
-# Type check
-npm run typecheck
-
-# Full validation suite
-npm run validate
-```
-
----
-
-## 9. Maintenance & Operations
-
-### 9.1 Database Backup (SQLite)
-
-```bash
-# Simple file copy
-cp prisma/dev.db prisma/dev.db.backup
-
-# With timestamp
-cp prisma/dev.db "prisma/backup-$(date +%Y%m%d-%H%M%S).db"
-```
-
-### 9.2 Database Reset
-
-```bash
-# ⚠️ Destroys all data
-npm run db:reset
-```
-
-### 9.3 Updating Dependencies
-
-```bash
-# Check for outdated packages
-npm outdated
-
-# Update packages
-npm update
-
-# Regenerate Prisma client after updates
+# Regenerate Prisma client
 npx prisma generate
 ```
 
-### 9.4 Schema Migrations
-
-When the Prisma schema changes:
+### Authentication Issues
 
 ```bash
-# Development: push schema directly
-npm run db:push
-
-# Production: use migrations
-npx prisma migrate dev --name describe_change
-npx prisma migrate deploy
+# Ensure NEXTAUTH_SECRET is set
+# Ensure NEXTAUTH_URL matches your deployment URL
 ```
 
-### 9.5 Log Monitoring
-
-- **Development**: Console output from `npm run dev`
-- **Production (PM2)**: `pm2 logs change-dashboard`
-- **Docker**: `docker logs <container-id>`
-
-### 9.6 Scheduled ServiceNow Sync
-
-Set up a cron job for automatic data refresh:
+### Build Failures
 
 ```bash
-# Every 15 minutes
-*/15 * * * * cd /path/to/release_change_ai && npx tsx scripts/import-servicenow.ts >> /var/log/snow-sync.log 2>&1
-```
-
----
-
-## 10. Troubleshooting
-
-### Common Issues
-
-| Issue | Cause | Solution |
-|-------|-------|---------|
-| `NEXTAUTH_SECRET missing` | Environment variable not set | Add `NEXTAUTH_SECRET` to `.env` |
-| `PrismaClientInitializationError` | Database file missing or schema mismatch | Run `npm run db:push` |
-| `401 Unauthorized` on API calls | Session expired or missing | Clear cookies, log in again |
-| `EADDRINUSE: port 3600` | Port already in use | Kill the existing process: `lsof -ti:3600 \| xargs kill -9` |
-| ServiceNow sync fails | Wrong credentials or instance URL | Verify `SNOW_INSTANCE`, `SNOW_USER`, `SNOW_PASSWORD` in `.env` |
-| Blank page after deploy | Missing environment variables | Ensure all required env vars are set in deployment platform |
-| Prisma type errors in IDE | Stale generated client | Run `npx prisma generate` |
-| SQLite locked error | Concurrent write access | Use PostgreSQL for multi-instance deployments |
-
-### Reset Everything
-
-```bash
-# Nuclear option: reset DB, reinstall deps, rebuild
-rm -rf node_modules .next prisma/dev.db
+# Clear cache and rebuild
+rm -rf .next node_modules
 npm install
-npm run db:push
-npm run db:seed
 npm run build
-npm run start
 ```
-
----
-
-## Appendix: Port Configuration
-
-The application runs on **port 3600** by default. This is configured in three places:
-
-| File | Setting |
-|------|---------|
-| `package.json` | `scripts.dev` → `--port 3600`, `scripts.start` → `--port 3600` |
-| `next.config.js` | `env.PORT` → `"3600"` |
-| `.env` | `NEXTAUTH_URL` → `http://localhost:3600` |
-
-All three must be updated if you change the port.

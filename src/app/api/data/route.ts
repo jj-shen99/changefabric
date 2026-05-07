@@ -54,6 +54,7 @@ export async function GET(request: Request) {
     status: c.state,
     createdAt: c.createdAt,
     sn_impact: c.impactLevel,
+    risk: c.riskLevel, // Alias for UI compatibility
     linesAdded: 0,
     linesRemoved: 0,
     filesChanged: 0,

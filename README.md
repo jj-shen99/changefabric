@@ -333,14 +333,11 @@ prisma/
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](docs/ARCHITECTURE.md) | Legacy system architecture overview |
-| [Architecture Diagrams](docs/architecture/) | Mermaid diagrams: system overview, access control, data flow, API routes, DB schema, UI components |
-| [Impact Analysis](docs/IMPACT_ANALYSIS.md) | Scoring methodology for Plan, ML, and Dimension analysis |
-| [Change Management Architecture](docs/CHANGE_MANAGEMENT_ARCHITECTURE.md) | End-to-end architecture graphs for the analysis pipeline |
+| [Architecture](docs/ARCHITECTURE.md) | System architecture with diagrams (workflow, approval, data flow) |
+| [API Reference](docs/API.md) | Complete REST API documentation |
 | [User Guide](docs/USER_GUIDE.md) | Feature guide for all dashboard pages |
-| [Codebase Analysis](docs/CODEBASE_ANALYSIS.md) | Deep dive into code structure and patterns |
 | [Deployment Guide](docs/DEPLOYMENT.md) | Setup, deployment, and operations guide |
-| [Requirements](docs/REQUIREMENTS.md) | Functional and non-functional requirements |
+| [Testing Guide](docs/TESTING.md) | Test structure, running tests, writing tests |
 
 ## License
 
