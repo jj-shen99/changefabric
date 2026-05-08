@@ -41,12 +41,19 @@ const STATE_TONE: Record<string, string> = {
   closed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
   rejected: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
   canceled: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+  // ServiceNow states (mapped to similar native states)
+  new: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  assess: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+  authorize: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
+  implement: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
+  review: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
 };
 
 function StatePill({ state }: { state: string }) {
-  const tone = STATE_TONE[state] || STATE_TONE.draft;
+  const normalizedState = state.toLowerCase().replace(/\s+/g, "_");
+  const tone = STATE_TONE[normalizedState] || STATE_TONE.draft;
   return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>
+    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${tone}`}>
       {state.replace(/_/g, " ")}
     </span>
   );
@@ -131,9 +138,13 @@ export default function ChangesPage() {
     }
   }
 
+  // Normalize state to lowercase for consistent filtering
+  const normalizeState = (state: string) => state.toLowerCase().replace(/\s+/g, "_");
+
   const filtered = useMemo(() => {
     return items.filter((c) => {
-      if (stateFilter !== "all" && c.state !== stateFilter) return false;
+      const normalizedState = normalizeState(c.state);
+      if (stateFilter !== "all" && normalizedState !== stateFilter) return false;
       if (!search) return true;
       const q = search.toLowerCase();
       return (
@@ -149,13 +160,13 @@ export default function ChangesPage() {
     return {
       total: items.length,
       pending: items.filter((c) =>
-        ["draft", "submitted", "assessing", "awaiting_approval"].includes(c.state)
+        ["draft", "submitted", "assessing", "awaiting_approval", "new", "assess", "authorize"].includes(normalizeState(c.state))
       ).length,
       inFlight: items.filter((c) =>
-        ["approved", "scheduled", "in_progress", "implemented", "reviewing"].includes(c.state)
+        ["approved", "scheduled", "in_progress", "implemented", "reviewing", "implement", "review"].includes(normalizeState(c.state))
       ).length,
-      closed: items.filter((c) => c.state === "closed").length,
-      rejected: items.filter((c) => c.state === "rejected" || c.state === "canceled").length,
+      closed: items.filter((c) => normalizeState(c.state) === "closed").length,
+      rejected: items.filter((c) => ["rejected", "canceled"].includes(normalizeState(c.state))).length,
     };
   }, [items]);
 
