@@ -59,10 +59,29 @@ export async function GET(
     const canEdit = ctx.perms.canViewAllData || isOwner || isAssigned;
     const isApproverOnly = isApprover && !canEdit;
     
-    // Only show transitions if user has full access
-    const transitions = canEdit && wf
+    // Get all valid transitions for current state and role
+    let transitions = canEdit && wf
       ? availableTransitions(wf, cr.state, ctx.role)
       : [];
+    
+    // Filter transitions based on user's relationship to the CR
+    // Admin sees all transitions
+    if (!ctx.perms.canViewAllData && transitions.length > 0) {
+      // Owner actions: submit, cancel, return_to_draft, request_approval
+      const ownerActions = ["submit", "cancel", "return_to_draft", "request_approval"];
+      // Assigned person actions: implementation-related actions
+      const assignedActions = [
+        "assess", "schedule", "start_implementation", "complete_implementation",
+        "begin_review", "close", "approve", "reject", "cancel"
+      ];
+      
+      transitions = transitions.filter(t => {
+        if (isOwner && ownerActions.includes(t.event)) return true;
+        if (isAssigned && assignedActions.includes(t.event)) return true;
+        // If user is both owner and assigned, show both sets
+        return false;
+      });
+    }
     
     // Check if this is a pre-approved workflow (no approval steps needed)
     const isPreApproved = cr.workflowKey === "standard_preapproved";
