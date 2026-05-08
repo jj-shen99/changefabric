@@ -102,3 +102,73 @@ export const BUILTIN_WORKFLOWS: WorkflowDefinition[] = [
 ];
 
 export const DEFAULT_WORKFLOW_KEY = "standard";
+
+/**
+ * Maps CR type to the recommended workflow.
+ * Users can override this when creating a CR, but this provides sensible defaults.
+ */
+export const TYPE_TO_WORKFLOW: Record<string, string> = {
+  standard: "standard",
+  normal: "standard",
+  emergency: "emergency",
+};
+
+/**
+ * Get the workflow for a given CR type.
+ * Falls back to standard workflow if type is not mapped.
+ */
+export function getWorkflowForType(crType: string): WorkflowDefinition {
+  const workflowKey = TYPE_TO_WORKFLOW[crType] || DEFAULT_WORKFLOW_KEY;
+  return BUILTIN_WORKFLOWS.find((w) => w.key === workflowKey) || STANDARD_WORKFLOW;
+}
+
+/**
+ * Get available states for a CR type.
+ * Returns the states from the workflow associated with that type.
+ */
+export function getStatesForType(crType: string): { value: string; label: string; tags: string[] }[] {
+  const workflow = getWorkflowForType(crType);
+  return Object.entries(workflow.states).map(([key, state]) => ({
+    value: key,
+    label: state.name,
+    tags: state.tags || [],
+  }));
+}
+
+/**
+ * Get available transitions for a CR based on its type and current state.
+ */
+export function getAvailableTransitionsForType(
+  crType: string,
+  currentState: string,
+  role?: string
+): { event: string; to: string; label: string }[] {
+  const workflow = getWorkflowForType(crType);
+  const transitions: { event: string; to: string; label: string }[] = [];
+  
+  for (const t of workflow.transitions) {
+    // Check if transition is valid from current state
+    const fromStates = t.from === "*" ? [currentState] : Array.isArray(t.from) ? t.from : [t.from];
+    if (!fromStates.includes(currentState)) continue;
+    
+    // Check role requirement
+    if (t.requiredRole && role) {
+      const roleOrder = ["viewer", "manager", "admin"];
+      if (roleOrder.indexOf(role) < roleOrder.indexOf(t.requiredRole)) continue;
+    }
+    
+    // Get human-readable label for the event
+    const label = t.event
+      .split("_")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+    
+    transitions.push({
+      event: t.event,
+      to: t.to,
+      label,
+    });
+  }
+  
+  return transitions;
+}

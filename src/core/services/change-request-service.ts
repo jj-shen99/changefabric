@@ -109,7 +109,9 @@ export class ChangeRequestService {
     ctx: ServiceContext,
     input: CreateChangeInput
   ): Promise<ChangeRequest> {
-    const wfKey = input.workflowKey ?? "standard";
+    // Determine workflow based on type if not explicitly provided
+    const crType = input.type ?? "normal";
+    const wfKey = input.workflowKey ?? this.getDefaultWorkflowForType(crType);
     const wf = this.requireWorkflow(wfKey);
     const number = await this.repo.nextNumber();
     const now = new Date().toISOString();
@@ -119,7 +121,7 @@ export class ChangeRequestService {
       workflowKey: wfKey,
       title: input.title,
       description: input.description ?? "",
-      type: input.type ?? "normal",
+      type: crType,
       category: input.category ?? "other",
       priority: input.priority ?? "3",
       riskLevel: input.riskLevel ?? "moderate",
@@ -201,6 +203,17 @@ export class ChangeRequestService {
         return "Emergency CAB";
       default:
         return "Review";
+    }
+  }
+
+  private getDefaultWorkflowForType(crType: string): string {
+    switch (crType) {
+      case "emergency":
+        return "emergency";
+      case "standard":
+      case "normal":
+      default:
+        return "standard";
     }
   }
 
@@ -361,7 +374,7 @@ export class ChangeRequestService {
     // Recompute aggregate approval state
     const refreshedSteps = await this.repo.listApprovalSteps(crNumber);
     const aggregate = overallApprovalState(refreshedSteps);
-    const updatedCR = await this.repo.update(crNumber, {
+    let updatedCR = await this.repo.update(crNumber, {
       approvalState: aggregate,
       updatedAt: new Date().toISOString(),
     });
@@ -372,6 +385,21 @@ export class ChangeRequestService {
       action: AUDIT_ACTIONS.approvalDecide,
       payload: { stepId, decision, comment, delegatedTo, aggregate },
     });
+
+    // Auto-transition CR state based on approval outcome
+    if (aggregate === "approved" && updatedCR.state === "awaiting_approval") {
+      try {
+        updatedCR = await this.transition(ctx, crNumber, "approve");
+      } catch {
+        // Transition may fail if guards aren't met; that's okay
+      }
+    } else if (aggregate === "rejected" && updatedCR.state === "awaiting_approval") {
+      try {
+        updatedCR = await this.transition(ctx, crNumber, "reject");
+      } catch {
+        // Transition may fail; that's okay
+      }
+    }
 
     return { step: { ...step, approvals, status: evaluation.stepStatus }, cr: updatedCR };
   }
