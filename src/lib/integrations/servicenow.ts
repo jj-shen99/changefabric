@@ -8,9 +8,10 @@ import { getSecret } from "@/lib/crypto";
 
 /* ─── Configuration ─── */
 const PAGE_SIZE = 100;
-function snowInstance() { return getSecret("SNOW_INSTANCE", "https://k8s0863044-node1.thunder.devsnc.com"); }
-function snowUser() { return getSecret("SNOW_USER", "admin"); }
-function snowPassword() { return getSecret("SNOW_PASSWORD", "admin"); }
+// ServiceNow credentials must be set via environment variables
+function snowInstance() { return getSecret("SNOW_INSTANCE"); }
+function snowUser() { return getSecret("SNOW_USER"); }
+function snowPassword() { return getSecret("SNOW_PASSWORD"); }
 
 /** Extract display_value from a ServiceNow reference field (string | { display_value, link } | null) */
 function displayVal(field: unknown): string {

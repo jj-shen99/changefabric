@@ -3,12 +3,18 @@
  * Insert a new Change Request into ServiceNow for executing a new Update Set.
  * Uses the ServiceNow Table API (POST /api/now/table/change_request).
  *
- * Usage: node scripts/insert-updateset-cr.mjs
+ * Usage: SNOW_INSTANCE=https://your-instance.service-now.com SNOW_USER=user SNOW_PASSWORD=pass node scripts/insert-updateset-cr.mjs
  */
 
-const INSTANCE = "https://k8s0863044-node1.thunder.devsnc.com";
-const USER = "admin";
-const PASS = "admin";
+// ServiceNow credentials from environment variables
+const INSTANCE = process.env.SNOW_INSTANCE;
+const USER = process.env.SNOW_USER;
+const PASS = process.env.SNOW_PASSWORD;
+
+if (!INSTANCE || !USER || !PASS) {
+  console.error("Error: SNOW_INSTANCE, SNOW_USER, and SNOW_PASSWORD environment variables are required");
+  process.exit(1);
+}
 
 const now = new Date();
 const iso = (d) => d.toISOString().replace("T", " ").slice(0, 19);

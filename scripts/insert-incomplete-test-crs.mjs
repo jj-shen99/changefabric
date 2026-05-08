@@ -3,7 +3,7 @@
  * Insert multiple Change Requests into ServiceNow, each with a specific
  * type of incompleteness for testing plan analysis and risk scoring.
  *
- * Usage: node scripts/insert-incomplete-test-crs.mjs
+ * Usage: SNOW_INSTANCE=https://your-instance.service-now.com SNOW_USER=user SNOW_PASSWORD=pass node scripts/insert-incomplete-test-crs.mjs
  *
  * CRs created:
  *   1. Missing backout plan entirely
@@ -18,9 +18,15 @@
  *  10. High-risk change with inadequate justification
  */
 
-const INSTANCE = "https://k8s0863044-node1.thunder.devsnc.com";
-const USER = "admin";
-const PASS = "admin";
+// ServiceNow credentials from environment variables
+const INSTANCE = process.env.SNOW_INSTANCE;
+const USER = process.env.SNOW_USER;
+const PASS = process.env.SNOW_PASSWORD;
+
+if (!INSTANCE || !USER || !PASS) {
+  console.error("Error: SNOW_INSTANCE, SNOW_USER, and SNOW_PASSWORD environment variables are required");
+  process.exit(1);
+}
 
 const now = new Date();
 const iso = (d) => d.toISOString().replace("T", " ").slice(0, 19);
