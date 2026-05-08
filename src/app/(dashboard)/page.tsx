@@ -158,30 +158,6 @@ export default function OverviewPage() {
       } />
     <div className="space-y-6 p-4 md:p-6">
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
-        {kpiCards.map((kpi) => (
-          <Card key={kpi.label} className="p-4 group relative">
-            <div className="flex items-start justify-between">
-              <div className={`rounded-lg p-2 ${kpi.bg}`}>
-                <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
-              </div>
-              <div className="relative">
-                <Info className="h-3.5 w-3.5 text-gray-300 hover:text-gray-500 cursor-help dark:text-gray-600 dark:hover:text-gray-400" />
-                <div className="absolute right-0 top-5 z-50 hidden w-48 rounded-lg bg-gray-900 p-2 text-xs text-white shadow-lg group-hover:block dark:bg-gray-700">
-                  {kpi.tooltip}
-                  <div className="absolute -top-1 right-2 h-2 w-2 rotate-45 bg-gray-900 dark:bg-gray-700" />
-                </div>
-              </div>
-            </div>
-            <div className="mt-3">
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{kpi.value}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{kpi.label}</p>
-            </div>
-          </Card>
-        ))}
-      </div>
-
       {/* Change Request Workflow State Flow */}
       <Card>
         <CardHeader>
@@ -300,6 +276,30 @@ export default function OverviewPage() {
           </div>
         </div>
       </Card>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-4 gap-4">
+        {kpiCards.map((kpi) => (
+          <Card key={kpi.label} className="p-4 group relative">
+            <div className="flex items-start justify-between">
+              <div className={`rounded-lg p-2 ${kpi.bg}`}>
+                <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
+              </div>
+              <div className="relative">
+                <Info className="h-3.5 w-3.5 text-gray-300 hover:text-gray-500 cursor-help dark:text-gray-600 dark:hover:text-gray-400" />
+                <div className="absolute right-0 top-5 z-50 hidden w-48 rounded-lg bg-gray-900 p-2 text-xs text-white shadow-lg group-hover:block dark:bg-gray-700">
+                  {kpi.tooltip}
+                  <div className="absolute -top-1 right-2 h-2 w-2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+                </div>
+              </div>
+            </div>
+            <div className="mt-3">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{kpi.value}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{kpi.label}</p>
+            </div>
+          </Card>
+        ))}
+      </div>
 
       {/* High Risk Changes & Risk Gauges */}
       <div className="grid grid-cols-3 gap-6">

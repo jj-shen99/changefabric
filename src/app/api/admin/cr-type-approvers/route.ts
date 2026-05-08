@@ -16,10 +16,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const crType = searchParams.get("crType");
 
-    const where: { isActive: boolean; crType?: string } = { isActive: true };
-    if (crType) where.crType = crType;
-
-    const approvers = await prisma.$queryRaw<Array<{
+    let approvers: Array<{
       id: string;
       crType: string;
       approverEmail: string;
@@ -29,12 +26,23 @@ export async function GET(request: Request) {
       isActive: boolean;
       createdBy: string;
       createdAt: string;
-    }>>`
-      SELECT id, crType, approverEmail, approverGroup, stepName, ordering, isActive, createdBy, createdAt
-      FROM CRTypeApprover
-      WHERE isActive = 1 ${crType ? `AND crType = ${crType}` : ""}
-      ORDER BY crType, ordering, stepName
-    `;
+    }>;
+
+    if (crType) {
+      approvers = await prisma.$queryRaw`
+        SELECT id, crType, approverEmail, approverGroup, stepName, ordering, isActive, createdBy, createdAt
+        FROM CRTypeApprover
+        WHERE isActive = 1 AND crType = ${crType}
+        ORDER BY crType, ordering, stepName
+      `;
+    } else {
+      approvers = await prisma.$queryRaw`
+        SELECT id, crType, approverEmail, approverGroup, stepName, ordering, isActive, createdBy, createdAt
+        FROM CRTypeApprover
+        WHERE isActive = 1
+        ORDER BY crType, ordering, stepName
+      `;
+    }
 
     // Group by CR type for easier consumption
     const grouped: Record<string, typeof approvers> = {};
