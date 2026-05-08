@@ -18,7 +18,6 @@ import {
   CR_RISK_LEVELS,
   CR_IMPACT_LEVELS,
   CR_URGENCY_LEVELS,
-  CR_WORKFLOWS,
   ASSIGNMENT_GROUPS,
 } from "@/lib/constants";
 
@@ -34,7 +33,6 @@ type Template = {
   description: string;
   category: string;
   type: string;
-  workflowKey: string;
   priority: string;
   riskLevel: string;
   impactLevel: string;
@@ -52,7 +50,6 @@ type ExistingCR = {
   title: string;
   description: string;
   type: string;
-  workflowKey: string;
   category: string;
   priority: string;
   riskLevel: string;
@@ -71,7 +68,6 @@ const defaultForm = {
   title: "",
   description: "",
   type: "normal",
-  workflowKey: "standard",
   category: "other",
   priority: "3",
   riskLevel: "moderate",
@@ -216,7 +212,6 @@ export default function NewChangePage() {
     setForm((f) => ({
       ...f,
       type: t.type,
-      workflowKey: t.workflowKey,
       category: t.category,
       priority: t.priority,
       riskLevel: t.riskLevel,
@@ -240,7 +235,6 @@ export default function NewChangePage() {
       title: `Copy of: ${cr.title}`,
       description: cr.description || "",
       type: cr.type,
-      workflowKey: cr.workflowKey,
       category: cr.category,
       priority: cr.priority,
       riskLevel: cr.riskLevel,
@@ -449,7 +443,6 @@ export default function NewChangePage() {
               />
             </Field>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <Select label="Workflow" value={form.workflowKey} onChange={(v) => update("workflowKey", v)} options={CR_WORKFLOWS.map((o) => [o.value, o.label])} />
               <Select label="Type" value={form.type} onChange={(v) => update("type", v)} options={CR_TYPES.map((o) => [o.value, o.label])} />
               <Select label="Category" value={form.category} onChange={(v) => update("category", v)} options={CR_CATEGORIES.map((o) => [o.value, o.label])} />
               <Select label="Priority" value={form.priority} onChange={(v) => update("priority", v)} options={CR_PRIORITIES.map((o) => [o.value, o.label])} />

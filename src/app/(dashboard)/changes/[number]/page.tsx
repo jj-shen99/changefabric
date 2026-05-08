@@ -269,9 +269,8 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
         <div className="flex flex-wrap items-center gap-3 p-4">
           <Pill tone="indigo">state: {cr.state}</Pill>
           <Pill tone="amber">approval: {cr.approvalState}</Pill>
-          <Pill tone="gray">workflow: {cr.workflowKey}</Pill>
-          <Pill tone="rose">risk: {cr.riskLevel}</Pill>
           <Pill tone="emerald">type: {cr.type}</Pill>
+          <Pill tone="rose">risk: {cr.riskLevel}</Pill>
           <div className="ml-auto flex items-center gap-3 text-xs">
             <span><strong>Score:</strong> {Math.round(cr.computedRiskScore)}</span>
             {cr.mlRiskScore !== null && cr.mlRiskScore !== undefined && <span><strong>ML:</strong> {Math.round(cr.mlRiskScore)} ({Math.round((cr.mlConfidence ?? 0) * 100)}% conf)</span>}

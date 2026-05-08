@@ -171,38 +171,94 @@ export class ChangeRequestService {
 
     const created = await this.repo.create(draft);
     
-    // Create default approval step if assignedTo is specified
-    if (created.assignedTo) {
-      const stepName = this.getDefaultApprovalStepName(created.type);
-      await this.repo.createApprovalStep({
-        changeRequestId: created.number,
-        name: stepName,
-        ordering: 0,
-        policy: "any",
-        status: "pending",
-        approvers: [{ email: created.assignedTo }],
-      });
-    }
+    // Create approval steps based on CR type
+    await this.createDefaultApprovalSteps(created, ctx.actor);
     
     await recordAudit(this.audit, {
       changeRequestId: number,
       actor: ctx.actor,
       action: AUDIT_ACTIONS.crCreate,
-      payload: { workflow: wfKey },
+      payload: { workflow: wfKey, type: crType },
     });
     return created;
   }
 
-  private getDefaultApprovalStepName(crType: string): string {
+  /**
+   * Create default approval steps based on CR type.
+   * - standard: Manager Review + CAB Review (2 steps)
+   * - normal: Technical Review (1 step)
+   * - emergency: Emergency CAB (1 step, post-implementation)
+   */
+  private async createDefaultApprovalSteps(cr: ChangeRequest, requestor: string): Promise<void> {
+    const steps = this.getApprovalStepsForType(cr.type, cr.assignedTo, requestor);
+    
+    for (const step of steps) {
+      // Only create step if there are approvers
+      if (step.approvers.length > 0) {
+        await this.repo.createApprovalStep({
+          changeRequestId: cr.number,
+          name: step.name,
+          ordering: step.ordering,
+          policy: step.policy,
+          status: "pending",
+          approvers: step.approvers,
+        });
+      }
+    }
+  }
+
+  private getApprovalStepsForType(
+    crType: string, 
+    assignedTo: string | null | undefined,
+    _requestor: string
+  ): Array<{ name: string; ordering: number; policy: "all" | "any"; approvers: Array<{ email: string }> }> {
     switch (crType) {
       case "standard":
-        return "Manager Review";
+        // Standard changes need Manager Review + CAB Review
+        return [
+          {
+            name: "Manager Review",
+            ordering: 0,
+            policy: "any",
+            approvers: assignedTo ? [{ email: assignedTo }] : [],
+          },
+          {
+            name: "CAB Review",
+            ordering: 1,
+            policy: "any",
+            approvers: [], // CAB members to be added manually or via config
+          },
+        ];
       case "normal":
-        return "Technical Review";
+        // Normal changes need Technical Review
+        return [
+          {
+            name: "Technical Review",
+            ordering: 0,
+            policy: "any",
+            approvers: assignedTo ? [{ email: assignedTo }] : [],
+          },
+        ];
       case "emergency":
-        return "Emergency CAB";
+        // Emergency changes have post-implementation CAB review
+        return [
+          {
+            name: "Emergency CAB (Post-Implementation)",
+            ordering: 0,
+            policy: "any",
+            approvers: assignedTo ? [{ email: assignedTo }] : [],
+          },
+        ];
       default:
-        return "Review";
+        // Default: single review step
+        return [
+          {
+            name: "Review",
+            ordering: 0,
+            policy: "any",
+            approvers: assignedTo ? [{ email: assignedTo }] : [],
+          },
+        ];
     }
   }
 
