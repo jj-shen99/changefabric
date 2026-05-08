@@ -85,9 +85,10 @@ export async function GET() {
   const tasks: Task[] = [];
 
   // Add approval tasks first (highest priority)
+  // Skip draft CRs - approvers should not see drafts
   for (const [crNumber, stepInfo] of approvalCRMap) {
     const cr = allCRs.find((c) => c.number === crNumber);
-    if (cr && !allCRNumbers.has(cr.number)) {
+    if (cr && !allCRNumbers.has(cr.number) && cr.state !== "draft") {
       allCRNumbers.add(cr.number);
       tasks.push({
         type: "approval",
@@ -109,9 +110,9 @@ export async function GET() {
     }
   }
 
-  // Add assigned CRs
+  // Add assigned CRs (skip drafts - assigned users should not see drafts)
   for (const cr of assignedCRs) {
-    if (!allCRNumbers.has(cr.number)) {
+    if (!allCRNumbers.has(cr.number) && cr.state !== "draft") {
       allCRNumbers.add(cr.number);
       tasks.push({
         type: "assigned",

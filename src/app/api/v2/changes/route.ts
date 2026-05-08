@@ -37,11 +37,16 @@ export async function GET(request: Request) {
       `;
       const approverCRNumbers = new Set(approverCRs.map(r => r.changeRequestId));
       
-      items = items.filter(cr => 
-        cr.requestedBy === ctx.email || 
-        cr.assignedTo === ctx.email ||
-        approverCRNumbers.has(cr.number)
-      );
+      items = items.filter(cr => {
+        // Owner can see all their CRs including drafts
+        if (cr.requestedBy === ctx.email) return true;
+        
+        // Assigned users and approvers can only see non-draft CRs
+        const isDraft = cr.state === "draft";
+        if (isDraft) return false;
+        
+        return cr.assignedTo === ctx.email || approverCRNumbers.has(cr.number);
+      });
     }
 
     return NextResponse.json({ items, total: items.length });

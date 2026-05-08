@@ -98,6 +98,11 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CR>>({});
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  
+  // Assigned To user autocomplete state for edit mode
+  const [assignedToSearch, setAssignedToSearch] = useState("");
+  const [assignedToSuggestions, setAssignedToSuggestions] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [showAssignedToDropdown, setShowAssignedToDropdown] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -139,6 +144,27 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
     }
     fetchCurrentUser();
   }, []);
+
+  // Search users for Assigned To autocomplete in edit mode
+  useEffect(() => {
+    if (assignedToSearch.length < 1) {
+      setAssignedToSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(assignedToSearch)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setAssignedToSuggestions(data.users || []);
+          setShowAssignedToDropdown((data.users || []).length > 0);
+        }
+      } catch {
+        // Ignore search errors
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [assignedToSearch]);
 
   async function fireTransition(event: string) {
     setBusy(true);
@@ -453,7 +479,53 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
               <EditTextarea label="Test Plan" value={editForm.testPlan ?? ""} onChange={(v) => setEditForm({ ...editForm, testPlan: v })} rows={6} />
               <EditTextarea label="Risk & Impact Analysis" value={editForm.riskAndImpactAnalysis ?? ""} onChange={(v) => setEditForm({ ...editForm, riskAndImpactAnalysis: v })} rows={6} />
               <div className="grid grid-cols-2 gap-2">
-                <EditField label="Assigned To" value={editForm.assignedTo ?? ""} onChange={(v) => setEditForm({ ...editForm, assignedTo: v || null })} placeholder="email@example.com" />
+                {/* Assigned To with user autocomplete */}
+                <div className="relative">
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Assigned To</label>
+                  {editForm.assignedTo ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-700">
+                      <span className="flex-1 text-sm">{editForm.assignedTo}</span>
+                      <button
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, assignedTo: null })}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={assignedToSearch}
+                        onChange={(e) => setAssignedToSearch(e.target.value)}
+                        onFocus={() => assignedToSuggestions.length > 0 && setShowAssignedToDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowAssignedToDropdown(false), 200)}
+                        placeholder="Type to search users..."
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                      />
+                      {showAssignedToDropdown && assignedToSuggestions.length > 0 && (
+                        <ul className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                          {assignedToSuggestions.map((user) => (
+                            <li
+                              key={user.id}
+                              className="cursor-pointer px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                              onMouseDown={() => {
+                                setEditForm({ ...editForm, assignedTo: user.email });
+                                setAssignedToSearch("");
+                                setAssignedToSuggestions([]);
+                                setShowAssignedToDropdown(false);
+                              }}
+                            >
+                              <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{user.name}</div>
+                              <div className="text-xs text-gray-500">{user.email}</div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </>
+                  )}
+                </div>
                 <EditField label="Assignment Group" value={editForm.assignmentGroup ?? ""} onChange={(v) => setEditForm({ ...editForm, assignmentGroup: v || null })} placeholder="Team name" />
               </div>
               <EditField label="Category" value={editForm.category ?? ""} onChange={(v) => setEditForm({ ...editForm, category: v })} />

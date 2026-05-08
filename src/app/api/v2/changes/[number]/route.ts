@@ -36,6 +36,14 @@ export async function GET(
     // Allow viewing if: admin, OR user requested it, OR user is assigned, OR user is an approver
     const isOwner = cr.requestedBy === ctx.email;
     const isAssigned = cr.assignedTo === ctx.email;
+    
+    // Draft CRs are only visible to the owner (requestedBy) and admins
+    // Approvers and assigned users should not see drafts
+    const isDraft = cr.state === "draft";
+    if (isDraft && !ctx.perms.canViewAllData && !isOwner) {
+      return forbidden();
+    }
+    
     if (!ctx.perms.canViewAllData && !isOwner && !isAssigned && !isApprover) {
       return forbidden();
     }
