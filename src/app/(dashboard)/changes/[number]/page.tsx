@@ -360,10 +360,10 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
 
       {tab === "overview" && (
         <Card>
-          {/* Edit/Save buttons - only show if user can edit */}
+          {/* Edit/Save buttons - only CR owner (creator) can edit */}
           <div className="flex items-center justify-end gap-2 border-b border-gray-100 px-4 py-2 dark:border-gray-800">
             {!editing ? (
-              userAccess?.canEdit ? (
+              userAccess?.isOwner ? (
                 <button
                   onClick={startEdit}
                   disabled={isClosed}
@@ -535,7 +535,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
       )}
 
       {tab === "approvals" && !isClosed && (
-        <ApprovalsTab steps={steps} crNumber={cr.number} onDecide={decide} onChange={load} busy={busy} currentUserEmail={currentUserEmail} />
+        <ApprovalsTab steps={steps} crNumber={cr.number} onDecide={decide} onChange={load} busy={busy} currentUserEmail={currentUserEmail} canManageSteps={userAccess?.isOwner || false} />
       )}
 
       {tab === "approvals" && isClosed && (
@@ -605,6 +605,7 @@ function ApprovalsTab({
   onChange,
   busy,
   currentUserEmail,
+  canManageSteps,
 }: {
   steps: ApprovalStep[];
   crNumber: string;
@@ -612,6 +613,7 @@ function ApprovalsTab({
   onChange: () => void;
   busy: boolean;
   currentUserEmail: string | null;
+  canManageSteps: boolean;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState("");
@@ -684,11 +686,14 @@ function ApprovalsTab({
     <Card>
       <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
         <h3 className="flex items-center gap-2 text-sm font-semibold"><ShieldCheck className="h-4 w-4" /> Approval Steps</h3>
-        <button onClick={() => setShowAdd((s) => !s)} className="rounded-lg border border-gray-200 px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-          {showAdd ? "Cancel" : "+ Add step"}
-        </button>
+        {/* Only CR owner can add/manage approval steps */}
+        {canManageSteps && (
+          <button onClick={() => setShowAdd((s) => !s)} className="rounded-lg border border-gray-200 px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
+            {showAdd ? "Cancel" : "+ Add step"}
+          </button>
+        )}
       </div>
-      {showAdd && (
+      {showAdd && canManageSteps && (
         <div className="space-y-3 border-b border-gray-100 p-4 text-sm dark:border-gray-800">
           {/* Field explanations */}
           <div className="rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-950 dark:text-blue-300">
