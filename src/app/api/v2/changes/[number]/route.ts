@@ -135,7 +135,48 @@ export async function PATCH(
   } catch {
     return badRequest("Invalid JSON body");
   }
+
+  // Validate planned dates if provided
+  const now = new Date();
+  if (body.plannedStart !== undefined && body.plannedStart !== null) {
+    const plannedStart = new Date(body.plannedStart as string);
+    if (isNaN(plannedStart.getTime())) {
+      return badRequest("Invalid plannedStart date format");
+    }
+    if (plannedStart <= now) {
+      return badRequest("Planned start must be in the future");
+    }
+  }
+  if (body.plannedEnd !== undefined && body.plannedEnd !== null) {
+    const plannedEnd = new Date(body.plannedEnd as string);
+    if (isNaN(plannedEnd.getTime())) {
+      return badRequest("Invalid plannedEnd date format");
+    }
+    if (plannedEnd <= now) {
+      return badRequest("Planned end must be in the future");
+    }
+  }
+  // If both are provided, check order
+  if (body.plannedStart && body.plannedEnd) {
+    const plannedStart = new Date(body.plannedStart as string);
+    const plannedEnd = new Date(body.plannedEnd as string);
+    if (plannedStart >= plannedEnd) {
+      return badRequest("Planned start must be earlier than planned end");
+    }
+  }
+  // If only one is provided, we need to check against existing values
   const svc = getChangeRequestService();
+  if ((body.plannedStart && !body.plannedEnd) || (!body.plannedStart && body.plannedEnd)) {
+    const existing = await svc.get(params.number);
+    if (existing) {
+      const newStart = body.plannedStart ? new Date(body.plannedStart as string) : (existing.plannedStart ? new Date(existing.plannedStart) : null);
+      const newEnd = body.plannedEnd ? new Date(body.plannedEnd as string) : (existing.plannedEnd ? new Date(existing.plannedEnd) : null);
+      if (newStart && newEnd && newStart >= newEnd) {
+        return badRequest("Planned start must be earlier than planned end");
+      }
+    }
+  }
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updated = await svc.update({ actor: ctx.email, actorRole: ctx.role }, params.number, body as any);

@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       
       // Approvers can see CRs in states relevant to the approval workflow
       const approverVisibleStates = new Set([
-        "awaiting_approval", "approved", "in_progress", "implemented", "reviewing", "closed", "rejected"
+        "awaiting_approval", "approved", "in_progress", "implemented", "rolled_back", "closed", "rejected"
       ]);
       
       items = items.filter(cr => {
@@ -77,6 +77,35 @@ export async function POST(request: Request) {
   if (!body.title || typeof body.title !== "string") {
     return badRequest("Missing required field: title");
   }
+
+  // Validate planned dates
+  const now = new Date();
+  if (body.plannedStart) {
+    const plannedStart = new Date(body.plannedStart as string);
+    if (isNaN(plannedStart.getTime())) {
+      return badRequest("Invalid plannedStart date format");
+    }
+    if (plannedStart <= now) {
+      return badRequest("Planned start must be in the future");
+    }
+  }
+  if (body.plannedEnd) {
+    const plannedEnd = new Date(body.plannedEnd as string);
+    if (isNaN(plannedEnd.getTime())) {
+      return badRequest("Invalid plannedEnd date format");
+    }
+    if (plannedEnd <= now) {
+      return badRequest("Planned end must be in the future");
+    }
+  }
+  if (body.plannedStart && body.plannedEnd) {
+    const plannedStart = new Date(body.plannedStart as string);
+    const plannedEnd = new Date(body.plannedEnd as string);
+    if (plannedStart >= plannedEnd) {
+      return badRequest("Planned start must be earlier than planned end");
+    }
+  }
+
   const svc = getChangeRequestService();
   try {
     const cr = await svc.create(

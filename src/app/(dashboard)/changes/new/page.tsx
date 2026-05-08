@@ -267,6 +267,35 @@ export default function NewChangePage() {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+
+    // Client-side validation for planned dates
+    const now = new Date();
+    if (form.plannedStart) {
+      const plannedStart = new Date(form.plannedStart);
+      if (plannedStart <= now) {
+        setError("Planned start must be in the future");
+        setSubmitting(false);
+        return;
+      }
+    }
+    if (form.plannedEnd) {
+      const plannedEnd = new Date(form.plannedEnd);
+      if (plannedEnd <= now) {
+        setError("Planned end must be in the future");
+        setSubmitting(false);
+        return;
+      }
+    }
+    if (form.plannedStart && form.plannedEnd) {
+      const plannedStart = new Date(form.plannedStart);
+      const plannedEnd = new Date(form.plannedEnd);
+      if (plannedStart >= plannedEnd) {
+        setError("Planned start must be earlier than planned end");
+        setSubmitting(false);
+        return;
+      }
+    }
+
     try {
       const payload = {
         ...form,
@@ -503,8 +532,24 @@ export default function NewChangePage() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Planned start"><input type="datetime-local" value={form.plannedStart} onChange={(e) => update("plannedStart", e.target.value)} className="input" /></Field>
-              <Field label="Planned end"><input type="datetime-local" value={form.plannedEnd} onChange={(e) => update("plannedEnd", e.target.value)} className="input" /></Field>
+              <Field label="Planned start">
+                <input 
+                  type="datetime-local" 
+                  value={form.plannedStart} 
+                  onChange={(e) => update("plannedStart", e.target.value)} 
+                  min={new Date().toISOString().slice(0, 16)}
+                  className="input" 
+                />
+              </Field>
+              <Field label="Planned end">
+                <input 
+                  type="datetime-local" 
+                  value={form.plannedEnd} 
+                  onChange={(e) => update("plannedEnd", e.target.value)} 
+                  min={form.plannedStart || new Date().toISOString().slice(0, 16)}
+                  className="input" 
+                />
+              </Field>
             </div>
             <Field label="Affected services (comma-separated)">
               <input
