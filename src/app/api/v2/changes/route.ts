@@ -19,16 +19,20 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const state = searchParams.get("state") || undefined;
   const requestedBy = searchParams.get("requestedBy") || undefined;
-  const onlyMine = searchParams.get("mine") === "true";
 
   const svc = getChangeRequestService();
   try {
     const filter: { state?: string; requestedBy?: string } = {};
     if (state) filter.state = state;
     if (requestedBy) filter.requestedBy = requestedBy;
-    if (onlyMine && !ctx.perms.canViewAllData) filter.requestedBy = ctx.email;
 
-    const items = await svc.list(filter);
+    let items = await svc.list(filter);
+    
+    // Non-admin users can only see CRs they requested or are assigned to
+    if (!ctx.perms.canViewAllData) {
+      items = items.filter(cr => cr.requestedBy === ctx.email || cr.assignedTo === ctx.email);
+    }
+
     return NextResponse.json({ items, total: items.length });
   } catch (err) {
     return serverError(err);

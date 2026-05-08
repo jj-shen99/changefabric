@@ -47,7 +47,7 @@ export const ROLE_PERMISSIONS = {
     canManageReleases: true,
     canEditSettings: false,
     canViewMetrics: true,
-    canViewAllData: true,  // Allow managers to view all data
+    canViewAllData: false,  // Managers can only see their own CRs
   },
   viewer: {
     canManageUsers: false,
@@ -56,6 +56,6 @@ export const ROLE_PERMISSIONS = {
     canManageReleases: false,
     canEditSettings: false,
     canViewMetrics: true,
-    canViewAllData: true,  // Viewers can view all data, just not modify
+    canViewAllData: false,  // Viewers can only see their own CRs
   },
 } as const;

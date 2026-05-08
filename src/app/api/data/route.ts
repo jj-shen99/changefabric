@@ -32,10 +32,13 @@ export async function GET(request: Request) {
   const since =
     days > 0 ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
 
-  const [crs, releases] = await Promise.all([
-    repo.list(
-      userRole !== "admin" ? { requestedBy: userEmail } : undefined
-    ),
+  // Admin sees all CRs, regular users see only their own (requested or assigned)
+  const allCrs = await repo.list();
+  const crs = userRole === "admin" 
+    ? allCrs 
+    : allCrs.filter(c => c.requestedBy === userEmail || c.assignedTo === userEmail);
+  
+  const [releases] = await Promise.all([
     prisma.release.findMany({ orderBy: { scheduledDate: "desc" } }),
   ]);
 
