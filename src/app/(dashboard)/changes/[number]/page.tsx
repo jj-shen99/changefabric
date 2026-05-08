@@ -5,9 +5,9 @@
  * approval steps, comments, and impact + ML analysis. Backed by /api/v2.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, Send, MessageSquare, ShieldCheck, Activity, Pencil, Save, X, Lock } from "lucide-react";
+import { ArrowLeft, Send, MessageSquare, ShieldCheck, Activity, Pencil, Save, X, Lock, Info, UserPlus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 
@@ -492,6 +492,12 @@ function Pill({ children, tone }: { children: React.ReactNode; tone: "indigo" | 
 
 /* ─── Tabs ─────────────────────────────────────────────────────── */
 
+interface UserSuggestion {
+  id: string;
+  name: string;
+  email: string;
+}
+
 function ApprovalsTab({
   steps,
   crNumber,
@@ -511,21 +517,62 @@ function ApprovalsTab({
   const [name, setName] = useState("");
   const [policy, setPolicy] = useState("all");
   const [ordering, setOrdering] = useState(0);
-  const [approvers, setApprovers] = useState("");
+  const [approverInput, setApproverInput] = useState("");
+  const [selectedApprovers, setSelectedApprovers] = useState<UserSuggestion[]>([]);
+  const [suggestions, setSuggestions] = useState<UserSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  async function addStep() {
-    const list = approvers.split(",").map((s) => s.trim()).filter(Boolean).map((email) => ({ email }));
-    if (!name || list.length === 0) {
-      alert("Need a name and at least one approver email");
+  // Search users as user types
+  useEffect(() => {
+    if (approverInput.length < 1) {
+      setSuggestions([]);
       return;
     }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(approverInput)}`);
+        if (res.ok) {
+          const data = await res.json();
+          // Filter out already selected users
+          const filtered = data.users.filter(
+            (u: UserSuggestion) => !selectedApprovers.some(s => s.email === u.email)
+          );
+          setSuggestions(filtered);
+          setShowSuggestions(filtered.length > 0);
+        }
+      } catch {
+        // Ignore search errors
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [approverInput, selectedApprovers]);
+
+  function addApprover(user: UserSuggestion) {
+    setSelectedApprovers([...selectedApprovers, user]);
+    setApproverInput("");
+    setSuggestions([]);
+    setShowSuggestions(false);
+    inputRef.current?.focus();
+  }
+
+  function removeApprover(email: string) {
+    setSelectedApprovers(selectedApprovers.filter(a => a.email !== email));
+  }
+
+  async function addStep() {
+    if (!name || selectedApprovers.length === 0) {
+      alert("Need a name and at least one approver");
+      return;
+    }
+    const list = selectedApprovers.map((u) => ({ email: u.email }));
     const res = await fetch(`/api/v2/changes/${crNumber}/approvals`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, ordering, policy, approvers: list }),
     });
     if (res.ok) {
-      setName(""); setApprovers(""); setShowAdd(false);
+      setName(""); setSelectedApprovers([]); setShowAdd(false);
       onChange();
     } else {
       const e = await res.json();
@@ -542,23 +589,120 @@ function ApprovalsTab({
         </button>
       </div>
       {showAdd && (
-        <div className="space-y-2 border-b border-gray-100 p-4 text-sm dark:border-gray-800">
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            <input className="rounded-lg border border-gray-200 px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900" placeholder="Name (e.g. CAB)" value={name} onChange={(e) => setName(e.target.value)} />
-            <input className="rounded-lg border border-gray-200 px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900" type="number" placeholder="Ordering" value={ordering} onChange={(e) => setOrdering(parseInt(e.target.value) || 0)} />
-            <select className="rounded-lg border border-gray-200 px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900" value={policy} onChange={(e) => setPolicy(e.target.value)}>
-              <option value="all">all (unanimous)</option>
-              <option value="any">any (first vote decides)</option>
-              <option value="quorum:2">quorum:2</option>
-              <option value="quorum:3">quorum:3</option>
-            </select>
-            <input className="rounded-lg border border-gray-200 px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900" placeholder="Approvers (comma-separated emails)" value={approvers} onChange={(e) => setApprovers(e.target.value)} />
+        <div className="space-y-3 border-b border-gray-100 p-4 text-sm dark:border-gray-800">
+          {/* Field explanations */}
+          <div className="rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+            <div className="flex items-start gap-2">
+              <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <div className="space-y-1">
+                <p><strong>Step Name:</strong> A label for this approval stage (e.g., "Manager Review", "CAB", "Security Team")</p>
+                <p><strong>Order:</strong> The sequence number - lower numbers are processed first (0, 1, 2...)</p>
+                <p><strong>Policy:</strong> How approvals are counted - "all" requires everyone, "any" needs just one, "quorum:N" needs N approvals</p>
+                <p><strong>Approvers:</strong> Start typing a name to search and select team members</p>
+              </div>
+            </div>
           </div>
-          <button onClick={addStep} disabled={busy} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50">Create step</button>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Step Name</label>
+              <input 
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" 
+                placeholder="e.g., Manager Review, CAB, Security" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)} 
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Order (execution sequence)</label>
+              <input 
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" 
+                type="number" 
+                placeholder="0" 
+                value={ordering} 
+                onChange={(e) => setOrdering(parseInt(e.target.value) || 0)} 
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Approval Policy</label>
+              <select 
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-700 dark:bg-gray-900" 
+                value={policy} 
+                onChange={(e) => setPolicy(e.target.value)}
+              >
+                <option value="all">All must approve (unanimous)</option>
+                <option value="any">Any one can approve</option>
+                <option value="quorum:2">At least 2 must approve</option>
+                <option value="quorum:3">At least 3 must approve</option>
+              </select>
+            </div>
+            <div className="relative">
+              <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Add Approvers</label>
+              <div className="relative">
+                <UserPlus className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input 
+                  ref={inputRef}
+                  className="w-full rounded-lg border border-gray-200 pl-9 pr-3 py-2 dark:border-gray-700 dark:bg-gray-900" 
+                  placeholder="Type a name to search..." 
+                  value={approverInput} 
+                  onChange={(e) => setApproverInput(e.target.value)}
+                  onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                />
+              </div>
+              {/* Suggestions dropdown */}
+              {showSuggestions && suggestions.length > 0 && (
+                <ul className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  {suggestions.map((user) => (
+                    <li 
+                      key={user.id}
+                      className="cursor-pointer px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      onMouseDown={() => addApprover(user)}
+                    >
+                      <div className="font-medium text-gray-900 dark:text-gray-100">{user.name}</div>
+                      <div className="text-xs text-gray-500">{user.email}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* Selected approvers */}
+          {selectedApprovers.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Selected Approvers</label>
+              <div className="flex flex-wrap gap-2">
+                {selectedApprovers.map((user) => (
+                  <span 
+                    key={user.email}
+                    className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-sm text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300"
+                  >
+                    {user.name}
+                    <button 
+                      type="button"
+                      onClick={() => removeApprover(user.email)}
+                      className="ml-1 rounded-full p-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-800"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button 
+            onClick={addStep} 
+            disabled={busy || !name || selectedApprovers.length === 0} 
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          >
+            Create Approval Step
+          </button>
         </div>
       )}
       {steps.length === 0 ? (
-        <div className="p-6 text-sm text-gray-500">No approval steps yet.</div>
+        <div className="p-6 text-sm text-gray-500">No approval steps yet. Click "+ Add step" to create one.</div>
       ) : (
         <ul className="divide-y divide-gray-100 dark:divide-gray-800">
           {steps.map((s) => (
@@ -567,9 +711,13 @@ function ApprovalsTab({
                 <div>
                   <div className="text-sm font-semibold">
                     #{s.ordering} · {s.name}{" "}
-                    <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-600 dark:bg-gray-800 dark:text-gray-300">policy: {s.policy}</span>
+                    <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                      {s.policy === "all" ? "All must approve" : s.policy === "any" ? "Any one" : s.policy}
+                    </span>
                   </div>
-                  <div className="mt-0.5 text-xs text-gray-500">status: {s.status}</div>
+                  <div className="mt-0.5 text-xs text-gray-500">
+                    Status: <span className={s.status === "approved" ? "text-emerald-600" : s.status === "rejected" ? "text-rose-600" : "text-amber-600"}>{s.status}</span>
+                  </div>
                 </div>
               </div>
               <ul className="mt-3 space-y-1">
@@ -578,8 +726,9 @@ function ApprovalsTab({
                     <div>
                       <div className="font-medium">{a.approverEmail}{a.approverGroup ? <span className="ml-1 text-xs text-gray-500">({a.approverGroup})</span> : null}</div>
                       <div className="text-xs">
-                        decision: <span className={a.decision === "approved" ? "text-emerald-600" : a.decision === "rejected" ? "text-rose-600" : "text-gray-500"}>{a.decision}</span>
-                        {a.comment ? <span className="ml-2 italic text-gray-500">“{a.comment}”</span> : null}
+                        Decision: <span className={a.decision === "approved" ? "text-emerald-600 font-medium" : a.decision === "rejected" ? "text-rose-600 font-medium" : "text-gray-500"}>{a.decision}</span>
+                        {a.comment ? <span className="ml-2 italic text-gray-500">"{a.comment}"</span> : null}
+                        {a.decidedAt ? <span className="ml-2 text-gray-400">({new Date(a.decidedAt).toLocaleDateString()})</span> : null}
                       </div>
                     </div>
                     {a.decision === "pending" && s.status === "pending" && currentUserEmail === a.approverEmail && (
