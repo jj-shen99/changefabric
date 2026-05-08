@@ -37,6 +37,11 @@ export async function GET(request: Request) {
       `;
       const approverCRNumbers = new Set(approverCRs.map(r => r.changeRequestId));
       
+      // Approvers can see CRs in states relevant to the approval workflow
+      const approverVisibleStates = new Set([
+        "awaiting_approval", "approved", "in_progress", "implemented", "reviewing", "closed", "rejected"
+      ]);
+      
       items = items.filter(cr => {
         // Owner can see all their CRs including drafts
         if (cr.requestedBy === ctx.email) return true;
@@ -45,8 +50,8 @@ export async function GET(request: Request) {
         const isDraft = cr.state === "draft";
         if (cr.assignedTo === ctx.email && !isDraft) return true;
         
-        // Approvers can only see CRs in 'awaiting_approval' state
-        if (approverCRNumbers.has(cr.number) && cr.state === "awaiting_approval") return true;
+        // Approvers can see CRs in approval-related states (to track their decisions)
+        if (approverCRNumbers.has(cr.number) && approverVisibleStates.has(cr.state)) return true;
         
         return false;
       });

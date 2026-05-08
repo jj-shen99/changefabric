@@ -33,7 +33,7 @@ export async function GET(
     // Check if user is an approver on this CR
     const isApprover = await repo.isUserApprover(cr.number, ctx.email);
     
-    // Allow viewing if: admin, OR user requested it, OR user is assigned, OR user is an approver (in awaiting_approval state)
+    // Allow viewing if: admin, OR user requested it, OR user is assigned, OR user is an approver
     const isOwner = cr.requestedBy === ctx.email;
     const isAssigned = cr.assignedTo === ctx.email;
     
@@ -43,9 +43,15 @@ export async function GET(
       return forbidden();
     }
     
-    // Approvers can only see CRs in 'awaiting_approval' state
-    const isAwaitingApproval = cr.state === "awaiting_approval";
-    const approverCanView = isApprover && isAwaitingApproval;
+    // Approvers can see CRs in states relevant to the approval workflow:
+    // - awaiting_approval: pending their decision
+    // - approved, in_progress, implemented, reviewing, closed: to track CRs they approved
+    // - rejected: to see outcome of their rejection (and if resubmitted for approval)
+    // NOT visible: draft, submitted, assessing, scheduled, canceled (pre-approval or unrelated states)
+    const approverVisibleStates = new Set([
+      "awaiting_approval", "approved", "in_progress", "implemented", "reviewing", "closed", "rejected"
+    ]);
+    const approverCanView = isApprover && approverVisibleStates.has(cr.state);
     
     if (!ctx.perms.canViewAllData && !isOwner && !isAssigned && !approverCanView) {
       return forbidden();
