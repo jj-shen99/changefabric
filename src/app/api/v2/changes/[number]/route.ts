@@ -28,13 +28,17 @@ export async function GET(
   try {
     const cr = await svc.get(params.number);
     if (!cr) return notFound();
-    // Allow viewing if: admin, OR user requested it, OR user is assigned
+    const repo = new PrismaChangeRequestRepository(prisma);
+    
+    // Check if user is an approver on this CR
+    const isApprover = await repo.isUserApprover(cr.number, ctx.email);
+    
+    // Allow viewing if: admin, OR user requested it, OR user is assigned, OR user is an approver
     const isOwner = cr.requestedBy === ctx.email;
     const isAssigned = cr.assignedTo === ctx.email;
-    if (!ctx.perms.canViewAllData && !isOwner && !isAssigned) {
+    if (!ctx.perms.canViewAllData && !isOwner && !isAssigned && !isApprover) {
       return forbidden();
     }
-    const repo = new PrismaChangeRequestRepository(prisma);
     const [steps, comments] = await Promise.all([
       repo.listApprovalSteps(cr.number),
       repo.listComments(cr.number),

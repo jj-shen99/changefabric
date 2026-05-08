@@ -5,6 +5,7 @@
 
 import { NextResponse } from "next/server";
 import { getChangeRequestService } from "@/core";
+import { prisma } from "@/lib/prisma";
 import {
   badRequest,
   forbidden,
@@ -28,9 +29,19 @@ export async function GET(request: Request) {
 
     let items = await svc.list(filter);
     
-    // Non-admin users can only see CRs they requested or are assigned to
+    // Non-admin users can only see CRs they requested, are assigned to, or are approvers on
     if (!ctx.perms.canViewAllData) {
-      items = items.filter(cr => cr.requestedBy === ctx.email || cr.assignedTo === ctx.email);
+      // Get CR numbers where user is an approver
+      const approverCRs = await prisma.$queryRaw<Array<{ changeRequestId: string }>>`
+        SELECT DISTINCT changeRequestId FROM Approval WHERE approverEmail = ${ctx.email}
+      `;
+      const approverCRNumbers = new Set(approverCRs.map(r => r.changeRequestId));
+      
+      items = items.filter(cr => 
+        cr.requestedBy === ctx.email || 
+        cr.assignedTo === ctx.email ||
+        approverCRNumbers.has(cr.number)
+      );
     }
 
     return NextResponse.json({ items, total: items.length });

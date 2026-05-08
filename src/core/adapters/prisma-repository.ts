@@ -227,6 +227,16 @@ export class PrismaChangeRequestRepository implements ChangeRequestRepository {
     return rows.map(rowToStep);
   }
 
+  async isUserApprover(crNumber: string, userEmail: string): Promise<boolean> {
+    const count = await this.prisma.approval.count({
+      where: {
+        changeRequestId: crNumber,
+        approverEmail: userEmail,
+      },
+    });
+    return count > 0;
+  }
+
   async updateApprovalStep(id: string, patch: Partial<ApprovalStep>): Promise<void> {
     const data: Record<string, unknown> = { ...patch };
     delete data.approvals;

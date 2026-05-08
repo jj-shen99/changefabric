@@ -32,11 +32,23 @@ export async function GET(request: Request) {
   const since =
     days > 0 ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
 
-  // Admin sees all CRs, regular users see only their own (requested or assigned)
+  // Admin sees all CRs, regular users see only their own (requested, assigned, or approver)
   const allCrs = await repo.list();
-  const crs = userRole === "admin" 
-    ? allCrs 
-    : allCrs.filter(c => c.requestedBy === userEmail || c.assignedTo === userEmail);
+  let crs = allCrs;
+  
+  if (userRole !== "admin") {
+    // Get CR numbers where user is an approver
+    const approverCRs = await prisma.$queryRaw<Array<{ changeRequestId: string }>>`
+      SELECT DISTINCT changeRequestId FROM Approval WHERE approverEmail = ${userEmail}
+    `;
+    const approverCRNumbers = new Set(approverCRs.map(r => r.changeRequestId));
+    
+    crs = allCrs.filter(c => 
+      c.requestedBy === userEmail || 
+      c.assignedTo === userEmail ||
+      approverCRNumbers.has(c.number)
+    );
+  }
   
   const [releases] = await Promise.all([
     prisma.release.findMany({ orderBy: { scheduledDate: "desc" } }),
