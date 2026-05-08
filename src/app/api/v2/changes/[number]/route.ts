@@ -44,10 +44,35 @@ export async function GET(
       repo.listComments(cr.number),
     ]);
     const wf = BUILTIN_WORKFLOWS.find((w) => w.key === cr.workflowKey);
-    const transitions = wf
+    
+    // Determine user's access level
+    // - "full": can edit, transition, manage approvals (owner, assigned, or admin)
+    // - "approver": can only view and make approval decisions
+    const canEdit = ctx.perms.canViewAllData || isOwner || isAssigned;
+    const isApproverOnly = isApprover && !canEdit;
+    
+    // Only show transitions if user has full access
+    const transitions = canEdit && wf
       ? availableTransitions(wf, cr.state, ctx.role)
       : [];
-    return NextResponse.json({ changeRequest: cr, approvalSteps: steps, comments, availableTransitions: transitions });
+    
+    // Check if this is a pre-approved workflow (no approval steps needed)
+    const isPreApproved = cr.workflowKey === "standard_preapproved";
+    
+    return NextResponse.json({ 
+      changeRequest: cr, 
+      approvalSteps: steps, 
+      comments, 
+      availableTransitions: transitions,
+      userAccess: {
+        canEdit,
+        isApproverOnly,
+        isOwner,
+        isAssigned,
+        isApprover,
+        isPreApproved,
+      },
+    });
   } catch (err) {
     return serverError(err);
   }

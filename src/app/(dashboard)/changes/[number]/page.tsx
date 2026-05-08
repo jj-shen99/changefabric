@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, Send, MessageSquare, ShieldCheck, Activity, Pencil, Save, X, Lock, Info, UserPlus } from "lucide-react";
+import { ArrowLeft, Send, MessageSquare, ShieldCheck, Activity, Pencil, Save, X, Lock, Info, UserPlus, Eye } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 
@@ -73,6 +73,15 @@ interface Transition {
   description?: string;
 }
 
+interface UserAccess {
+  canEdit: boolean;
+  isApproverOnly: boolean;
+  isOwner: boolean;
+  isAssigned: boolean;
+  isApprover: boolean;
+  isPreApproved: boolean;
+}
+
 export default function ChangeDetailPage({ params }: { params: { number: string } }) {
   const crNumber = params.number;
   
@@ -80,6 +89,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
   const [steps, setSteps] = useState<ApprovalStep[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [transitions, setTransitions] = useState<Transition[]>([]);
+  const [userAccess, setUserAccess] = useState<UserAccess | null>(null);
   const [analysis, setAnalysis] = useState<{ impact?: Record<string, unknown>; ml?: Record<string, unknown> } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -105,6 +115,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
       setSteps(data.approvalSteps);
       setComments(data.comments);
       setTransitions(data.availableTransitions ?? []);
+      setUserAccess(data.userAccess ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -245,6 +256,14 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
         }
       />
     <div className="space-y-4 p-4 md:p-6">
+      {/* Approver-only notice */}
+      {userAccess?.isApproverOnly && (
+        <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+          <Eye className="h-4 w-4" />
+          <span>You have <strong>read-only</strong> access to this CR as an approver. You can view details and make approval decisions.</span>
+        </div>
+      )}
+      
       {/* Header summary */}
       <Card>
         <div className="flex flex-wrap items-center gap-3 p-4">
@@ -286,7 +305,13 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-gray-200 dark:border-gray-800">
         {(["overview", "approvals", "comments", "analysis"] as const).map((t) => {
+          // Hide approvals tab for pre-approved workflows, disable for closed CRs
+          const isPreApproved = userAccess?.isPreApproved;
+          const isHidden = t === "approvals" && isPreApproved;
           const isDisabled = t === "approvals" && isClosed;
+          
+          if (isHidden) return null;
+          
           return (
             <button
               key={t}
@@ -310,17 +335,21 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
 
       {tab === "overview" && (
         <Card>
-          {/* Edit/Save buttons */}
+          {/* Edit/Save buttons - only show if user can edit */}
           <div className="flex items-center justify-end gap-2 border-b border-gray-100 px-4 py-2 dark:border-gray-800">
             {!editing ? (
-              <button
-                onClick={startEdit}
-                disabled={isClosed}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                title={isClosed ? "Cannot edit closed/canceled/rejected CRs" : "Edit change request"}
-              >
-                <Pencil className="h-3 w-3" /> Edit
-              </button>
+              userAccess?.canEdit ? (
+                <button
+                  onClick={startEdit}
+                  disabled={isClosed}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={isClosed ? "Cannot edit closed/canceled/rejected CRs" : "Edit change request"}
+                >
+                  <Pencil className="h-3 w-3" /> Edit
+                </button>
+              ) : (
+                <span className="text-xs text-gray-500 italic">Read-only access</span>
+              )
             ) : (
               <>
                 <button
