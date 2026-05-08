@@ -178,6 +178,7 @@ export const NAV_SECTIONS: NavSection[] = [
     section: "Changes",
     items: [
       { href: "/", label: "Overview", segment: null },
+      { href: "/my-tasks", label: "My Tasks", segment: "my-tasks" },
       { href: "/changes", label: "Change Requests", segment: "changes" },
       { href: "/impact", label: "Impact Analysis", segment: "impact" },
       { href: "/code-analysis", label: "Code Analysis", segment: "code-analysis" },

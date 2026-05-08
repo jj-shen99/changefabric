@@ -14,6 +14,7 @@ import {
   KeyRound,
   FileText,
   Code2,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS } from "@/lib/constants";
@@ -22,6 +23,7 @@ import { ROLE_PERMISSIONS, type UserRole } from "@/lib/auth-types";
 
 const iconMap: Record<string, React.ElementType> = {
   "/": LayoutDashboard,
+  "/my-tasks": ClipboardList,
   "/changes": GitPullRequest,
   "/impact": ShieldAlert,
   "/code-analysis": Code2,
