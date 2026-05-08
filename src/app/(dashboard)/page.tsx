@@ -304,28 +304,9 @@ export default function OverviewPage() {
               </div>
             </div>
 
-            {/* Legend */}
-            <div className="mt-6 flex items-center justify-center gap-6 text-[10px] text-gray-500 dark:text-gray-400">
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded border-2 border-gray-300 bg-gray-100" />
-                <span>Initial</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded border-2 border-amber-300 bg-amber-50" />
-                <span>Pending</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded border-2 border-orange-400 bg-orange-50 animate-pulse" />
-                <span>Active</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded border-2 border-green-500 bg-green-100" />
-                <span>Complete</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Circle className="h-3 w-3 text-red-500 fill-red-500" />
-                <span>Terminal (can exit from any state)</span>
-              </div>
+            {/* Legend - numbers show count of CRs in each state */}
+            <div className="mt-4 text-center text-[10px] text-gray-400 dark:text-gray-500">
+              Numbers indicate the count of change requests currently in each state
             </div>
           </div>
         </div>
