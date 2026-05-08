@@ -28,6 +28,9 @@ interface CR {
   affectedServices: string[];
 }
 
+// Normalize state to lowercase for consistent filtering
+const normalizeState = (state: string) => state.toLowerCase().replace(/\s+/g, "_");
+
 const STATE_TONE: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   submitted: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
@@ -137,9 +140,6 @@ export default function ChangesPage() {
       setImporting(false);
     }
   }
-
-  // Normalize state to lowercase for consistent filtering
-  const normalizeState = (state: string) => state.toLowerCase().replace(/\s+/g, "_");
 
   const filtered = useMemo(() => {
     return items.filter((c) => {
