@@ -43,7 +43,7 @@ describe("Role Permissions", () => {
   });
 
   describe("all roles are defined", () => {
-    const expectedRoles: UserRole[] = ["admin", "manager", "viewer"];
+    const expectedRoles: UserRole[] = ["admin", "manager", "approver", "implementer", "requester", "viewer"];
 
     it("has all expected roles", () => {
       expectedRoles.forEach((role) => {
@@ -56,6 +56,7 @@ describe("Role Permissions", () => {
         "canManageUsers",
         "canManageChanges",
         "canApproveChanges",
+        "canImplementChanges",
         "canManageReleases",
         "canEditSettings",
         "canViewMetrics",
@@ -68,6 +69,29 @@ describe("Role Permissions", () => {
           expect(typeof ROLE_PERMISSIONS[role][perm as keyof typeof ROLE_PERMISSIONS.admin]).toBe("boolean");
         });
       });
+    });
+  });
+
+  describe("new role permissions", () => {
+    it("approver can only approve changes", () => {
+      expect(ROLE_PERMISSIONS.approver.canApproveChanges).toBe(true);
+      expect(ROLE_PERMISSIONS.approver.canManageChanges).toBe(false);
+      expect(ROLE_PERMISSIONS.approver.canImplementChanges).toBe(false);
+      expect(ROLE_PERMISSIONS.approver.canManageUsers).toBe(false);
+    });
+
+    it("implementer can only implement changes", () => {
+      expect(ROLE_PERMISSIONS.implementer.canImplementChanges).toBe(true);
+      expect(ROLE_PERMISSIONS.implementer.canManageChanges).toBe(false);
+      expect(ROLE_PERMISSIONS.implementer.canApproveChanges).toBe(false);
+      expect(ROLE_PERMISSIONS.implementer.canManageUsers).toBe(false);
+    });
+
+    it("requester can create/manage their own changes", () => {
+      expect(ROLE_PERMISSIONS.requester.canManageChanges).toBe(true);
+      expect(ROLE_PERMISSIONS.requester.canApproveChanges).toBe(false);
+      expect(ROLE_PERMISSIONS.requester.canImplementChanges).toBe(false);
+      expect(ROLE_PERMISSIONS.requester.canViewAllData).toBe(false);
     });
   });
 });

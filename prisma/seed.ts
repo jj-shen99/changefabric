@@ -41,8 +41,38 @@ async function main() {
   console.log("Seeding re-architected change-management database…");
 
   // ── Users ──────────────────────────────────────────────────────
+  // Helper to hash password based on email prefix (e.g., test10@example.com -> test10)
+  async function hashEmailPrefix(email: string): Promise<string> {
+    const prefix = email.split("@")[0];
+    return bcrypt.hash(prefix, 12);
+  }
+
   const adminPwd = await bcrypt.hash("admin123!", 12);
   const mgrPwd = await bcrypt.hash("manager123!", 12);
+
+  // Pre-hash passwords for new role users
+  const approverPwds = {
+    "approver1@example.com": await hashEmailPrefix("approver1@example.com"),
+    "approver2@example.com": await hashEmailPrefix("approver2@example.com"),
+    "approver3@example.com": await hashEmailPrefix("approver3@example.com"),
+    "cab-approver@example.com": await hashEmailPrefix("cab-approver@example.com"),
+    "security-approver@example.com": await hashEmailPrefix("security-approver@example.com"),
+  };
+  const implementerPwds = {
+    "implementer1@example.com": await hashEmailPrefix("implementer1@example.com"),
+    "implementer2@example.com": await hashEmailPrefix("implementer2@example.com"),
+    "devops1@example.com": await hashEmailPrefix("devops1@example.com"),
+    "devops2@example.com": await hashEmailPrefix("devops2@example.com"),
+    "sre1@example.com": await hashEmailPrefix("sre1@example.com"),
+  };
+  const requesterPwds = {
+    "requester1@example.com": await hashEmailPrefix("requester1@example.com"),
+    "requester2@example.com": await hashEmailPrefix("requester2@example.com"),
+    "developer1@example.com": await hashEmailPrefix("developer1@example.com"),
+    "developer2@example.com": await hashEmailPrefix("developer2@example.com"),
+    "developer3@example.com": await hashEmailPrefix("developer3@example.com"),
+    "pm1@example.com": await hashEmailPrefix("pm1@example.com"),
+  };
 
   const users = [
     // Admins
@@ -74,6 +104,28 @@ async function main() {
     
     // Infrastructure Team
     { email: "infra-lead@example.com", name: "Infrastructure Lead", role: "manager", pwd: mgrPwd },
+
+    // ── Approvers (dedicated approval role) ──
+    { email: "approver1@example.com", name: "Alice Approver", role: "approver", pwd: approverPwds["approver1@example.com"] },
+    { email: "approver2@example.com", name: "Bob Approver", role: "approver", pwd: approverPwds["approver2@example.com"] },
+    { email: "approver3@example.com", name: "Carol Approver", role: "approver", pwd: approverPwds["approver3@example.com"] },
+    { email: "cab-approver@example.com", name: "CAB Approver", role: "approver", pwd: approverPwds["cab-approver@example.com"] },
+    { email: "security-approver@example.com", name: "Security Approver", role: "approver", pwd: approverPwds["security-approver@example.com"] },
+
+    // ── Implementers (execute approved changes) ──
+    { email: "implementer1@example.com", name: "Ian Implementer", role: "implementer", pwd: implementerPwds["implementer1@example.com"] },
+    { email: "implementer2@example.com", name: "Ivy Implementer", role: "implementer", pwd: implementerPwds["implementer2@example.com"] },
+    { email: "devops1@example.com", name: "DevOps Engineer 1", role: "implementer", pwd: implementerPwds["devops1@example.com"] },
+    { email: "devops2@example.com", name: "DevOps Engineer 2", role: "implementer", pwd: implementerPwds["devops2@example.com"] },
+    { email: "sre1@example.com", name: "SRE Engineer", role: "implementer", pwd: implementerPwds["sre1@example.com"] },
+
+    // ── Requesters (create and submit CRs) ──
+    { email: "requester1@example.com", name: "Rachel Requester", role: "requester", pwd: requesterPwds["requester1@example.com"] },
+    { email: "requester2@example.com", name: "Ryan Requester", role: "requester", pwd: requesterPwds["requester2@example.com"] },
+    { email: "developer1@example.com", name: "Dev One", role: "requester", pwd: requesterPwds["developer1@example.com"] },
+    { email: "developer2@example.com", name: "Dev Two", role: "requester", pwd: requesterPwds["developer2@example.com"] },
+    { email: "developer3@example.com", name: "Dev Three", role: "requester", pwd: requesterPwds["developer3@example.com"] },
+    { email: "pm1@example.com", name: "Product Manager", role: "requester", pwd: requesterPwds["pm1@example.com"] },
   ];
   for (const u of users) {
     await prisma.user.upsert({
