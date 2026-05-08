@@ -5,10 +5,10 @@
  * Supports creating from templates or copying from existing CRs.
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, FileText, ChevronDown, Copy, Search } from "lucide-react";
+import { ArrowLeft, Save, FileText, ChevronDown, Copy, Search, UserPlus, X } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 import {
@@ -21,6 +21,12 @@ import {
   CR_WORKFLOWS,
   ASSIGNMENT_GROUPS,
 } from "@/lib/constants";
+
+interface UserSuggestion {
+  id: string;
+  name: string;
+  email: string;
+}
 
 type Template = {
   id: string;
@@ -79,6 +85,7 @@ const defaultForm = {
   plannedStart: "",
   plannedEnd: "",
   assignmentGroup: "",
+  assignedTo: "",
   affectedServices: "",
 };
 
@@ -102,6 +109,13 @@ export default function NewChangePage() {
   const [showCopyDropdown, setShowCopyDropdown] = useState(false);
   const [copySearch, setCopySearch] = useState("");
   const [selectedCopy, setSelectedCopy] = useState<string>("");
+
+  // Assigned To user autocomplete
+  const [assignedToInput, setAssignedToInput] = useState("");
+  const [assignedToUser, setAssignedToUser] = useState<UserSuggestion | null>(null);
+  const [userSuggestions, setUserSuggestions] = useState<UserSuggestion[]>([]);
+  const [showUserSuggestions, setShowUserSuggestions] = useState(false);
+  const assignedToRef = useRef<HTMLInputElement>(null);
 
   // Load templates
   useEffect(() => {
@@ -161,6 +175,40 @@ export default function NewChangePage() {
       if (cr) applyCopy(cr);
     }
   }, [copyFrom, existingCRs]);
+
+  // Search users for Assigned To autocomplete
+  useEffect(() => {
+    if (assignedToInput.length < 1) {
+      setUserSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(assignedToInput)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setUserSuggestions(data.users || []);
+          setShowUserSuggestions((data.users || []).length > 0);
+        }
+      } catch {
+        // Ignore search errors
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [assignedToInput]);
+
+  function selectAssignedTo(user: UserSuggestion) {
+    setAssignedToUser(user);
+    setAssignedToInput("");
+    setUserSuggestions([]);
+    setShowUserSuggestions(false);
+    setForm((f) => ({ ...f, assignedTo: user.email }));
+  }
+
+  function clearAssignedTo() {
+    setAssignedToUser(null);
+    setForm((f) => ({ ...f, assignedTo: "" }));
+  }
 
   function applyTemplate(t: Template) {
     setSelectedTemplate(t.id);
@@ -409,6 +457,56 @@ export default function NewChangePage() {
               <Select label="Impact" value={form.impactLevel} onChange={(v) => update("impactLevel", v)} options={CR_IMPACT_LEVELS.map((o) => [o.value, o.label])} />
               <Select label="Urgency" value={form.urgency} onChange={(v) => update("urgency", v)} options={CR_URGENCY_LEVELS.map((o) => [o.value, o.label])} />
               <Select label="Assignment Group" value={form.assignmentGroup} onChange={(v) => update("assignmentGroup", v)} options={[["", "-- Select --"] as [string, string], ...ASSIGNMENT_GROUPS.map((o) => [o.value, o.label] as [string, string])]} />
+            </div>
+
+            {/* Assigned To with user autocomplete */}
+            <div className="relative">
+              <Field label="Assigned To">
+                {assignedToUser ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1.5 text-sm text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
+                      <UserPlus className="h-3.5 w-3.5" />
+                      {assignedToUser.name}
+                      <button
+                        type="button"
+                        onClick={clearAssignedTo}
+                        className="ml-1 rounded-full p-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-800"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                    <span className="text-xs text-gray-500">{assignedToUser.email}</span>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <UserPlus className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      ref={assignedToRef}
+                      type="text"
+                      value={assignedToInput}
+                      onChange={(e) => setAssignedToInput(e.target.value)}
+                      onFocus={() => userSuggestions.length > 0 && setShowUserSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowUserSuggestions(false), 200)}
+                      placeholder="Type a name to search..."
+                      className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm dark:border-gray-700 dark:bg-gray-900"
+                    />
+                    {showUserSuggestions && userSuggestions.length > 0 && (
+                      <ul className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                        {userSuggestions.map((user) => (
+                          <li
+                            key={user.id}
+                            className="cursor-pointer px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            onMouseDown={() => selectAssignedTo(user)}
+                          >
+                            <div className="font-medium text-gray-900 dark:text-gray-100">{user.name}</div>
+                            <div className="text-xs text-gray-500">{user.email}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </Field>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

@@ -85,6 +85,20 @@ export const CR_TYPES = [
   { value: "emergency", label: "Emergency" },
 ] as const;
 
+// Default approvers by CR type - these users will be automatically added as approvers
+// when a new CR is created with the corresponding type
+export const DEFAULT_APPROVERS_BY_TYPE: Record<string, { stepName: string; policy: string; approverEmails: string[] }[]> = {
+  standard: [
+    { stepName: "Manager Review", policy: "any", approverEmails: [] }, // Will be filled by assignedTo or assignmentGroup lead
+  ],
+  normal: [
+    { stepName: "Technical Review", policy: "any", approverEmails: [] },
+  ],
+  emergency: [
+    { stepName: "Emergency CAB", policy: "any", approverEmails: [] },
+  ],
+};
+
 export const CR_CATEGORIES = [
   { value: "infrastructure", label: "Infrastructure" },
   { value: "feature", label: "Feature" },

@@ -168,6 +168,20 @@ export class ChangeRequestService {
     draft.mlExplanation = ml.explanation;
 
     const created = await this.repo.create(draft);
+    
+    // Create default approval step if assignedTo is specified
+    if (created.assignedTo) {
+      const stepName = this.getDefaultApprovalStepName(created.type);
+      await this.repo.createApprovalStep({
+        changeRequestId: created.number,
+        name: stepName,
+        ordering: 0,
+        policy: "any",
+        status: "pending",
+        approvers: [{ email: created.assignedTo }],
+      });
+    }
+    
     await recordAudit(this.audit, {
       changeRequestId: number,
       actor: ctx.actor,
@@ -175,6 +189,19 @@ export class ChangeRequestService {
       payload: { workflow: wfKey },
     });
     return created;
+  }
+
+  private getDefaultApprovalStepName(crType: string): string {
+    switch (crType) {
+      case "standard":
+        return "Manager Review";
+      case "normal":
+        return "Technical Review";
+      case "emergency":
+        return "Emergency CAB";
+      default:
+        return "Review";
+    }
   }
 
   async update(
