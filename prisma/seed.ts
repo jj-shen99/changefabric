@@ -45,12 +45,35 @@ async function main() {
   const mgrPwd = await bcrypt.hash("manager123!", 12);
 
   const users = [
+    // Admins
     { email: "admin@example.com", name: "System Admin", role: "admin", pwd: adminPwd },
+    { email: "ops-admin@example.com", name: "Operations Admin", role: "admin", pwd: adminPwd },
+    
+    // Engineering Managers (for normal/standard CRs)
     { email: "mike@example.com", name: "Mike Torres", role: "manager", pwd: mgrPwd },
     { email: "lisa@example.com", name: "Lisa Wang", role: "manager", pwd: mgrPwd },
     { email: "raj@example.com", name: "Raj Patel", role: "manager", pwd: mgrPwd },
+    { email: "sarah@example.com", name: "Sarah Chen", role: "manager", pwd: mgrPwd },
+    { email: "james@example.com", name: "James Wilson", role: "manager", pwd: mgrPwd },
+    
+    // Security Team (for security-related CRs)
     { email: "security@example.com", name: "Security Team", role: "manager", pwd: mgrPwd },
+    { email: "security-lead@example.com", name: "Alex Security Lead", role: "manager", pwd: mgrPwd },
+    
+    // CAB Members (Change Advisory Board)
     { email: "cab@example.com", name: "CAB Chair", role: "manager", pwd: mgrPwd },
+    { email: "cab-member1@example.com", name: "CAB Member - Infrastructure", role: "manager", pwd: mgrPwd },
+    { email: "cab-member2@example.com", name: "CAB Member - Applications", role: "manager", pwd: mgrPwd },
+    
+    // Emergency Approvers (on-call managers)
+    { email: "oncall-primary@example.com", name: "On-Call Primary", role: "manager", pwd: mgrPwd },
+    { email: "oncall-secondary@example.com", name: "On-Call Secondary", role: "manager", pwd: mgrPwd },
+    
+    // Database Team
+    { email: "dba-lead@example.com", name: "DBA Lead", role: "manager", pwd: mgrPwd },
+    
+    // Infrastructure Team
+    { email: "infra-lead@example.com", name: "Infrastructure Lead", role: "manager", pwd: mgrPwd },
   ];
   for (const u of users) {
     await prisma.user.upsert({
@@ -58,6 +81,38 @@ async function main() {
       update: { hashedPassword: u.pwd, role: u.role, name: u.name },
       create: { email: u.email, name: u.name, hashedPassword: u.pwd, role: u.role },
     });
+  }
+
+  // ── CR Type Default Approvers ─────────────────────────────────
+  console.log("Seeding CR type default approvers…");
+  
+  const crTypeApprovers = [
+    // Standard (pre-approved) CRs - minimal approval needed
+    { crType: "standard", approverEmail: "mike@example.com", stepName: "Tech Review", ordering: 1, approverGroup: "Engineering" },
+    
+    // Normal CRs - full approval cycle
+    { crType: "normal", approverEmail: "lisa@example.com", stepName: "Tech Review", ordering: 1, approverGroup: "Engineering" },
+    { crType: "normal", approverEmail: "raj@example.com", stepName: "Tech Review", ordering: 1, approverGroup: "Engineering" },
+    { crType: "normal", approverEmail: "security@example.com", stepName: "Security Review", ordering: 2, approverGroup: "Security" },
+    { crType: "normal", approverEmail: "cab@example.com", stepName: "CAB Approval", ordering: 3, approverGroup: "CAB" },
+    { crType: "normal", approverEmail: "cab-member1@example.com", stepName: "CAB Approval", ordering: 3, approverGroup: "CAB" },
+    
+    // Emergency CRs - expedited approval (on-call managers)
+    { crType: "emergency", approverEmail: "oncall-primary@example.com", stepName: "Emergency Approval", ordering: 1, approverGroup: "On-Call" },
+    { crType: "emergency", approverEmail: "oncall-secondary@example.com", stepName: "Emergency Approval", ordering: 1, approverGroup: "On-Call" },
+    { crType: "emergency", approverEmail: "admin@example.com", stepName: "Retro Approval", ordering: 2, approverGroup: "Admin" },
+  ];
+
+  for (const a of crTypeApprovers) {
+    const id = crypto.randomUUID();
+    try {
+      await prisma.$executeRaw`
+        INSERT OR IGNORE INTO CRTypeApprover (id, crType, approverEmail, approverGroup, stepName, ordering, isActive, createdBy, createdAt, updatedAt)
+        VALUES (${id}, ${a.crType}, ${a.approverEmail}, ${a.approverGroup}, ${a.stepName}, ${a.ordering}, 1, 'admin@example.com', datetime('now'), datetime('now'))
+      `;
+    } catch {
+      // Ignore duplicates
+    }
   }
 
   // ── Workflow Definitions ───────────────────────────────────────

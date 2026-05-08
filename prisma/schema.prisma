@@ -375,3 +375,25 @@ model ChangeRequestTemplate {
   @@index([category])
   @@index([isActive])
 }
+
+// ── CR Type Default Approvers ────────────────────────────────────
+// Defines default approvers for each type of change request
+// When a CR is created, these approvers are automatically added to approval steps
+
+model CRTypeApprover {
+  id              String   @id @default(uuid())
+  crType          String                          // "standard" | "normal" | "emergency"
+  approverEmail   String                          // User email of the approver
+  approverGroup   String?                         // Optional group name (e.g., "CAB", "Security")
+  stepName        String   @default("Default")    // Approval step name (e.g., "Tech Review", "CAB")
+  ordering        Int      @default(1)            // Order of the approval step
+  isActive        Boolean  @default(true)
+  createdBy       String                          // Admin who created this assignment
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([crType, approverEmail, stepName])
+  @@index([crType])
+  @@index([approverEmail])
+  @@index([isActive])
+}
