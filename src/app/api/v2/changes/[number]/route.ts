@@ -95,6 +95,12 @@ export async function GET(
     // Check if this is a pre-approved workflow (no approval steps needed)
     const isPreApproved = cr.workflowKey === "standard_preapproved";
     
+    // Check if user is admin (can delete imported CRs)
+    const isAdmin = ctx.perms.canViewAllData;
+    
+    // Check if CR is imported (has externalSource)
+    const isImported = !!cr.externalSource;
+    
     return NextResponse.json({ 
       changeRequest: cr, 
       approvalSteps: steps, 
@@ -107,6 +113,8 @@ export async function GET(
         isAssigned,
         isApprover,
         isPreApproved,
+        isAdmin,
+        isImported,
       },
     });
   } catch (err) {
@@ -143,9 +151,34 @@ export async function DELETE(
 ) {
   const ctx = await requireSession();
   if (isResponse(ctx)) return ctx;
-  if (!ctx.perms.canManageChanges) return forbidden();
+  
+  // Only admins can delete CRs
+  if (!ctx.perms.canViewAllData) {
+    return forbidden();
+  }
+  
+  const svc = getChangeRequestService();
+  
   try {
-    await prisma.changeRequest.delete({ where: { number: params.number } });
+    // Check if CR exists and is imported (has externalSource)
+    const cr = await svc.get(params.number);
+    
+    if (!cr) {
+      return notFound();
+    }
+    
+    // Only allow deletion of imported CRs (those with an externalSource)
+    if (!cr.externalSource) {
+      return badRequest("Only imported change requests can be deleted. Native CRs should be canceled instead.");
+    }
+    
+    // Delete the CR and related records using raw queries for cascade
+    await prisma.$executeRaw`DELETE FROM Approval WHERE changeRequestId = ${params.number}`;
+    await prisma.$executeRaw`DELETE FROM ApprovalStep WHERE changeRequestId = ${params.number}`;
+    await prisma.$executeRaw`DELETE FROM Comment WHERE changeRequestId = ${params.number}`;
+    await prisma.$executeRaw`DELETE FROM AuditEvent WHERE changeRequestId = ${params.number}`;
+    await prisma.$executeRaw`DELETE FROM ChangeRequest WHERE number = ${params.number}`;
+    
     return NextResponse.json({ deleted: params.number });
   } catch (err) {
     return serverError(err);

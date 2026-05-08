@@ -7,7 +7,8 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, Send, MessageSquare, ShieldCheck, Activity, Pencil, Save, X, Lock, Info, UserPlus, Eye } from "lucide-react";
+import { ArrowLeft, Send, MessageSquare, ShieldCheck, Activity, Pencil, Save, X, Lock, Info, UserPlus, Eye, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 
@@ -80,10 +81,13 @@ interface UserAccess {
   isAssigned: boolean;
   isApprover: boolean;
   isPreApproved: boolean;
+  isAdmin: boolean;
+  isImported: boolean;
 }
 
 export default function ChangeDetailPage({ params }: { params: { number: string } }) {
   const crNumber = params.number;
+  const router = useRouter();
   
   const [cr, setCR] = useState<CR | null>(null);
   const [steps, setSteps] = useState<ApprovalStep[]>([]);
@@ -266,6 +270,24 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
     }
   }
 
+  async function deleteCR() {
+    if (!confirm(`Are you sure you want to delete this imported change request (${crNumber})?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/v2/changes/${crNumber}`, { method: "DELETE" });
+      if (!res.ok) {
+        const e = await res.json();
+        alert(e.error || "Delete failed");
+      } else {
+        router.push("/changes");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const isClosed = cr?.state === "closed" || cr?.state === "canceled" || cr?.state === "rejected";
 
   if (loading) return <div className="p-6 text-sm text-gray-500">Loading…</div>;
@@ -360,21 +382,35 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
 
       {tab === "overview" && (
         <Card>
-          {/* Edit/Save buttons - only CR owner (creator) can edit */}
+          {/* Edit/Save/Delete buttons */}
           <div className="flex items-center justify-end gap-2 border-b border-gray-100 px-4 py-2 dark:border-gray-800">
             {!editing ? (
-              userAccess?.isOwner ? (
-                <button
-                  onClick={startEdit}
-                  disabled={isClosed}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={isClosed ? "Cannot edit closed/canceled/rejected CRs" : "Edit change request"}
-                >
-                  <Pencil className="h-3 w-3" /> Edit
-                </button>
-              ) : (
-                <span className="text-xs text-gray-500 italic">Read-only access</span>
-              )
+              <>
+                {/* Delete button - only for admins and imported CRs */}
+                {userAccess?.isAdmin && userAccess?.isImported && (
+                  <button
+                    onClick={deleteCR}
+                    disabled={busy}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
+                    title="Delete this imported change request"
+                  >
+                    <Trash2 className="h-3 w-3" /> Delete
+                  </button>
+                )}
+                {/* Edit button - only CR owner (creator) can edit */}
+                {userAccess?.isOwner ? (
+                  <button
+                    onClick={startEdit}
+                    disabled={isClosed}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={isClosed ? "Cannot edit closed/canceled/rejected CRs" : "Edit change request"}
+                  >
+                    <Pencil className="h-3 w-3" /> Edit
+                  </button>
+                ) : (
+                  <span className="text-xs text-gray-500 italic">Read-only access</span>
+                )}
+              </>
             ) : (
               <>
                 <button
