@@ -34,22 +34,19 @@ const normalizeState = (state: string) => state.toLowerCase().replace(/\s+/g, "_
 const STATE_TONE: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   submitted: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-  assessing: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
   awaiting_approval: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
   approved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
   scheduled: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
   in_progress: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
   implemented: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
-  reviewing: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
+  rolled_back: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
   closed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
   rejected: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
   canceled: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
   // ServiceNow states (mapped to similar native states)
   new: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  assess: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
   authorize: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
   implement: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
-  review: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300",
 };
 
 function StatePill({ state }: { state: string }) {

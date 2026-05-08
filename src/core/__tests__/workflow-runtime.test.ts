@@ -322,7 +322,7 @@ describe("Workflow Runtime", () => {
         runtime.effects.setClosed({
           changeRequest: cr,
           actor: "closer@example.com",
-          from: "reviewing",
+          from: "implemented",
           to: "closed",
           event: "close",
         });
@@ -339,7 +339,7 @@ describe("Workflow Runtime", () => {
         runtime.effects.startApprovalSteps({
           changeRequest: cr,
           actor: "user@example.com",
-          from: "assessing",
+          from: "submitted",
           to: "awaiting_approval",
           event: "request_approval",
         });

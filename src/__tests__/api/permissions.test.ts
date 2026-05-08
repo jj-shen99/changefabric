@@ -134,21 +134,19 @@ describe("State Normalization", () => {
 describe("KPI State Categorization", () => {
   const normalizeState = (state: string) => state.toLowerCase().replace(/\s+/g, "_");
 
-  const pendingStates = ["draft", "submitted", "assessing", "awaiting_approval", "new", "assess", "authorize"];
-  const inFlightStates = ["approved", "scheduled", "in_progress", "implemented", "reviewing", "implement", "review"];
+  const pendingStates = ["draft", "submitted", "awaiting_approval", "new", "authorize"];
+  const inFlightStates = ["approved", "scheduled", "in_progress", "implemented", "implement"];
   const closedStates = ["closed"];
-  const rejectedStates = ["rejected", "canceled"];
+  const terminalStates = ["rejected", "canceled", "rolled_back"];
 
   describe("pending states", () => {
     it("includes all expected pending states", () => {
       // Native pending states
       expect(pendingStates).toContain("draft");
       expect(pendingStates).toContain("submitted");
-      expect(pendingStates).toContain("assessing");
       expect(pendingStates).toContain("awaiting_approval");
       // ServiceNow pending states
       expect(pendingStates).toContain("new");
-      expect(pendingStates).toContain("assess");
       expect(pendingStates).toContain("authorize");
     });
 
@@ -168,10 +166,8 @@ describe("KPI State Categorization", () => {
       expect(inFlightStates).toContain("scheduled");
       expect(inFlightStates).toContain("in_progress");
       expect(inFlightStates).toContain("implemented");
-      expect(inFlightStates).toContain("reviewing");
       // ServiceNow in-flight states
       expect(inFlightStates).toContain("implement");
-      expect(inFlightStates).toContain("review");
     });
 
     it("correctly categorizes ServiceNow 'Implement' as in-flight", () => {
@@ -193,17 +189,21 @@ describe("KPI State Categorization", () => {
     });
   });
 
-  describe("rejected states", () => {
-    it("correctly categorizes 'rejected' as rejected", () => {
-      expect(rejectedStates.includes(normalizeState("rejected"))).toBe(true);
+  describe("terminal states", () => {
+    it("correctly categorizes 'rejected' as terminal", () => {
+      expect(terminalStates.includes(normalizeState("rejected"))).toBe(true);
     });
 
-    it("correctly categorizes 'canceled' as rejected", () => {
-      expect(rejectedStates.includes(normalizeState("canceled"))).toBe(true);
+    it("correctly categorizes 'canceled' as terminal", () => {
+      expect(terminalStates.includes(normalizeState("canceled"))).toBe(true);
     });
 
-    it("correctly categorizes ServiceNow 'Canceled' as rejected", () => {
-      expect(rejectedStates.includes(normalizeState("Canceled"))).toBe(true);
+    it("correctly categorizes 'rolled_back' as terminal", () => {
+      expect(terminalStates.includes(normalizeState("rolled_back"))).toBe(true);
+    });
+
+    it("correctly categorizes ServiceNow 'Canceled' as terminal", () => {
+      expect(terminalStates.includes(normalizeState("Canceled"))).toBe(true);
     });
   });
 });

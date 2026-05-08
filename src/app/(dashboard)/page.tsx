@@ -63,26 +63,26 @@ export default function OverviewPage() {
   if (!dashboardMetrics) return <div className="text-gray-500">No data available</div>;
 
   // Calculate accurate KPIs from actual change request data
-  const pendingStates = new Set(["draft", "submitted", "assessing", "awaiting_approval"]);
-  const inProgressStates = new Set(["approved", "scheduled", "in_progress", "implemented", "reviewing"]);
+  const pendingStates = new Set(["draft", "submitted", "awaiting_approval"]);
+  const inProgressStates = new Set(["approved", "scheduled", "in_progress", "implemented"]);
   const pendingCount = changeRequests.filter(cr => pendingStates.has(cr.state)).length;
   const inProgressCount = changeRequests.filter(cr => inProgressStates.has(cr.state)).length;
   const closedCount = changeRequests.filter(cr => cr.state === "closed").length;
-  const canceledCount = changeRequests.filter(cr => cr.state === "canceled" || cr.state === "rejected").length;
+  const rolledBackCount = changeRequests.filter(cr => cr.state === "rolled_back").length;
   const totalCount = changeRequests.length;
   const avgRisk = totalCount > 0 ? Math.round(changeRequests.reduce((a, c) => a + (c.impact?.overallRisk || 0), 0) / totalCount) : 0;
   const closeRate = totalCount > 0 ? Math.round((closedCount / totalCount) * 100) : 0;
-  const cancelRate = totalCount > 0 ? Math.round((canceledCount / totalCount) * 100) : 0;
+  const rollbackRate = totalCount > 0 ? Math.round((rolledBackCount / totalCount) * 100) : 0;
 
   const kpiCards = [
     { label: "Total Changes", value: totalCount, icon: GitPullRequest, color: "text-blue-600", bg: "bg-blue-50", tooltip: "Total number of change requests in the selected time period" },
-    { label: "Pending Approval", value: pendingCount, icon: Clock, color: "text-amber-600", bg: "bg-amber-50", tooltip: "CRs in: Draft, Submitted, Assessing, Awaiting Approval" },
-    { label: "In Progress", value: inProgressCount, icon: Rocket, color: "text-green-600", bg: "bg-green-50", tooltip: "CRs in: Approved, Scheduled, In Progress, Implemented, Reviewing" },
+    { label: "Pending Approval", value: pendingCount, icon: Clock, color: "text-amber-600", bg: "bg-amber-50", tooltip: "CRs in: Draft, Submitted, Awaiting Approval" },
+    { label: "In Progress", value: inProgressCount, icon: Rocket, color: "text-green-600", bg: "bg-green-50", tooltip: "CRs in: Approved, Scheduled, In Progress, Implemented" },
     { label: "Closed", value: closedCount, icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", tooltip: "Successfully completed change requests" },
-    { label: "Canceled/Rejected", value: canceledCount, icon: XCircle, color: "text-red-600", bg: "bg-red-50", tooltip: "CRs that were canceled or rejected" },
+    { label: "Rolled Back", value: rolledBackCount, icon: TrendingDown, color: "text-rose-600", bg: "bg-rose-50", tooltip: "CRs that were rolled back during or after implementation" },
     { label: "Avg Risk Score", value: avgRisk, icon: AlertTriangle, color: "text-yellow-600", bg: "bg-yellow-50", tooltip: "Average computed risk score across all CRs (0-100)" },
     { label: "Close Rate", value: `${closeRate}%`, icon: Activity, color: "text-purple-600", bg: "bg-purple-50", tooltip: "Percentage of CRs successfully closed (Closed / Total)" },
-    { label: "Cancel Rate", value: `${cancelRate}%`, icon: TrendingDown, color: "text-orange-600", bg: "bg-orange-50", tooltip: "Percentage of CRs canceled or rejected ((Canceled + Rejected) / Total)" },
+    { label: "Rollback Rate", value: `${rollbackRate}%`, icon: XCircle, color: "text-red-600", bg: "bg-red-50", tooltip: "Percentage of CRs rolled back (Rolled Back / Total)" },
   ];
 
   const highRiskChanges = changeRequests.filter((cr) => cr.impact?.overallRisk >= 60);
@@ -193,7 +193,7 @@ export default function OverviewPage() {
         </CardHeader>
         <div className="px-4 pb-6 overflow-x-auto">
           {/* Workflow Flow Diagram */}
-          <div className="min-w-[900px]">
+          <div className="min-w-[800px]">
             {/* Main Flow */}
             <div className="flex items-center justify-center gap-1">
               {/* Draft */}
@@ -211,15 +211,6 @@ export default function OverviewPage() {
                   <span className="text-xs font-semibold text-blue-600 dark:text-blue-300">Submitted</span>
                 </div>
                 <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'submitted').length}</span>
-              </div>
-              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
-              
-              {/* Assessing */}
-              <div className="flex flex-col items-center">
-                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-950 border-2 border-purple-300 dark:border-purple-700">
-                  <span className="text-xs font-semibold text-purple-600 dark:text-purple-300">Assessing</span>
-                </div>
-                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'assessing').length}</span>
               </div>
               <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
               
@@ -268,15 +259,6 @@ export default function OverviewPage() {
               </div>
               <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
               
-              {/* Reviewing */}
-              <div className="flex flex-col items-center">
-                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-violet-50 dark:bg-violet-950 border-2 border-violet-300 dark:border-violet-700">
-                  <span className="text-xs font-semibold text-violet-600 dark:text-violet-300">Reviewing</span>
-                </div>
-                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'reviewing').length}</span>
-              </div>
-              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
-              
               {/* Closed */}
               <div className="flex flex-col items-center">
                 <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900 border-2 border-green-500 dark:border-green-600">
@@ -287,7 +269,7 @@ export default function OverviewPage() {
             </div>
 
             {/* Terminal States Row */}
-            <div className="mt-6 flex items-center justify-center gap-8">
+            <div className="mt-6 flex items-center justify-center gap-6">
               <div className="flex items-center gap-2">
                 <Circle className="h-3 w-3 text-red-500 fill-red-500" />
                 <div className="flex h-10 w-24 items-center justify-center rounded-lg bg-red-50 dark:bg-red-950 border-2 border-red-300 dark:border-red-700">
@@ -302,11 +284,18 @@ export default function OverviewPage() {
                 </div>
                 <span className="text-[10px] text-gray-400">({changeRequests.filter(c => c.state === 'canceled').length})</span>
               </div>
+              <div className="flex items-center gap-2">
+                <Circle className="h-3 w-3 text-rose-500 fill-rose-500" />
+                <div className="flex h-10 w-24 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-950 border-2 border-rose-300 dark:border-rose-700">
+                  <span className="text-xs font-semibold text-rose-600 dark:text-rose-300">Rolled Back</span>
+                </div>
+                <span className="text-[10px] text-gray-400">({changeRequests.filter(c => c.state === 'rolled_back').length})</span>
+              </div>
             </div>
 
             {/* Legend - numbers show count of CRs in each state */}
             <div className="mt-4 text-center text-[10px] text-gray-400 dark:text-gray-500">
-              Numbers indicate the count of change requests currently in each state
+              Numbers indicate the count of change requests currently in each state. Cancel not available from In Progress onwards.
             </div>
           </div>
         </div>

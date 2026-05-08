@@ -7,10 +7,10 @@ import "@testing-library/jest-dom";
 describe("KPI Count Calculations", () => {
   // State definitions matching the application
   const STATE_GROUPS = {
-    pending: ["draft", "submitted", "assessing", "awaiting_approval"],
-    inFlight: ["approved", "scheduled", "in_progress", "implemented", "reviewing"],
+    pending: ["draft", "submitted", "awaiting_approval"],
+    inFlight: ["approved", "scheduled", "in_progress", "implemented"],
     closed: ["closed"],
-    rejected: ["canceled", "rejected"],
+    terminal: ["canceled", "rejected", "rolled_back"],
   };
 
   const mockChangeRequests = [
@@ -21,11 +21,11 @@ describe("KPI Count Calculations", () => {
     { number: "CHG005", state: "scheduled" },
     { number: "CHG006", state: "in_progress" },
     { number: "CHG007", state: "implemented" },
-    { number: "CHG008", state: "reviewing" },
+    { number: "CHG008", state: "closed" },
     { number: "CHG009", state: "closed" },
-    { number: "CHG010", state: "closed" },
-    { number: "CHG011", state: "canceled" },
-    { number: "CHG012", state: "rejected" },
+    { number: "CHG010", state: "canceled" },
+    { number: "CHG011", state: "rejected" },
+    { number: "CHG012", state: "rolled_back" },
   ];
 
   // Calculation functions matching the application
@@ -39,8 +39,8 @@ describe("KPI Count Calculations", () => {
         STATE_GROUPS.inFlight.includes(c.state)
       ).length,
       closed: items.filter((c) => c.state === "closed").length,
-      rejected: items.filter((c) =>
-        c.state === "rejected" || c.state === "canceled"
+      terminal: items.filter((c) =>
+        STATE_GROUPS.terminal.includes(c.state)
       ).length,
     };
   }
@@ -58,8 +58,8 @@ describe("KPI Count Calculations", () => {
     });
 
     it("calculates in flight correctly", () => {
-      // approved, scheduled, in_progress, implemented, reviewing = 5
-      expect(counts.inFlight).toBe(5);
+      // approved, scheduled, in_progress, implemented = 4
+      expect(counts.inFlight).toBe(4);
     });
 
     it("calculates closed correctly", () => {
@@ -67,13 +67,13 @@ describe("KPI Count Calculations", () => {
       expect(counts.closed).toBe(2);
     });
 
-    it("calculates rejected correctly", () => {
-      // canceled + rejected = 2
-      expect(counts.rejected).toBe(2);
+    it("calculates terminal correctly", () => {
+      // canceled + rejected + rolled_back = 3
+      expect(counts.terminal).toBe(3);
     });
 
     it("all counts sum to total", () => {
-      const sum = counts.pending + counts.inFlight + counts.closed + counts.rejected;
+      const sum = counts.pending + counts.inFlight + counts.closed + counts.terminal;
       expect(sum).toBe(counts.total);
     });
   });
@@ -82,13 +82,12 @@ describe("KPI Count Calculations", () => {
     const allStates = [
       "draft",
       "submitted",
-      "assessing",
       "awaiting_approval",
       "approved",
       "scheduled",
       "in_progress",
       "implemented",
-      "reviewing",
+      "rolled_back",
       "closed",
       "canceled",
       "rejected",
@@ -99,7 +98,7 @@ describe("KPI Count Calculations", () => {
         ...STATE_GROUPS.pending,
         ...STATE_GROUPS.inFlight,
         ...STATE_GROUPS.closed,
-        ...STATE_GROUPS.rejected,
+        ...STATE_GROUPS.terminal,
       ];
 
       allStates.forEach((state) => {
@@ -112,7 +111,7 @@ describe("KPI Count Calculations", () => {
         ...STATE_GROUPS.pending,
         ...STATE_GROUPS.inFlight,
         ...STATE_GROUPS.closed,
-        ...STATE_GROUPS.rejected,
+        ...STATE_GROUPS.terminal,
       ];
       
       const uniqueStates = new Set(allCategorized);
@@ -127,7 +126,7 @@ describe("KPI Count Calculations", () => {
       expect(counts.pending).toBe(0);
       expect(counts.inFlight).toBe(0);
       expect(counts.closed).toBe(0);
-      expect(counts.rejected).toBe(0);
+      expect(counts.terminal).toBe(0);
     });
 
     it("handles all same state", () => {
@@ -141,7 +140,7 @@ describe("KPI Count Calculations", () => {
       expect(counts.pending).toBe(3);
       expect(counts.inFlight).toBe(0);
       expect(counts.closed).toBe(0);
-      expect(counts.rejected).toBe(0);
+      expect(counts.terminal).toBe(0);
     });
 
     it("handles unknown state gracefully", () => {
@@ -153,7 +152,7 @@ describe("KPI Count Calculations", () => {
       expect(counts.total).toBe(2);
       expect(counts.pending).toBe(1);
       // Unknown state doesn't count in any category
-      expect(counts.pending + counts.inFlight + counts.closed + counts.rejected).toBe(1);
+      expect(counts.pending + counts.inFlight + counts.closed + counts.terminal).toBe(1);
     });
   });
 
@@ -162,19 +161,19 @@ describe("KPI Count Calculations", () => {
     const overviewKpiDefinitions = {
       pending: {
         label: "Pending",
-        states: ["draft", "submitted", "assessing", "awaiting_approval"],
+        states: ["draft", "submitted", "awaiting_approval"],
       },
       inProgress: {
         label: "In Progress",
-        states: ["approved", "scheduled", "in_progress", "implemented", "reviewing"],
+        states: ["approved", "scheduled", "in_progress", "implemented"],
       },
       closed: {
         label: "Closed",
         states: ["closed"],
       },
-      canceled: {
-        label: "Canceled/Rejected",
-        states: ["canceled", "rejected"],
+      terminal: {
+        label: "Terminal",
+        states: ["canceled", "rejected", "rolled_back"],
       },
     };
 
@@ -182,7 +181,7 @@ describe("KPI Count Calculations", () => {
       expect(overviewKpiDefinitions.pending.states).toEqual(STATE_GROUPS.pending);
       expect(overviewKpiDefinitions.inProgress.states).toEqual(STATE_GROUPS.inFlight);
       expect(overviewKpiDefinitions.closed.states).toEqual(STATE_GROUPS.closed);
-      expect(overviewKpiDefinitions.canceled.states).toEqual(STATE_GROUPS.rejected);
+      expect(overviewKpiDefinitions.terminal.states).toEqual(STATE_GROUPS.terminal);
     });
   });
 });
@@ -191,13 +190,13 @@ describe("KPI Display Consistency", () => {
   it("Changes page and Overview page use same state groupings", () => {
     // Both pages should categorize states identically
     const changesPageStates = {
-      pending: ["draft", "submitted", "assessing", "awaiting_approval"],
-      inFlight: ["approved", "scheduled", "in_progress", "implemented", "reviewing"],
+      pending: ["draft", "submitted", "awaiting_approval"],
+      inFlight: ["approved", "scheduled", "in_progress", "implemented"],
     };
 
     const overviewPageStates = {
-      pending: ["draft", "submitted", "assessing", "awaiting_approval"],
-      inProgress: ["approved", "scheduled", "in_progress", "implemented", "reviewing"],
+      pending: ["draft", "submitted", "awaiting_approval"],
+      inProgress: ["approved", "scheduled", "in_progress", "implemented"],
     };
 
     expect(changesPageStates.pending).toEqual(overviewPageStates.pending);

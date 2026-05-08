@@ -145,13 +145,12 @@ export interface AuditEvent {
 export const STANDARD_STATES = [
   "draft",
   "submitted",
-  "assessing",
   "awaiting_approval",
   "approved",
   "scheduled",
   "in_progress",
   "implemented",
-  "reviewing",
+  "rolled_back",
   "closed",
   "rejected",
   "canceled",
@@ -163,4 +162,14 @@ export const TERMINAL_STATES: readonly string[] = [
   "closed",
   "rejected",
   "canceled",
+  "rolled_back",
+];
+
+/** States from which a CR cannot be canceled (implementation has started) */
+export const NO_CANCEL_STATES: readonly string[] = [
+  "in_progress",
+  "implemented",
+  "rolled_back",
+  "closed",
+  "rejected",
 ];
