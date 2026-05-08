@@ -1625,6 +1625,374 @@ ROI Analysis:
   // Organized by workflow type: Standard, Pre-approved, Emergency
   const templates = [
     // ═══════════════════════════════════════════════════════════════
+    // DETAILED STANDARD WORKFLOW TEMPLATES (comprehensive plans)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: "Database Schema Migration",
+      description: "Production database schema changes including table alterations, index modifications, and data migrations with zero-downtime strategy",
+      category: "database",
+      type: "normal",
+      workflowKey: "standard",
+      priority: "2",
+      riskLevel: "high",
+      impactLevel: "1",
+      urgency: "2",
+      assignmentGroup: "Data Engineering",
+      implementationPlan: `## Pre-Migration Preparation (T-7 days)
+1. Create and review migration scripts in version control
+2. Generate full database backup and verify restore capability
+3. Clone production data to staging environment (anonymized)
+4. Notify all dependent service teams via email and Slack
+
+## Staging Validation (T-5 to T-2 days)
+1. Execute migration on staging using gh-ost or pt-online-schema-change
+2. Run full regression test suite against migrated schema
+3. Benchmark query performance (target: no degradation >10%)
+4. Validate data integrity with checksums and row counts
+5. Test rollback procedure on staging
+
+## Production Migration (T-0, Maintenance Window 02:00-04:00 UTC)
+1. Enable read-only mode on affected services (circuit breaker)
+2. Create point-in-time backup immediately before migration
+3. Execute migration with real-time progress monitoring
+4. Verify row counts and data integrity checksums
+5. Run smoke tests against critical queries
+6. Re-enable write traffic with 5% canary
+
+## Post-Migration Validation (T+1 to T+7 days)
+1. Monitor query latency dashboards for 24 hours
+2. Verify all dependent services functioning correctly
+3. Run daily data integrity checks for one week
+4. Archive pre-migration backup after 30 days`,
+      backoutPlan: `## Immediate Rollback (within 30 minutes of migration start)
+1. Execute gh-ost reverse-cutover to restore original table
+2. Verify application connectivity restored
+3. Run data integrity validation
+4. Notify stakeholders of rollback via Slack #incidents
+
+## Extended Rollback (after migration completed)
+1. Restore from point-in-time backup (RTO: 45 minutes)
+2. Replay WAL logs to recover transactions since backup
+3. Point application services to restored database
+4. Verify data consistency across all tables
+
+## Partial Rollback (specific issues only)
+1. If only specific columns affected, use ALTER TABLE to revert
+2. If indexes causing issues, drop and recreate original indexes
+3. Document partial rollback for post-mortem`,
+      testPlan: `## Unit Tests
+- Migration script syntax validation
+- Rollback script verification
+- Data transformation logic tests
+
+## Integration Tests
+- CRUD operations on affected tables
+- Foreign key constraint validation
+- Trigger and stored procedure functionality
+
+## Performance Tests
+- Query execution plans before/after comparison
+- Index usage verification
+- Load test with 2x peak traffic for 1 hour
+
+## Data Integrity Tests
+- Row count validation (before vs after)
+- Checksum comparison on critical columns
+- Referential integrity verification
+- NULL constraint validation`,
+      riskAndImpactAnalysis: `## Risk Assessment: HIGH
+
+### Primary Risks
+1. **Data Loss** (Likelihood: Low, Impact: Critical)
+   - Mitigation: Point-in-time backup, gh-ost atomic cutover, WAL archiving
+   
+2. **Extended Downtime** (Likelihood: Medium, Impact: High)
+   - Mitigation: Rehearsed on staging 3x, documented rollback, maintenance window
+   
+3. **Application Compatibility** (Likelihood: Medium, Impact: High)
+   - Mitigation: All dependent services tested against new schema
+
+4. **Performance Degradation** (Likelihood: Low, Impact: Medium)
+   - Mitigation: Query plan analysis, index optimization, load testing
+
+### Blast Radius
+- Directly affected: [List services]
+- Indirectly affected: [List downstream services]
+
+### Recovery Objectives
+- RTO (Recovery Time Objective): 30 minutes for rollback, 45 minutes for restore
+- RPO (Recovery Point Objective): Zero data loss (synchronous replication)`,
+      justification: `[Describe the business need for this migration]`,
+    },
+    {
+      name: "Microservice Deployment",
+      description: "Deploy new or updated microservice to production with canary rollout, health checks, and automated rollback",
+      category: "application",
+      type: "normal",
+      workflowKey: "standard",
+      priority: "2",
+      riskLevel: "moderate",
+      impactLevel: "2",
+      urgency: "2",
+      assignmentGroup: "Backend",
+      implementationPlan: `## Pre-Deployment Checklist
+1. Code review approved and merged to main branch
+2. All CI/CD pipeline stages passed (lint, test, build, security scan)
+3. Docker image tagged and pushed to container registry
+4. Helm chart values updated for production
+5. Feature flags configured for gradual rollout
+
+## Staging Deployment (T-2 days)
+1. Deploy to staging environment
+2. Run full integration test suite
+3. Execute performance benchmarks
+4. Verify logging and metrics collection
+5. Test alerting rules trigger correctly
+
+## Production Canary (T-0)
+1. Deploy to canary pod (5% traffic)
+2. Monitor error rates, latency p50/p95/p99
+3. Verify business metrics (conversion, throughput)
+4. Hold for 30 minutes minimum
+
+## Gradual Rollout
+1. Increase to 25% traffic, monitor 15 minutes
+2. Increase to 50% traffic, monitor 15 minutes
+3. Increase to 100% traffic
+4. Remove old deployment pods
+
+## Post-Deployment
+1. Verify all health checks passing
+2. Confirm metrics in Grafana dashboards
+3. Update runbook with any new operational procedures
+4. Close deployment ticket`,
+      backoutPlan: `## Automated Rollback (triggered by alerts)
+1. Argo Rollouts automatically reverts on error rate >1%
+2. Previous ReplicaSet scaled up
+3. New ReplicaSet scaled to zero
+4. Alert sent to #deployments channel
+
+## Manual Rollback
+1. Run: kubectl rollout undo deployment/<service-name>
+2. Verify pods running previous version
+3. Confirm error rates returning to baseline
+4. Investigate root cause before retry
+
+## Feature Flag Rollback
+1. Disable feature flag in LaunchDarkly
+2. New code path disabled, old behavior restored
+3. No deployment changes required`,
+      testPlan: `## Automated Tests (CI/CD)
+- Unit tests: >80% coverage required
+- Integration tests: API contract validation
+- E2E tests: Critical user journeys
+- Security scan: No critical/high vulnerabilities
+
+## Manual Verification
+- Smoke test critical endpoints
+- Verify logging format and content
+- Check distributed tracing spans
+- Validate Prometheus metrics exposed
+
+## Performance Validation
+- Response time within SLO (p99 < 500ms)
+- No memory leaks (monitor over 24h)
+- CPU utilization within expected range`,
+      riskAndImpactAnalysis: `## Risk Assessment: MODERATE
+
+### Primary Risks
+1. **Service Degradation** (Likelihood: Medium, Impact: Medium)
+   - Mitigation: Canary deployment, automated rollback
+   
+2. **Integration Failures** (Likelihood: Low, Impact: High)
+   - Mitigation: Contract testing, staging validation
+
+3. **Resource Exhaustion** (Likelihood: Low, Impact: Medium)
+   - Mitigation: Resource limits, HPA configured
+
+### Affected Services
+- Direct: [Service name]
+- Upstream: [API consumers]
+- Downstream: [Dependencies]`,
+      justification: `[Describe the feature or fix being deployed]`,
+    },
+    {
+      name: "Kubernetes Cluster Upgrade",
+      description: "Upgrade production Kubernetes cluster with zero-downtime rolling update strategy",
+      category: "infrastructure",
+      type: "normal",
+      workflowKey: "standard",
+      priority: "2",
+      riskLevel: "high",
+      impactLevel: "2",
+      urgency: "2",
+      assignmentGroup: "Infrastructure",
+      implementationPlan: `## Pre-Upgrade Preparation (T-14 days)
+1. Review Kubernetes release notes and breaking changes
+2. Audit all workloads for deprecated API versions
+3. Update Helm charts to use supported API versions
+4. Verify PodDisruptionBudgets on all critical workloads
+5. Create cluster snapshot and etcd backup
+6. Notify all application teams of maintenance window
+
+## Staging Upgrade (T-7 days)
+1. Upgrade staging cluster control plane
+2. Upgrade staging worker nodes using rolling update
+3. Run full integration test suite
+4. Verify all workloads healthy for 48 hours
+5. Document any issues and mitigations
+
+## Production Control Plane (T-0, 02:00 UTC)
+1. Create etcd snapshot backup
+2. Upgrade control plane components (api-server, controller-manager, scheduler)
+3. Verify control plane health via kubectl and monitoring
+4. Run smoke tests against critical services
+
+## Production Worker Nodes (T-0, 03:00-06:00 UTC)
+1. Cordon and drain worker nodes one at a time
+2. Upgrade kubelet and container runtime
+3. Uncordon and verify node ready status
+4. Monitor pod scheduling and resource utilization
+5. Repeat for all worker nodes (max 1 unavailable)
+
+## Post-Upgrade Validation
+1. Verify all deployments, statefulsets, daemonsets healthy
+2. Run end-to-end test suite
+3. Verify ingress and certificate management
+4. Confirm monitoring and logging operational
+5. Update runbooks with new cluster version`,
+      backoutPlan: `## Immediate Rollback (< 30 minutes)
+1. Restore control plane from etcd snapshot
+2. Revert worker node images to previous version
+3. Verify cluster stability
+
+## Partial Rollback (worker nodes upgraded)
+1. Control plane supports n-2 worker versions
+2. Drain and rollback affected worker nodes
+3. Keep control plane at new version if stable
+
+## Full Rollback (critical issues)
+1. Restore full cluster from backup
+2. Redeploy workloads from GitOps repository
+3. Estimated recovery time: 45 minutes
+
+## Communication
+1. Notify stakeholders via Slack #platform-alerts
+2. Update status page
+3. Create incident ticket for post-mortem`,
+      testPlan: `## Pre-Upgrade Validation
+- API deprecation warnings resolved
+- All Helm charts compatible with new version
+- PDBs configured for critical workloads
+
+## Control Plane Tests
+- kubectl cluster-info returns healthy
+- API server responding to requests
+- etcd cluster healthy (3/3 members)
+
+## Worker Node Tests
+- All nodes in Ready state
+- Pods scheduling correctly
+- Resource requests/limits honored
+
+## Application Tests
+- Critical path smoke tests
+- Cross-service communication
+- Ingress routing functional
+- Persistent volumes accessible`,
+      riskAndImpactAnalysis: `## Risk Assessment: HIGH
+
+### Primary Risks
+1. **Pod Disruption** (Likelihood: High, Impact: Medium)
+   - Mitigation: PDBs configured, rolling update strategy
+   
+2. **API Incompatibility** (Likelihood: Medium, Impact: High)
+   - Mitigation: Deprecation warnings reviewed, charts updated
+
+3. **Extended Upgrade Time** (Likelihood: Low, Impact: Medium)
+   - Mitigation: Rehearsed on staging, documented procedures
+
+### Blast Radius
+- All services potentially affected during node drains
+- Maintenance window: 4 hours (02:00-06:00 UTC)`,
+      justification: `[Version EOL date, security patches, or required features]`,
+    },
+    {
+      name: "Load Balancer Configuration",
+      description: "Modify load balancer rules, SSL certificates, or traffic routing with validation",
+      category: "network",
+      type: "normal",
+      workflowKey: "standard",
+      priority: "2",
+      riskLevel: "moderate",
+      impactLevel: "1",
+      urgency: "2",
+      assignmentGroup: "Network",
+      implementationPlan: `## Pre-Change Preparation
+1. Document current load balancer configuration
+2. Create configuration backup/snapshot
+3. Prepare new configuration in staging
+4. Test SSL certificates validity and chain
+5. Notify NOC and on-call teams
+
+## Staging Validation
+1. Apply configuration to staging load balancer
+2. Test all routing rules with curl/httpie
+3. Verify SSL handshake and certificate chain
+4. Load test to verify backend health checks
+5. Test failover scenarios
+
+## Production Implementation
+1. Apply configuration during low-traffic window
+2. Verify health checks passing for all backends
+3. Test critical endpoints from multiple regions
+4. Monitor error rates and latency
+5. Verify SSL Labs score (target: A+)
+
+## Post-Change Validation
+1. Monitor traffic distribution for 1 hour
+2. Verify no increase in 5xx errors
+3. Confirm CDN cache behavior if applicable
+4. Update documentation with new configuration`,
+      backoutPlan: `## Immediate Rollback
+1. Restore previous configuration from backup
+2. Verify health checks passing
+3. Test critical endpoints
+4. Notify stakeholders of rollback
+
+## SSL Certificate Rollback
+1. Re-install previous certificate
+2. Verify certificate chain valid
+3. Clear CDN cache if needed`,
+      testPlan: `## Connectivity Tests
+- curl all endpoints from multiple regions
+- Verify correct backend routing
+- Test health check endpoints
+
+## SSL Tests
+- SSL Labs scan (target: A+)
+- Certificate chain validation
+- HSTS header verification
+
+## Performance Tests
+- Load test with expected traffic
+- Verify connection pooling
+- Test failover to backup backends`,
+      riskAndImpactAnalysis: `## Risk Assessment: MODERATE
+
+### Primary Risks
+1. **Traffic Blackhole** (Likelihood: Low, Impact: Critical)
+   - Mitigation: Staging validation, gradual rollout
+   
+2. **SSL Errors** (Likelihood: Low, Impact: High)
+   - Mitigation: Certificate chain validation, SSL Labs scan
+
+### Affected Services
+- All services behind load balancer
+- External API consumers`,
+      justification: `[Describe the routing change or SSL update needed]`,
+    },
+    // ═══════════════════════════════════════════════════════════════
     // STANDARD WORKFLOW TEMPLATES (require full approval cycle)
     // ═══════════════════════════════════════════════════════════════
     {

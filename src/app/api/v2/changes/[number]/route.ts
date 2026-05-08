@@ -33,18 +33,21 @@ export async function GET(
     // Check if user is an approver on this CR
     const isApprover = await repo.isUserApprover(cr.number, ctx.email);
     
-    // Allow viewing if: admin, OR user requested it, OR user is assigned, OR user is an approver
+    // Allow viewing if: admin, OR user requested it, OR user is assigned, OR user is an approver (in awaiting_approval state)
     const isOwner = cr.requestedBy === ctx.email;
     const isAssigned = cr.assignedTo === ctx.email;
     
     // Draft CRs are only visible to the owner (requestedBy) and admins
-    // Approvers and assigned users should not see drafts
     const isDraft = cr.state === "draft";
     if (isDraft && !ctx.perms.canViewAllData && !isOwner) {
       return forbidden();
     }
     
-    if (!ctx.perms.canViewAllData && !isOwner && !isAssigned && !isApprover) {
+    // Approvers can only see CRs in 'awaiting_approval' state
+    const isAwaitingApproval = cr.state === "awaiting_approval";
+    const approverCanView = isApprover && isAwaitingApproval;
+    
+    if (!ctx.perms.canViewAllData && !isOwner && !isAssigned && !approverCanView) {
       return forbidden();
     }
     const [steps, comments] = await Promise.all([

@@ -41,11 +41,14 @@ export async function GET(request: Request) {
         // Owner can see all their CRs including drafts
         if (cr.requestedBy === ctx.email) return true;
         
-        // Assigned users and approvers can only see non-draft CRs
+        // Assigned users can see non-draft CRs
         const isDraft = cr.state === "draft";
-        if (isDraft) return false;
+        if (cr.assignedTo === ctx.email && !isDraft) return true;
         
-        return cr.assignedTo === ctx.email || approverCRNumbers.has(cr.number);
+        // Approvers can only see CRs in 'awaiting_approval' state
+        if (approverCRNumbers.has(cr.number) && cr.state === "awaiting_approval") return true;
+        
+        return false;
       });
     }
 

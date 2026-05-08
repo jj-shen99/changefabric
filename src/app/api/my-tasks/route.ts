@@ -85,10 +85,10 @@ export async function GET() {
   const tasks: Task[] = [];
 
   // Add approval tasks first (highest priority)
-  // Skip draft CRs - approvers should not see drafts
+  // Approvers should only see CRs in 'awaiting_approval' state
   for (const [crNumber, stepInfo] of approvalCRMap) {
     const cr = allCRs.find((c) => c.number === crNumber);
-    if (cr && !allCRNumbers.has(cr.number) && cr.state !== "draft") {
+    if (cr && !allCRNumbers.has(cr.number) && cr.state === "awaiting_approval") {
       allCRNumbers.add(cr.number);
       tasks.push({
         type: "approval",
