@@ -305,8 +305,8 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
             </button>
           </div>
         </div>
-        {/* Workflow transitions */}
-        {transitions.length > 0 && (
+        {/* Workflow transitions - only show for users with edit access (not approver-only) */}
+        {transitions.length > 0 && userAccess?.canEdit && (
           <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
             <div className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Workflow actions</div>
             <div className="flex flex-wrap gap-2">
