@@ -9,29 +9,41 @@ Complete guide to using the Change Request Management AI Dashboard.
 | Email | Password | Role |
 |-------|----------|------|
 | `admin@example.com` | `admin123!` | Admin |
-| `manager@example.com` | `manager123!` | Manager |
-| `user@example.com` | `user123!` | User |
+| `mike@example.com` | `manager123!` | Manager |
+| `lisa@example.com` | `manager123!` | Manager |
+| `approver1@example.com` | `approver1` | Approver |
+| `implementer1@example.com` | `implementer1` | Implementer |
+| `requester1@example.com` | `requester1` | Requester |
+| `developer1@example.com` | `developer1` | Requester |
+
+> **Note**: For approver, implementer, and requester roles, the password is the email prefix (e.g., `approver1@example.com` → password `approver1`)
 
 ### Role Permissions
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           ROLE PERMISSIONS                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  Permission              │  User  │  Manager  │  Admin  │                   │
-├──────────────────────────┼────────┼───────────┼─────────┤                   │
-│  View Dashboard          │   ✓    │     ✓     │    ✓    │                   │
-│  View Own CRs            │   ✓    │     ✓     │    ✓    │                   │
-│  View All CRs            │   ✗    │     ✓     │    ✓    │                   │
-│  Create CR               │   ✓    │     ✓     │    ✓    │                   │
-│  Edit Own CR             │   ✓    │     ✓     │    ✓    │                   │
-│  Edit Any CR             │   ✗    │     ✓     │    ✓    │                   │
-│  Delete CR               │   ✗    │     ✗     │    ✓    │                   │
-│  Approve CR              │   ✗    │     ✓     │    ✓    │                   │
-│  Manage Users            │   ✗    │     ✗     │    ✓    │                   │
-│  Manage Settings         │   ✗    │     ✗     │    ✓    │                   │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+The system has 6 user roles with different permission levels:
+
+| Permission | Admin | Manager | Approver | Implementer | Requester | Viewer |
+|------------|:-----:|:-------:|:--------:|:-----------:|:---------:|:------:|
+| View Dashboard | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| View Own CRs | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| View All CRs | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Create CR | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ |
+| Edit Own CR | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ |
+| Edit Any CR | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Approve CR | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Implement CR | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ |
+| Manage Releases | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Manage Users | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Manage Settings | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| View Metrics | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ |
+
+**Role Descriptions:**
+- **Admin**: Full system access including user management and settings
+- **Manager**: Create/edit CRs, approve changes, implement changes, manage releases
+- **Approver**: Review and approve CRs assigned to them (CAB members, security reviewers)
+- **Implementer**: Execute approved changes (DevOps, SREs, DBAs)
+- **Requester**: Create and manage their own CRs (developers, product managers)
+- **Viewer**: Read-only access to CRs they're associated with
 
 ## Dashboard Pages
 

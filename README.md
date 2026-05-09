@@ -37,7 +37,13 @@ A full-stack **software change validation and release impact analysis dashboard*
 ### Authentication & Authorization
 - **Login / Register / Reset Password** pages with form validation
 - **JWT-based sessions** via NextAuth.js with credentials provider
-- **Role-based access**: Admin and Manager roles with permission matrix
+- **6 User Roles** with granular permission matrix:
+  - **Admin** — Full system access, user management, settings
+  - **Manager** — Create/edit CRs, approve, implement, manage releases
+  - **Approver** — Approve CRs assigned to them, read-only otherwise
+  - **Implementer** — Execute approved changes, cannot create/approve
+  - **Requester** — Create and edit their own CRs, cannot approve/implement
+  - **Viewer** — Read-only access to assigned CRs
 - **Per-user data isolation** — non-admin users only see their own synced change requests and analyses
 - **Per-user credential storage** — each user saves their own ServiceNow/Git credentials (AES-256-GCM encrypted)
 - **Role-based UI gating** — sidebar items, CRUD buttons, and pages hidden based on permissions
@@ -94,9 +100,13 @@ A full-stack **software change validation and release impact analysis dashboard*
 
 ### Workflow State Machine
 - **Three workflow types**: Standard, Pre-approved, Emergency
+- **11 workflow states**: draft, submitted, awaiting_approval, approved, scheduled, in_progress, implemented, rolled_back, closed, rejected, canceled
 - **State transitions** with configurable guards and effects
 - **Guards**: `hasPlannedWindow`, `allApprovalStepsApproved`, `hasBackoutPlan`, `hasImplementationPlan`
-- **Effects**: `setActualStart`, `setActualEnd`, `setClosed`, `startApprovalSteps`
+- **Effects**: `setActualStart`, `setActualEnd`, `setClosed`, `setRolledBack`, `startApprovalSteps`
+- **Rollback support**: CRs can be rolled back from `in_progress` or `implemented` states
+- **Cancel restrictions**: CRs cannot be canceled from `in_progress` or later states (use rollback instead)
+- **Planned date validation**: Start must be before end, both must be in the future
 - **Helpful error messages** when guards fail (e.g., "Please set Planned Start and Planned End dates before scheduling")
 
 ### Change Request Templates
@@ -209,8 +219,16 @@ This loads all closed CRs from the DB, computes the Brier score, and prints cali
 | Email | Password | Role |
 |---|---|---|
 | `admin@example.com` | `admin123!` | Admin |
-| `manager@example.com` | `manager123!` | Manager |
-| `user@example.com` | `user123!` | User |
+| `mike@example.com` | `manager123!` | Manager |
+| `lisa@example.com` | `manager123!` | Manager |
+| `approver1@example.com` | `approver1` | Approver |
+| `approver2@example.com` | `approver2` | Approver |
+| `implementer1@example.com` | `implementer1` | Implementer |
+| `devops1@example.com` | `devops1` | Implementer |
+| `requester1@example.com` | `requester1` | Requester |
+| `developer1@example.com` | `developer1` | Requester |
+
+> **Note**: For new role users (approver, implementer, requester), the password is the email prefix (e.g., `approver1@example.com` → password `approver1`)
 
 ## Scripts
 

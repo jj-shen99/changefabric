@@ -66,60 +66,50 @@ A vendor-neutral change management application built on Next.js 14 + Prisma with
 ```
                                     ┌─────────────────────────────────────┐
                                     │         STANDARD WORKFLOW           │
+                                    │   (11 states, no assessing/reviewing)│
                                     └─────────────────────────────────────┘
 
-    ┌───────┐     submit      ┌───────────┐    assess     ┌───────────┐
-    │ DRAFT │ ───────────────▶│ SUBMITTED │ ─────────────▶│ ASSESSING │
-    └───────┘                 └───────────┘               └─────┬─────┘
-        │                                                       │
-        │ cancel                                         request_approval
-        ▼                                                       │
-    ┌──────────┐                                               ▼
-    │ CANCELED │◀──────────────────────────────┐    ┌───────────────────┐
-    └──────────┘                               │    │ AWAITING_APPROVAL │
-                                               │    └─────────┬─────────┘
-                                               │              │
-                                          reject         approve (guard: allApprovalStepsApproved)
-                                               │              │
-    ┌──────────┐                               │              ▼
-    │ REJECTED │◀──────────────────────────────┤      ┌──────────┐
-    └──────────┘                               │      │ APPROVED │
-                                               │      └────┬─────┘
-                                               │           │
-                                               │      schedule (guard: hasPlannedWindow)
-                                               │           │
-                                               │           ▼
-                                               │    ┌───────────┐
-                                               ├────│ SCHEDULED │
-                                               │    └─────┬─────┘
-                                               │          │
-                                               │     start (effect: setActualStart)
-                                               │          │
-                                               │          ▼
-                                               │   ┌─────────────┐
-                                               ├───│ IN_PROGRESS │
-                                               │   └──────┬──────┘
-                                               │          │
-                                               │    complete (effect: setActualEnd)
-                                               │          │
-                                               │          ▼
-                                               │   ┌─────────────┐
-                                               ├───│ IMPLEMENTED │
-                                               │   └──────┬──────┘
-                                               │          │
-                                               │       review
-                                               │          │
-                                               │          ▼
-                                               │    ┌───────────┐
-                                               └────│ REVIEWING │
-                                                    └─────┬─────┘
-                                                          │
-                                                     close (effect: setClosed)
-                                                          │
-                                                          ▼
-                                                    ┌────────┐
-                                                    │ CLOSED │
-                                                    └────────┘
+    ┌───────┐     submit      ┌───────────┐    request_approval    ┌───────────────────┐
+    │ DRAFT │ ───────────────▶│ SUBMITTED │ ──────────────────────▶│ AWAITING_APPROVAL │
+    └───────┘                 └───────────┘                        └─────────┬─────────┘
+        │                                                                    │
+        │ cancel                                                    approve (guard: allApprovalStepsApproved)
+        ▼                                                                    │
+    ┌──────────┐                                                            ▼
+    │ CANCELED │◀────────────────────────────────────────┐          ┌──────────┐
+    └──────────┘                                         │          │ APPROVED │
+        ▲                                                │          └────┬─────┘
+        │ (only from draft, submitted,                   │               │
+        │  awaiting_approval, approved, scheduled)       │          schedule (guard: hasPlannedWindow)
+        │                                                │               │
+    ┌──────────┐                                         │               ▼
+    │ REJECTED │◀────────────────────────────────────────┤        ┌───────────┐
+    └──────────┘                                         │        │ SCHEDULED │
+                                                         │        └─────┬─────┘
+                                                         │              │
+                                                         │         start (effect: setActualStart)
+                                                         │              │
+                                                         │              ▼
+                                                         │       ┌─────────────┐    rollback    ┌─────────────┐
+                                                         │       │ IN_PROGRESS │ ─────────────▶│ ROLLED_BACK │
+                                                         │       └──────┬──────┘               └─────────────┘
+                                                         │              │                              ▲
+                                                         │        complete (effect: setActualEnd)      │
+                                                         │              │                              │
+                                                         │              ▼                              │
+                                                         │       ┌─────────────┐    rollback           │
+                                                         │       │ IMPLEMENTED │ ──────────────────────┘
+                                                         │       └──────┬──────┘
+                                                         │              │
+                                                         │         close (effect: setClosed)
+                                                         │              │
+                                                         │              ▼
+                                                         │        ┌────────┐
+                                                         └────────│ CLOSED │
+                                                                  └────────┘
+
+  Terminal States: CLOSED, REJECTED, CANCELED, ROLLED_BACK
+  No-Cancel States: IN_PROGRESS, IMPLEMENTED, ROLLED_BACK, CLOSED, REJECTED (use rollback instead)
 ```
 
 ## Approval Flow

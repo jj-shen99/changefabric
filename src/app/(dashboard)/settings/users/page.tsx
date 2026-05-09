@@ -98,6 +98,10 @@ export default function UserManagementPage() {
   const roleBadge: Record<string, string> = {
     admin: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
     manager: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+    approver: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+    implementer: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+    requester: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
+    viewer: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   };
 
   return (
@@ -155,6 +159,10 @@ export default function UserManagementPage() {
                       >
                         <option value="admin">Admin</option>
                         <option value="manager">Manager</option>
+                        <option value="approver">Approver</option>
+                        <option value="implementer">Implementer</option>
+                        <option value="requester">Requester</option>
+                        <option value="viewer">Viewer</option>
                       </select>
                       <span className={`ml-2 inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${roleBadge[user.role] || roleBadge.manager}`}>
                         {user.role}
@@ -187,24 +195,64 @@ export default function UserManagementPage() {
 
       <Card className="p-4">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Role Permissions</h3>
-        <div className="grid grid-cols-3 gap-4 text-xs">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
           <div>
             <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.admin}`}>Admin</span>
             <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
-              <li>Manage users & roles</li>
-              <li>Create/edit/delete changes</li>
-              <li>Approve changes</li>
-              <li>Manage releases</li>
-              <li>Edit settings</li>
+              <li>✓ Manage users & roles</li>
+              <li>✓ Create/edit changes</li>
+              <li>✓ Approve changes</li>
+              <li>✓ Implement changes</li>
+              <li>✓ Manage releases</li>
+              <li>✓ Edit settings</li>
+              <li>✓ View all data</li>
             </ul>
           </div>
           <div>
             <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.manager}`}>Manager</span>
             <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
-              <li>Create/edit/delete changes</li>
-              <li>Approve changes</li>
-              <li>Manage releases</li>
-              <li>View metrics</li>
+              <li>✓ Create/edit changes</li>
+              <li>✓ Approve changes</li>
+              <li>✓ Implement changes</li>
+              <li>✓ Manage releases</li>
+              <li>✓ View metrics</li>
+              <li>✗ View all data</li>
+            </ul>
+          </div>
+          <div>
+            <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.approver}`}>Approver</span>
+            <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
+              <li>✓ Approve changes</li>
+              <li>✓ View metrics</li>
+              <li>✗ Create/edit changes</li>
+              <li>✗ Implement changes</li>
+            </ul>
+          </div>
+          <div>
+            <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.implementer}`}>Implementer</span>
+            <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
+              <li>✓ Implement changes</li>
+              <li>✓ View metrics</li>
+              <li>✗ Create/edit changes</li>
+              <li>✗ Approve changes</li>
+            </ul>
+          </div>
+          <div>
+            <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.requester}`}>Requester</span>
+            <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
+              <li>✓ Create/edit own CRs</li>
+              <li>✗ Approve changes</li>
+              <li>✗ Implement changes</li>
+              <li>✗ View all data</li>
+            </ul>
+          </div>
+          <div>
+            <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.viewer}`}>Viewer</span>
+            <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
+              <li>✓ View assigned CRs</li>
+              <li>✓ View metrics</li>
+              <li>✗ Create/edit changes</li>
+              <li>✗ Approve changes</li>
             </ul>
           </div>
         </div>
