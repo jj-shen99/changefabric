@@ -20,13 +20,21 @@ export async function GET(request: Request) {
     // Build where clause
     const where: {
       isActive: boolean;
-      type?: string;
+      type?: string | { in: string[] };
       name?: { contains: string };
     } = {
       isActive: true,
     };
 
-    if (type) where.type = type;
+    // For "approver" type, also include "both" type groups
+    // For "assignment" type, also include "both" type groups
+    if (type === "approver") {
+      where.type = { in: ["approver", "both"] };
+    } else if (type === "assignment") {
+      where.type = { in: ["assignment", "both"] };
+    } else if (type) {
+      where.type = type;
+    }
     if (q.trim()) where.name = { contains: q.trim() };
 
     const groups = await prisma.group.findMany({

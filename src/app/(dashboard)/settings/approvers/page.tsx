@@ -56,35 +56,54 @@ export default function ApproversPage() {
   // Group autocomplete state
   const [groupSuggestions, setGroupSuggestions] = useState<GroupSuggestion[]>([]);
   const [showGroupSuggestions, setShowGroupSuggestions] = useState(false);
+  const [allGroups, setAllGroups] = useState<GroupSuggestion[]>([]);
   const groupInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch group suggestions when typing
+  // Load all groups on mount for dropdown
+  useEffect(() => {
+    async function loadGroups() {
+      try {
+        const res = await fetch("/api/groups/search?type=approver&limit=50");
+        if (res.ok) {
+          const data = await res.json();
+          setAllGroups(data.groups || []);
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+    loadGroups();
+  }, []);
+
+  // Filter group suggestions when typing
   useEffect(() => {
     if (!formGroup.trim()) {
-      setGroupSuggestions([]);
-      setShowGroupSuggestions(false);
+      // Show all groups when input is empty but focused
+      setGroupSuggestions(allGroups);
       return;
     }
 
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/groups/search?q=${encodeURIComponent(formGroup)}&type=approver`);
-        if (res.ok) {
-          const data = await res.json();
-          setGroupSuggestions(data.groups || []);
-          setShowGroupSuggestions((data.groups || []).length > 0);
-        }
-      } catch {
-        // Ignore search errors
-      }
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [formGroup]);
+    // Filter groups based on input
+    const filtered = allGroups.filter(g => 
+      g.name.toLowerCase().includes(formGroup.toLowerCase())
+    );
+    setGroupSuggestions(filtered);
+  }, [formGroup, allGroups]);
 
   function selectGroup(group: GroupSuggestion) {
     setFormGroup(group.name);
     setShowGroupSuggestions(false);
     groupInputRef.current?.focus();
+  }
+
+  function handleGroupFocus() {
+    // Show suggestions when input is focused
+    if (groupSuggestions.length > 0 || allGroups.length > 0) {
+      setShowGroupSuggestions(true);
+      if (groupSuggestions.length === 0) {
+        setGroupSuggestions(allGroups);
+      }
+    }
   }
 
   const load = useCallback(async () => {
@@ -282,9 +301,9 @@ export default function ApproversPage() {
                   type="text"
                   value={formGroup}
                   onChange={(e) => setFormGroup(e.target.value)}
-                  onFocus={() => formGroup.trim() && groupSuggestions.length > 0 && setShowGroupSuggestions(true)}
+                  onFocus={handleGroupFocus}
                   onBlur={() => setTimeout(() => setShowGroupSuggestions(false), 150)}
-                  placeholder="Type to search groups..."
+                  placeholder="Select or type a group..."
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
                   autoComplete="off"
                 />

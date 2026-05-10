@@ -32,7 +32,7 @@ export default function CodeAnalysisPage() {
   const [gitData, setGitData] = useState<GitAnalysisData | null>(null);
   const [gitLoading, setGitLoading] = useState(false);
   const [gitError, setGitError] = useState<string | null>(null);
-  const [gitRepo, setGitRepo] = useState("");
+  const [gitRepo, setGitRepo] = useState("https://github.com/jj-shen99/change_management");
   const [gitDays, setGitDays] = useState(14);
   const [expandedCommit, setExpandedCommit] = useState<string | null>(null);
 
