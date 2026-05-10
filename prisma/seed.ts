@@ -135,6 +135,30 @@ async function main() {
     });
   }
 
+  // ── Groups ─────────────────────────────────────────────────────
+  console.log("Seeding groups…");
+
+  const groups = [
+    { name: "Engineering", description: "Engineering team for technical reviews", type: "approver" },
+    { name: "Security", description: "Security team for security assessments", type: "approver" },
+    { name: "CAB", description: "Change Advisory Board", type: "approver" },
+    { name: "On-Call", description: "On-call team for emergency approvals", type: "approver" },
+    { name: "Admin", description: "System administrators", type: "both" },
+    { name: "Infrastructure", description: "Infrastructure team", type: "both" },
+    { name: "Database", description: "Database administration team", type: "both" },
+    { name: "DevOps", description: "DevOps and SRE team", type: "assignment" },
+    { name: "Platform", description: "Platform engineering team", type: "assignment" },
+    { name: "QA", description: "Quality assurance team", type: "assignment" },
+  ];
+
+  for (const g of groups) {
+    await prisma.group.upsert({
+      where: { name: g.name },
+      update: { description: g.description, type: g.type },
+      create: { name: g.name, description: g.description, type: g.type, createdBy: "admin@example.com" },
+    });
+  }
+
   // ── CR Type Default Approvers ─────────────────────────────────
   console.log("Seeding CR type default approvers…");
   

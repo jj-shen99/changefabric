@@ -376,6 +376,24 @@ model ChangeRequestTemplate {
   @@index([isActive])
 }
 
+// ── Groups ───────────────────────────────────────────────────────
+// Groups for organizing users (e.g., "CAB", "Security", "Engineering")
+// Used for approver assignments and assignment groups
+
+model Group {
+  id          String   @id @default(uuid())
+  name        String   @unique                  // e.g., "CAB", "Security Team", "Engineering"
+  description String   @default("")
+  type        String   @default("approver")     // "approver" | "assignment" | "both"
+  isActive    Boolean  @default(true)
+  createdBy   String                            // Admin who created this group
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([isActive])
+}
+
 // ── CR Type Default Approvers ────────────────────────────────────
 // Defines default approvers for each type of change request
 // When a CR is created, these approvers are automatically added to approval steps

@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { Shield, Plus, Trash2, Users, AlertTriangle, Zap, FileText } from "lucide-react";
+import Link from "next/link";
 
 interface Approver {
   id: string;
@@ -21,6 +22,13 @@ interface User {
   email: string;
   name: string;
   role: string;
+}
+
+interface GroupSuggestion {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
 }
 
 const CR_TYPES = [
@@ -44,6 +52,40 @@ export default function ApproversPage() {
   const [formStep, setFormStep] = useState("Default");
   const [formOrdering, setFormOrdering] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+
+  // Group autocomplete state
+  const [groupSuggestions, setGroupSuggestions] = useState<GroupSuggestion[]>([]);
+  const [showGroupSuggestions, setShowGroupSuggestions] = useState(false);
+  const groupInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch group suggestions when typing
+  useEffect(() => {
+    if (!formGroup.trim()) {
+      setGroupSuggestions([]);
+      setShowGroupSuggestions(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/groups/search?q=${encodeURIComponent(formGroup)}&type=approver`);
+        if (res.ok) {
+          const data = await res.json();
+          setGroupSuggestions(data.groups || []);
+          setShowGroupSuggestions((data.groups || []).length > 0);
+        }
+      } catch {
+        // Ignore search errors
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [formGroup]);
+
+  function selectGroup(group: GroupSuggestion) {
+    setFormGroup(group.name);
+    setShowGroupSuggestions(false);
+    groupInputRef.current?.focus();
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -228,15 +270,44 @@ export default function ApproversPage() {
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Group (optional)</label>
+              <div className="relative">
+                <label className="mb-1 block text-xs font-medium text-gray-500">
+                  Group (optional)
+                  <Link href="/settings/groups" className="ml-2 text-indigo-600 hover:underline">
+                    Manage
+                  </Link>
+                </label>
                 <input
+                  ref={groupInputRef}
                   type="text"
                   value={formGroup}
                   onChange={(e) => setFormGroup(e.target.value)}
-                  placeholder="e.g., Security, CAB"
+                  onFocus={() => formGroup.trim() && groupSuggestions.length > 0 && setShowGroupSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowGroupSuggestions(false), 150)}
+                  placeholder="Type to search groups..."
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                  autoComplete="off"
                 />
+                {showGroupSuggestions && groupSuggestions.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    {groupSuggestions.map((group) => (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() => selectGroup(group)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        <Users className="h-4 w-4 text-gray-400" />
+                        <div>
+                          <div className="font-medium">{group.name}</div>
+                          {group.description && (
+                            <div className="text-xs text-gray-500">{group.description}</div>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex items-end gap-2">
                 <button
