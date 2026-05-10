@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, Send, MessageSquare, ShieldCheck, Activity, Pencil, Save, X, Lock, Info, UserPlus, Eye, Trash2 } from "lucide-react";
+import { ArrowLeft, Send, MessageSquare, ShieldCheck, Activity, Pencil, Save, X, Lock, Info, UserPlus, Eye, Trash2, CheckCircle2, XCircle, AlertTriangle, TrendingUp, TrendingDown, Shield, FileText, Clock, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
@@ -929,45 +929,337 @@ function CommentsTab({ comments, onAdd }: { comments: Comment[]; onAdd: (b: stri
   );
 }
 
+interface ImpactAnalysis {
+  outageRisk: number;
+  performanceRisk: number;
+  functionalityRisk: number;
+  securityRisk: number;
+  dataIntegrityRisk: number;
+  overallRisk: number;
+  blastRadius: string;
+  rollbackComplexity: string;
+  affectedServices: string[];
+  estimatedDowntime: string;
+  rationale: string[];
+}
+
+interface MLAnalysis {
+  probability: number;
+  score: number;
+  confidence: number;
+  contributions: Array<{ feature: string; weight: number; value: number; contribution: number }>;
+  explanation: string;
+}
+
 function AnalysisTab({ cr, analysis, onRun, busy }: { cr: CR; analysis: { impact?: Record<string, unknown>; ml?: Record<string, unknown> } | null; onRun: () => void; busy: boolean }) {
+  const impact = analysis?.impact as ImpactAnalysis | undefined;
+  const ml = analysis?.ml as MLAnalysis | undefined;
+
+  // Readiness checks
+  const hasDescription = cr.description.trim().length >= 20;
+  const hasImplementationPlan = cr.implementationPlan.trim().length >= 30;
+  const hasBackoutPlan = cr.backoutPlan.trim().length >= 30;
+  const hasTestPlan = cr.testPlan.trim().length >= 30;
+  const hasJustification = cr.justification.trim().length >= 20;
+  const hasPlannedDates = !!(cr.plannedStart && cr.plannedEnd);
+  const hasAssignee = !!cr.assignedTo;
+
+  const readinessChecks = [
+    { label: "Description", passed: hasDescription, required: true },
+    { label: "Implementation Plan", passed: hasImplementationPlan, required: true },
+    { label: "Backout Plan", passed: hasBackoutPlan, required: true },
+    { label: "Test Plan", passed: hasTestPlan, required: true },
+    { label: "Justification", passed: hasJustification, required: true },
+    { label: "Planned Dates", passed: hasPlannedDates, required: true },
+    { label: "Assignee", passed: hasAssignee, required: false },
+  ];
+
+  const requiredPassed = readinessChecks.filter(c => c.required && c.passed).length;
+  const requiredTotal = readinessChecks.filter(c => c.required).length;
+  const readinessScore = Math.round((requiredPassed / requiredTotal) * 100);
+  const isReadyToSubmit = requiredPassed === requiredTotal;
+
+  // Risk assessment
+  const riskScore = cr.mlRiskScore ?? cr.computedRiskScore;
+  const riskTier = riskScore >= 75 ? "critical" : riskScore >= 50 ? "high" : riskScore >= 25 ? "medium" : "low";
+  const riskColor = riskTier === "critical" ? "text-red-600" : riskTier === "high" ? "text-orange-600" : riskTier === "medium" ? "text-amber-600" : "text-green-600";
+  const riskBg = riskTier === "critical" ? "bg-red-100 dark:bg-red-900/30" : riskTier === "high" ? "bg-orange-100 dark:bg-orange-900/30" : riskTier === "medium" ? "bg-amber-100 dark:bg-amber-900/30" : "bg-green-100 dark:bg-green-900/30";
+
+  // Submit recommendation
+  const getSubmitRecommendation = () => {
+    if (!isReadyToSubmit) {
+      return { status: "blocked", label: "Not Ready", message: "Complete all required fields before submitting", color: "text-red-600", bg: "bg-red-50 dark:bg-red-900/20", icon: XCircle };
+    }
+    if (riskTier === "critical") {
+      return { status: "caution", label: "Review Recommended", message: "High risk score - consider additional review before submitting", color: "text-orange-600", bg: "bg-orange-50 dark:bg-orange-900/20", icon: AlertTriangle };
+    }
+    if (riskTier === "high") {
+      return { status: "caution", label: "Proceed with Caution", message: "Elevated risk - ensure all plans are thorough", color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-900/20", icon: AlertTriangle };
+    }
+    return { status: "ready", label: "Ready to Submit", message: "All checks passed - CR is ready for submission", color: "text-green-600", bg: "bg-green-50 dark:bg-green-900/20", icon: CheckCircle2 };
+  };
+
+  const recommendation = getSubmitRecommendation();
+  const RecommendationIcon = recommendation.icon;
+
   return (
-    <Card>
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-        <h3 className="flex items-center gap-2 text-sm font-semibold"><Activity className="h-4 w-4" /> Impact &amp; ML Analysis</h3>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/impact?cr=${cr.number}`}
-            className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
-          >
-            View in Impact Dashboard
-          </Link>
-          <button onClick={onRun} disabled={busy} className="rounded-lg border border-gray-200 px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-            Run analysis
-          </button>
-        </div>
-      </div>
-      <div className="grid gap-4 p-4 md:grid-cols-2">
-        <div>
-          <H>Cached scores</H>
-          <Kv k="Computed risk" v={String(Math.round(cr.computedRiskScore))} />
-          <Kv k="ML risk" v={cr.mlRiskScore !== null && cr.mlRiskScore !== undefined ? String(Math.round(cr.mlRiskScore)) : "—"} />
-          <Kv k="ML confidence" v={cr.mlConfidence !== null && cr.mlConfidence !== undefined ? `${Math.round(cr.mlConfidence * 100)}%` : "—"} />
-          {cr.mlExplanation && <p className="mt-2 text-xs italic text-gray-500">{cr.mlExplanation}</p>}
-        </div>
-        {analysis?.impact && (
-          <div>
-            <H>Latest impact analysis</H>
-            <pre className="overflow-x-auto rounded-lg bg-gray-50 p-3 text-xs dark:bg-gray-900/60">{JSON.stringify(analysis.impact, null, 2)}</pre>
+    <div className="space-y-4">
+      {/* Submit Readiness Banner */}
+      <Card className={`border-2 ${isReadyToSubmit ? "border-green-200 dark:border-green-800" : "border-amber-200 dark:border-amber-800"}`}>
+        <div className={`p-4 ${recommendation.bg}`}>
+          <div className="flex items-start gap-4">
+            <div className={`rounded-full p-2 ${recommendation.bg}`}>
+              <RecommendationIcon className={`h-6 w-6 ${recommendation.color}`} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <h3 className={`text-lg font-bold ${recommendation.color}`}>{recommendation.label}</h3>
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${riskBg} ${riskColor}`}>
+                  Risk: {riskTier.toUpperCase()} ({Math.round(riskScore)}/100)
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{recommendation.message}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{readinessScore}%</div>
+              <div className="text-xs text-gray-500">Readiness</div>
+            </div>
           </div>
-        )}
-        {analysis?.ml && (
-          <div className="md:col-span-2">
-            <H>Latest ML analysis</H>
-            <pre className="overflow-x-auto rounded-lg bg-gray-50 p-3 text-xs dark:bg-gray-900/60">{JSON.stringify(analysis.ml, null, 2)}</pre>
+
+          {/* Readiness Checklist */}
+          <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+            {readinessChecks.map((check) => (
+              <div
+                key={check.label}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${
+                  check.passed
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    : check.required
+                    ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                    : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                }`}
+              >
+                {check.passed ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                ) : (
+                  <XCircle className="h-3.5 w-3.5" />
+                )}
+                <span className="font-medium">{check.label}</span>
+                {check.required && !check.passed && <span className="text-[10px]">(required)</span>}
+              </div>
+            ))}
           </div>
-        )}
+        </div>
+      </Card>
+
+      {/* Main Analysis Card */}
+      <Card>
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+          <h3 className="flex items-center gap-2 text-sm font-semibold"><Activity className="h-4 w-4" /> Impact &amp; ML Analysis</h3>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/impact?cr=${cr.number}`}
+              className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50"
+            >
+              View in Impact Dashboard
+            </Link>
+            <button onClick={onRun} disabled={busy} className="rounded-lg border border-gray-200 px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
+              {busy ? "Analyzing..." : "Run Analysis"}
+            </button>
+          </div>
+        </div>
+
+        <div className="p-4 space-y-6">
+          {/* Risk Summary */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+              <div className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                <Shield className="h-4 w-4" /> Computed Risk
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className={`text-3xl font-bold ${cr.computedRiskScore >= 50 ? "text-red-600" : cr.computedRiskScore >= 25 ? "text-amber-600" : "text-green-600"}`}>
+                  {Math.round(cr.computedRiskScore)}
+                </span>
+                <span className="text-sm text-gray-400">/100</span>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+              <div className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                <Zap className="h-4 w-4" /> ML Risk Score
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                {cr.mlRiskScore !== null && cr.mlRiskScore !== undefined ? (
+                  <>
+                    <span className={`text-3xl font-bold ${cr.mlRiskScore >= 50 ? "text-red-600" : cr.mlRiskScore >= 25 ? "text-amber-600" : "text-green-600"}`}>
+                      {Math.round(cr.mlRiskScore)}
+                    </span>
+                    <span className="text-sm text-gray-400">/100</span>
+                    <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-gray-800">
+                      {Math.round((cr.mlConfidence ?? 0) * 100)}% conf
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-lg text-gray-400">—</span>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+              <div className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                <Clock className="h-4 w-4" /> Change Window
+              </div>
+              <div className="mt-2">
+                {cr.plannedStart && cr.plannedEnd ? (
+                  <div className="text-sm">
+                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                      {new Date(cr.plannedStart).toLocaleDateString()}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(cr.plannedStart).toLocaleTimeString()} - {new Date(cr.plannedEnd).toLocaleTimeString()}
+                    </div>
+                  </div>
+                ) : (
+                  <span className="text-lg text-gray-400">Not scheduled</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ML Explanation */}
+          {cr.mlExplanation && (
+            <div className="rounded-lg bg-indigo-50 p-4 dark:bg-indigo-900/20">
+              <div className="flex items-start gap-2">
+                <Info className="h-4 w-4 mt-0.5 text-indigo-600 dark:text-indigo-400" />
+                <div>
+                  <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">ML Analysis Summary</p>
+                  <p className="mt-1 text-sm text-indigo-600 dark:text-indigo-400">{cr.mlExplanation}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Impact Analysis Details */}
+          {impact && (
+            <div>
+              <H>Impact Analysis Details</H>
+              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                <RiskMeter label="Outage Risk" value={impact.outageRisk} />
+                <RiskMeter label="Performance Risk" value={impact.performanceRisk} />
+                <RiskMeter label="Functionality Risk" value={impact.functionalityRisk} />
+                <RiskMeter label="Security Risk" value={impact.securityRisk} />
+                <RiskMeter label="Data Integrity Risk" value={impact.dataIntegrityRisk} />
+                <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                  <div className="text-xs text-gray-500">Blast Radius</div>
+                  <div className={`text-sm font-bold ${
+                    impact.blastRadius === "critical" ? "text-red-600" :
+                    impact.blastRadius === "high" ? "text-orange-600" :
+                    impact.blastRadius === "medium" ? "text-amber-600" : "text-green-600"
+                  }`}>{impact.blastRadius.toUpperCase()}</div>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                  <div className="text-xs text-gray-500">Rollback Complexity</div>
+                  <div className={`text-sm font-bold ${
+                    impact.rollbackComplexity === "critical" ? "text-red-600" :
+                    impact.rollbackComplexity === "high" ? "text-orange-600" :
+                    impact.rollbackComplexity === "medium" ? "text-amber-600" : "text-green-600"
+                  }`}>{impact.rollbackComplexity.toUpperCase()}</div>
+                </div>
+                <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                  <div className="text-xs text-gray-500">Est. Downtime</div>
+                  <div className="text-sm font-bold text-gray-900 dark:text-gray-100">{impact.estimatedDowntime}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ML Contributions */}
+          {ml && ml.contributions && ml.contributions.length > 0 && (
+            <div>
+              <H>Risk Factor Contributions</H>
+              <div className="space-y-2">
+                {ml.contributions
+                  .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+                  .slice(0, 6)
+                  .map((c, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <div className="w-32 text-xs text-gray-600 dark:text-gray-400 truncate" title={c.feature}>
+                        {c.feature.replace(/_/g, " ")}
+                      </div>
+                      <div className="flex-1">
+                        <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700">
+                          <div
+                            className={`h-2 rounded-full ${c.contribution > 0 ? "bg-red-500" : "bg-green-500"}`}
+                            style={{ width: `${Math.min(Math.abs(c.contribution) * 100, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 w-16 text-xs">
+                        {c.contribution > 0 ? (
+                          <TrendingUp className="h-3 w-3 text-red-500" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 text-green-500" />
+                        )}
+                        <span className={c.contribution > 0 ? "text-red-600" : "text-green-600"}>
+                          {c.contribution > 0 ? "+" : ""}{(c.contribution * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Raw Data (collapsible) */}
+          {(impact || ml) && (
+            <details className="group">
+              <summary className="cursor-pointer text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <FileText className="inline h-3 w-3 mr-1" />
+                View Raw Analysis Data
+              </summary>
+              <div className="mt-2 grid gap-4 md:grid-cols-2">
+                {impact && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">Impact Analysis</p>
+                    <pre className="overflow-x-auto rounded-lg bg-gray-50 p-3 text-xs dark:bg-gray-900/60">{JSON.stringify(impact, null, 2)}</pre>
+                  </div>
+                )}
+                {ml && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1">ML Analysis</p>
+                    <pre className="overflow-x-auto rounded-lg bg-gray-50 p-3 text-xs dark:bg-gray-900/60">{JSON.stringify(ml, null, 2)}</pre>
+                  </div>
+                )}
+              </div>
+            </details>
+          )}
+
+          {/* No analysis yet */}
+          {!analysis && (
+            <div className="text-center py-8">
+              <Activity className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-600" />
+              <p className="mt-2 text-sm text-gray-500">Click "Run Analysis" to generate detailed impact and ML analysis</p>
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function RiskMeter({ label, value }: { label: string; value: number }) {
+  const color = value >= 75 ? "bg-red-500" : value >= 50 ? "bg-orange-500" : value >= 25 ? "bg-amber-500" : "bg-green-500";
+  const textColor = value >= 75 ? "text-red-600" : value >= 50 ? "text-orange-600" : value >= 25 ? "text-amber-600" : "text-green-600";
+  return (
+    <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-gray-500">{label}</span>
+        <span className={`text-sm font-bold ${textColor}`}>{value}</span>
       </div>
-    </Card>
+      <div className="mt-2 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700">
+        <div className={`h-1.5 rounded-full ${color}`} style={{ width: `${value}%` }} />
+      </div>
+    </div>
   );
 }
 
