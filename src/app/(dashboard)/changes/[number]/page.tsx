@@ -246,6 +246,8 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
       impactLevel: cr.impactLevel,
       priority: cr.priority,
       category: cr.category,
+      plannedStart: cr.plannedStart,
+      plannedEnd: cr.plannedEnd,
     });
     setEditing(true);
   }
@@ -565,6 +567,26 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
                 <EditField label="Assignment Group" value={editForm.assignmentGroup ?? ""} onChange={(v) => setEditForm({ ...editForm, assignmentGroup: v || null })} placeholder="Team name" />
               </div>
               <EditField label="Category" value={editForm.category ?? ""} onChange={(v) => setEditForm({ ...editForm, category: v })} />
+              <div className="grid grid-cols-2 gap-2 md:col-span-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Planned Start</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.plannedStart ? new Date(editForm.plannedStart).toISOString().slice(0, 16) : ""}
+                    onChange={(e) => setEditForm({ ...editForm, plannedStart: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Planned End</label>
+                  <input
+                    type="datetime-local"
+                    value={editForm.plannedEnd ? new Date(editForm.plannedEnd).toISOString().slice(0, 16) : ""}
+                    onChange={(e) => setEditForm({ ...editForm, plannedEnd: e.target.value ? new Date(e.target.value).toISOString() : null })}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                  />
+                </div>
+              </div>
             </div>
           )}
         </Card>
