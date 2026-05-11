@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bell, Shield, Users, Database, Plug, ChevronRight } from "lucide-react";
+import { Bell, Shield, Users, Plug, ChevronRight, Database } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
 
@@ -60,18 +60,6 @@ const settingSections = [
 ];
 
 const integrationLinks = [
-  {
-    icon: Database,
-    title: "ServiceNow",
-    description: "Connect to ServiceNow to import and sync change requests",
-    href: "/settings/integrations",
-  },
-  {
-    icon: Plug,
-    title: "Git Repository",
-    description: "Configure Git credentials for repository access",
-    href: "/settings/integrations",
-  },
   {
     icon: Plug,
     title: "LLM Provider",
