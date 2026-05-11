@@ -2,8 +2,7 @@ import { type NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-// getSecret not used for NEXTAUTH_SECRET (must be plaintext for Edge middleware)
-import "@/lib/auth-types";
+import { aggregatePermissions, DEFAULT_PERMISSIONS, type Permissions } from "@/lib/auth-types";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -21,8 +20,16 @@ export const authOptions: NextAuthOptions = {
 
         console.log("[AUTH] Login attempt for:", credentials.email);
 
+        // Fetch user with their roles
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
+          include: {
+            userRoles: {
+              include: {
+                role: true,
+              },
+            },
+          },
         });
 
         if (!user) {
@@ -30,7 +37,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
-        console.log("[AUTH] User found:", user.email, "hash length:", user.hashedPassword.length);
+        console.log("[AUTH] User found:", user.email, "roles:", user.userRoles.map(ur => ur.role.name));
 
         const isValid = await bcrypt.compare(
           credentials.password,
@@ -43,11 +50,16 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
+        // Extract role names and aggregate permissions
+        const roleNames = user.userRoles.map(ur => ur.role.name);
+        const rolePermissions = user.userRoles.map(ur => ur.role);
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
+          roles: roleNames,
+          permissions: aggregatePermissions(rolePermissions),
         };
       },
     }),
@@ -55,15 +67,18 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.role = (user as unknown as { role: string }).role;
+        const typedUser = user as { roles?: string[]; permissions?: Permissions };
+        token.roles = typedUser.roles || [];
+        token.permissions = typedUser.permissions || DEFAULT_PERMISSIONS;
         token.id = user.id;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { role?: string }).role = token.role as string;
-        (session.user as { id?: string }).id = token.id as string;
+        session.user.roles = (token.roles as string[]) || [];
+        session.user.permissions = (token.permissions as Permissions) || DEFAULT_PERMISSIONS;
+        session.user.id = token.id as string;
       }
       return session;
     },

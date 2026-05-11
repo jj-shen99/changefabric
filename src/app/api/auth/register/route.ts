@@ -30,13 +30,31 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        name,
-        hashedPassword,
-        role: "manager",
-      },
+    // Find the default "requester" role
+    const defaultRole = await prisma.role.findUnique({ where: { name: "requester" } });
+
+    // Create user and assign default role in a transaction
+    const user = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          email,
+          name,
+          hashedPassword,
+        },
+      });
+
+      // Assign default role if it exists
+      if (defaultRole) {
+        await tx.userRole.create({
+          data: {
+            userId: newUser.id,
+            roleId: defaultRole.id,
+            assignedBy: "system",
+          },
+        });
+      }
+
+      return newUser;
     });
 
     return NextResponse.json(

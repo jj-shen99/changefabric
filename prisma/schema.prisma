@@ -21,12 +21,58 @@ model User {
   email          String   @unique
   name           String
   hashedPassword String
-  role           String   @default("viewer") // admin | manager | viewer
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   resetToken       String?   @unique
   resetTokenExpiry DateTime?
+
+  // Many-to-many relationship with roles
+  userRoles      UserRole[]
+}
+
+// ── Role-Based Access Control ─────────────────────────────────
+// Roles define granular permissions. Users can have multiple roles.
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique   // e.g., "admin", "change_manager", "approver"
+  displayName String              // e.g., "Administrator", "Change Manager"
+  description String?
+  
+  // Permissions (each role can have multiple permissions enabled)
+  canManageUsers      Boolean @default(false)
+  canManageRoles      Boolean @default(false)
+  canManageChanges    Boolean @default(false)
+  canApproveChanges   Boolean @default(false)
+  canImplementChanges Boolean @default(false)
+  canManageReleases   Boolean @default(false)
+  canEditSettings     Boolean @default(false)
+  canViewMetrics      Boolean @default(false)
+  canViewAllData      Boolean @default(false)
+  
+  isSystem    Boolean  @default(false)  // System roles cannot be deleted
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userRoles   UserRole[]
+}
+
+// Junction table for User-Role many-to-many relationship
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  roleId    String
+  assignedBy String?              // Email of admin/manager who assigned the role
+  assignedAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
 }
 
 // ── Generic Change Management Domain ─────────────────────────

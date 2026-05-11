@@ -74,65 +74,216 @@ async function main() {
     "pm1@example.com": await hashEmailPrefix("pm1@example.com"),
   };
 
+  // ── Roles (System Roles) ─────────────────────────────────────
+  console.log("Seeding roles…");
+  const roles = [
+    {
+      name: "admin",
+      displayName: "Administrator",
+      description: "Full system access - can manage users, roles, settings, and all data",
+      canManageUsers: true,
+      canManageRoles: true,
+      canManageChanges: true,
+      canApproveChanges: true,
+      canImplementChanges: true,
+      canManageReleases: true,
+      canEditSettings: true,
+      canViewMetrics: true,
+      canViewAllData: true,
+      isSystem: true,
+    },
+    {
+      name: "change_manager",
+      displayName: "Change Manager",
+      description: "Manage change requests, releases, and approve changes",
+      canManageUsers: false,
+      canManageRoles: false,
+      canManageChanges: true,
+      canApproveChanges: true,
+      canImplementChanges: true,
+      canManageReleases: true,
+      canEditSettings: false,
+      canViewMetrics: true,
+      canViewAllData: true,
+      isSystem: true,
+    },
+    {
+      name: "approver",
+      displayName: "Approver",
+      description: "Review and approve/reject change requests",
+      canManageUsers: false,
+      canManageRoles: false,
+      canManageChanges: false,
+      canApproveChanges: true,
+      canImplementChanges: false,
+      canManageReleases: false,
+      canEditSettings: false,
+      canViewMetrics: true,
+      canViewAllData: false,
+      isSystem: true,
+    },
+    {
+      name: "implementer",
+      displayName: "Implementer",
+      description: "Execute approved changes and update implementation status",
+      canManageUsers: false,
+      canManageRoles: false,
+      canManageChanges: false,
+      canApproveChanges: false,
+      canImplementChanges: true,
+      canManageReleases: false,
+      canEditSettings: false,
+      canViewMetrics: true,
+      canViewAllData: false,
+      isSystem: true,
+    },
+    {
+      name: "requester",
+      displayName: "Requester",
+      description: "Create and submit change requests",
+      canManageUsers: false,
+      canManageRoles: false,
+      canManageChanges: true,
+      canApproveChanges: false,
+      canImplementChanges: false,
+      canManageReleases: false,
+      canEditSettings: false,
+      canViewMetrics: false,
+      canViewAllData: false,
+      isSystem: true,
+    },
+    {
+      name: "viewer",
+      displayName: "Viewer",
+      description: "Read-only access to view change requests and metrics",
+      canManageUsers: false,
+      canManageRoles: false,
+      canManageChanges: false,
+      canApproveChanges: false,
+      canImplementChanges: false,
+      canManageReleases: false,
+      canEditSettings: false,
+      canViewMetrics: true,
+      canViewAllData: false,
+      isSystem: true,
+    },
+    {
+      name: "cab_member",
+      displayName: "CAB Member",
+      description: "Change Advisory Board member - approve high-risk changes",
+      canManageUsers: false,
+      canManageRoles: false,
+      canManageChanges: false,
+      canApproveChanges: true,
+      canImplementChanges: false,
+      canManageReleases: false,
+      canEditSettings: false,
+      canViewMetrics: true,
+      canViewAllData: true,
+      isSystem: true,
+    },
+    {
+      name: "security_reviewer",
+      displayName: "Security Reviewer",
+      description: "Review and approve security-related changes",
+      canManageUsers: false,
+      canManageRoles: false,
+      canManageChanges: false,
+      canApproveChanges: true,
+      canImplementChanges: false,
+      canManageReleases: false,
+      canEditSettings: false,
+      canViewMetrics: true,
+      canViewAllData: false,
+      isSystem: true,
+    },
+  ];
+
+  const roleMap: Record<string, string> = {};
+  for (const r of roles) {
+    const role = await prisma.role.upsert({
+      where: { name: r.name },
+      update: { ...r },
+      create: { ...r },
+    });
+    roleMap[r.name] = role.id;
+  }
+
+  // ── Users ──────────────────────────────────────────────────────
+  console.log("Seeding users…");
   const users = [
     // Admins
-    { email: "admin@example.com", name: "System Admin", role: "admin", pwd: adminPwd },
-    { email: "ops-admin@example.com", name: "Operations Admin", role: "admin", pwd: adminPwd },
+    { email: "admin@example.com", name: "System Admin", roles: ["admin"], pwd: adminPwd },
+    { email: "ops-admin@example.com", name: "Operations Admin", roles: ["admin"], pwd: adminPwd },
     
     // Engineering Managers (for normal/standard CRs)
-    { email: "mike@example.com", name: "Mike Torres", role: "manager", pwd: mgrPwd },
-    { email: "lisa@example.com", name: "Lisa Wang", role: "manager", pwd: mgrPwd },
-    { email: "raj@example.com", name: "Raj Patel", role: "manager", pwd: mgrPwd },
-    { email: "sarah@example.com", name: "Sarah Chen", role: "manager", pwd: mgrPwd },
-    { email: "james@example.com", name: "James Wilson", role: "manager", pwd: mgrPwd },
+    { email: "mike@example.com", name: "Mike Torres", roles: ["change_manager"], pwd: mgrPwd },
+    { email: "lisa@example.com", name: "Lisa Wang", roles: ["change_manager"], pwd: mgrPwd },
+    { email: "raj@example.com", name: "Raj Patel", roles: ["change_manager", "approver"], pwd: mgrPwd },
+    { email: "sarah@example.com", name: "Sarah Chen", roles: ["change_manager"], pwd: mgrPwd },
+    { email: "james@example.com", name: "James Wilson", roles: ["change_manager", "implementer"], pwd: mgrPwd },
     
     // Security Team (for security-related CRs)
-    { email: "security@example.com", name: "Security Team", role: "manager", pwd: mgrPwd },
-    { email: "security-lead@example.com", name: "Alex Security Lead", role: "manager", pwd: mgrPwd },
+    { email: "security@example.com", name: "Security Team", roles: ["security_reviewer"], pwd: mgrPwd },
+    { email: "security-lead@example.com", name: "Alex Security Lead", roles: ["security_reviewer", "approver"], pwd: mgrPwd },
     
     // CAB Members (Change Advisory Board)
-    { email: "cab@example.com", name: "CAB Chair", role: "manager", pwd: mgrPwd },
-    { email: "cab-member1@example.com", name: "CAB Member - Infrastructure", role: "manager", pwd: mgrPwd },
-    { email: "cab-member2@example.com", name: "CAB Member - Applications", role: "manager", pwd: mgrPwd },
+    { email: "cab@example.com", name: "CAB Chair", roles: ["cab_member", "approver"], pwd: mgrPwd },
+    { email: "cab-member1@example.com", name: "CAB Member - Infrastructure", roles: ["cab_member"], pwd: mgrPwd },
+    { email: "cab-member2@example.com", name: "CAB Member - Applications", roles: ["cab_member"], pwd: mgrPwd },
     
     // Emergency Approvers (on-call managers)
-    { email: "oncall-primary@example.com", name: "On-Call Primary", role: "manager", pwd: mgrPwd },
-    { email: "oncall-secondary@example.com", name: "On-Call Secondary", role: "manager", pwd: mgrPwd },
+    { email: "oncall-primary@example.com", name: "On-Call Primary", roles: ["change_manager", "approver"], pwd: mgrPwd },
+    { email: "oncall-secondary@example.com", name: "On-Call Secondary", roles: ["change_manager", "approver"], pwd: mgrPwd },
     
     // Database Team
-    { email: "dba-lead@example.com", name: "DBA Lead", role: "manager", pwd: mgrPwd },
+    { email: "dba-lead@example.com", name: "DBA Lead", roles: ["change_manager", "approver"], pwd: mgrPwd },
     
     // Infrastructure Team
-    { email: "infra-lead@example.com", name: "Infrastructure Lead", role: "manager", pwd: mgrPwd },
+    { email: "infra-lead@example.com", name: "Infrastructure Lead", roles: ["change_manager", "implementer"], pwd: mgrPwd },
 
     // ── Approvers (dedicated approval role) ──
-    { email: "approver1@example.com", name: "Alice Approver", role: "approver", pwd: approverPwds["approver1@example.com"] },
-    { email: "approver2@example.com", name: "Bob Approver", role: "approver", pwd: approverPwds["approver2@example.com"] },
-    { email: "approver3@example.com", name: "Carol Approver", role: "approver", pwd: approverPwds["approver3@example.com"] },
-    { email: "cab-approver@example.com", name: "CAB Approver", role: "approver", pwd: approverPwds["cab-approver@example.com"] },
-    { email: "security-approver@example.com", name: "Security Approver", role: "approver", pwd: approverPwds["security-approver@example.com"] },
+    { email: "approver1@example.com", name: "Alice Approver", roles: ["approver"], pwd: approverPwds["approver1@example.com"] },
+    { email: "approver2@example.com", name: "Bob Approver", roles: ["approver"], pwd: approverPwds["approver2@example.com"] },
+    { email: "approver3@example.com", name: "Carol Approver", roles: ["approver"], pwd: approverPwds["approver3@example.com"] },
+    { email: "cab-approver@example.com", name: "CAB Approver", roles: ["cab_member", "approver"], pwd: approverPwds["cab-approver@example.com"] },
+    { email: "security-approver@example.com", name: "Security Approver", roles: ["security_reviewer", "approver"], pwd: approverPwds["security-approver@example.com"] },
 
     // ── Implementers (execute approved changes) ──
-    { email: "implementer1@example.com", name: "Ian Implementer", role: "implementer", pwd: implementerPwds["implementer1@example.com"] },
-    { email: "implementer2@example.com", name: "Ivy Implementer", role: "implementer", pwd: implementerPwds["implementer2@example.com"] },
-    { email: "devops1@example.com", name: "DevOps Engineer 1", role: "implementer", pwd: implementerPwds["devops1@example.com"] },
-    { email: "devops2@example.com", name: "DevOps Engineer 2", role: "implementer", pwd: implementerPwds["devops2@example.com"] },
-    { email: "sre1@example.com", name: "SRE Engineer", role: "implementer", pwd: implementerPwds["sre1@example.com"] },
+    { email: "implementer1@example.com", name: "Ian Implementer", roles: ["implementer"], pwd: implementerPwds["implementer1@example.com"] },
+    { email: "implementer2@example.com", name: "Ivy Implementer", roles: ["implementer"], pwd: implementerPwds["implementer2@example.com"] },
+    { email: "devops1@example.com", name: "DevOps Engineer 1", roles: ["implementer", "requester"], pwd: implementerPwds["devops1@example.com"] },
+    { email: "devops2@example.com", name: "DevOps Engineer 2", roles: ["implementer", "requester"], pwd: implementerPwds["devops2@example.com"] },
+    { email: "sre1@example.com", name: "SRE Engineer", roles: ["implementer", "approver"], pwd: implementerPwds["sre1@example.com"] },
 
     // ── Requesters (create and submit CRs) ──
-    { email: "requester1@example.com", name: "Rachel Requester", role: "requester", pwd: requesterPwds["requester1@example.com"] },
-    { email: "requester2@example.com", name: "Ryan Requester", role: "requester", pwd: requesterPwds["requester2@example.com"] },
-    { email: "developer1@example.com", name: "Dev One", role: "requester", pwd: requesterPwds["developer1@example.com"] },
-    { email: "developer2@example.com", name: "Dev Two", role: "requester", pwd: requesterPwds["developer2@example.com"] },
-    { email: "developer3@example.com", name: "Dev Three", role: "requester", pwd: requesterPwds["developer3@example.com"] },
-    { email: "pm1@example.com", name: "Product Manager", role: "requester", pwd: requesterPwds["pm1@example.com"] },
+    { email: "requester1@example.com", name: "Rachel Requester", roles: ["requester"], pwd: requesterPwds["requester1@example.com"] },
+    { email: "requester2@example.com", name: "Ryan Requester", roles: ["requester"], pwd: requesterPwds["requester2@example.com"] },
+    { email: "developer1@example.com", name: "Dev One", roles: ["requester"], pwd: requesterPwds["developer1@example.com"] },
+    { email: "developer2@example.com", name: "Dev Two", roles: ["requester"], pwd: requesterPwds["developer2@example.com"] },
+    { email: "developer3@example.com", name: "Dev Three", roles: ["requester", "viewer"], pwd: requesterPwds["developer3@example.com"] },
+    { email: "pm1@example.com", name: "Product Manager", roles: ["requester", "viewer"], pwd: requesterPwds["pm1@example.com"] },
   ];
+
   for (const u of users) {
-    await prisma.user.upsert({
+    // Create or update user (without the old 'role' field)
+    const user = await prisma.user.upsert({
       where: { email: u.email },
-      update: { hashedPassword: u.pwd, role: u.role, name: u.name },
-      create: { email: u.email, name: u.name, hashedPassword: u.pwd, role: u.role },
+      update: { hashedPassword: u.pwd, name: u.name },
+      create: { email: u.email, name: u.name, hashedPassword: u.pwd },
     });
+
+    // Assign roles to user
+    for (const roleName of u.roles) {
+      const roleId = roleMap[roleName];
+      if (roleId) {
+        await prisma.userRole.upsert({
+          where: { userId_roleId: { userId: user.id, roleId } },
+          update: {},
+          create: { userId: user.id, roleId, assignedBy: "system" },
+        });
+      }
+    }
   }
 
   // ── Groups ─────────────────────────────────────────────────────

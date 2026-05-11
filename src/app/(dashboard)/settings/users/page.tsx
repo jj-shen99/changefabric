@@ -4,25 +4,43 @@ import { useState, useEffect, useCallback } from "react";
 import { usePermissions } from "@/hooks";
 import { Card, CardHeader, CardTitle } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
-import { Shield, Trash2, Loader2, UserPlus } from "lucide-react";
+import { Shield, Trash2, Loader2, UserPlus, Plus, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+interface RoleInfo {
+  id: string;
+  name: string;
+  displayName: string;
+}
 
 interface UserRecord {
   id: string;
   email: string;
   name: string;
-  role: string;
+  roles: RoleInfo[];
   createdAt: string;
 }
 
+interface AvailableRole {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string | null;
+  isSystem: boolean;
+  userCount: number;
+}
+
 export default function UserManagementPage() {
-  const { isAdmin } = usePermissions();
+  const { canManageUsers, isAdmin } = usePermissions();
   const router = useRouter();
   const [users, setUsers] = useState<UserRecord[]>([]);
+  const [availableRoles, setAvailableRoles] = useState<AvailableRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [savingRoles, setSavingRoles] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -42,28 +60,76 @@ export default function UserManagementPage() {
     }
   }, [router]);
 
+  const fetchRoles = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/roles");
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableRoles(data.roles);
+      }
+    } catch {
+      // Ignore role fetch errors
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchRoles();
+  }, [fetchUsers, fetchRoles]);
 
-  async function handleRoleChange(userId: string, newRole: string) {
-    setUpdatingId(userId);
+  function startEditingRoles(user: UserRecord) {
+    setEditingUserId(user.id);
+    setSelectedRoles(user.roles.map(r => r.id));
+  }
+
+  function cancelEditingRoles() {
+    setEditingUserId(null);
+    setSelectedRoles([]);
+  }
+
+  function toggleRole(roleId: string) {
+    setSelectedRoles(prev => 
+      prev.includes(roleId) 
+        ? prev.filter(id => id !== roleId)
+        : [...prev, roleId]
+    );
+  }
+
+  async function saveRoles(userId: string) {
+    if (selectedRoles.length === 0) {
+      alert("User must have at least one role");
+      return;
+    }
+    setSavingRoles(true);
     try {
-      const res = await fetch("/api/admin/users", {
+      const res = await fetch("/api/admin/users/roles", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, role: newRole }),
+        body: JSON.stringify({ userId, roleIds: selectedRoles }),
       });
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || "Failed to update role");
+        alert(data.error || "Failed to update roles");
         return;
       }
-      setUsers((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
-      );
+      // Update local state
+      setUsers(prev => prev.map(u => {
+        if (u.id === userId) {
+          return {
+            ...u,
+            roles: data.roles.map((r: { id: string; name: string; displayName: string }) => ({
+              id: r.id,
+              name: r.name,
+              displayName: r.displayName,
+            })),
+          };
+        }
+        return u;
+      }));
+      setEditingUserId(null);
+      setSelectedRoles([]);
     } finally {
-      setUpdatingId(null);
+      setSavingRoles(false);
     }
   }
 
@@ -83,13 +149,13 @@ export default function UserManagementPage() {
     }
   }
 
-  if (!isAdmin) {
+  if (!canManageUsers && !isAdmin) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
           <Shield className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600" />
           <h2 className="mt-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Access Denied</h2>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Only administrators can manage users.</p>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">You don&apos;t have permission to manage users.</p>
         </div>
       </div>
     );
@@ -97,11 +163,13 @@ export default function UserManagementPage() {
 
   const roleBadge: Record<string, string> = {
     admin: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
-    manager: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+    change_manager: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
     approver: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
     implementer: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
     requester: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
     viewer: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+    cab_member: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300",
+    security_reviewer: "bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300",
   };
 
   return (
@@ -133,7 +201,7 @@ export default function UserManagementPage() {
                 <tr className="border-b border-gray-100 dark:border-gray-800">
                   <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Name</th>
                   <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Email</th>
-                  <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Role</th>
+                  <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Roles</th>
                   <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Joined</th>
                   <th className="pb-3 font-medium text-gray-500 dark:text-gray-400 text-right">Actions</th>
                 </tr>
@@ -151,22 +219,63 @@ export default function UserManagementPage() {
                     </td>
                     <td className="py-3 text-gray-600 dark:text-gray-400">{user.email}</td>
                     <td className="py-3">
-                      <select
-                        value={user.role}
-                        onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                        disabled={updatingId === user.id}
-                        className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-medium outline-none focus:border-blue-500 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                      >
-                        <option value="admin">Admin</option>
-                        <option value="manager">Manager</option>
-                        <option value="approver">Approver</option>
-                        <option value="implementer">Implementer</option>
-                        <option value="requester">Requester</option>
-                        <option value="viewer">Viewer</option>
-                      </select>
-                      <span className={`ml-2 inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${roleBadge[user.role] || roleBadge.manager}`}>
-                        {user.role}
-                      </span>
+                      {editingUserId === user.id ? (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-1">
+                            {availableRoles.map((role) => (
+                              <button
+                                key={role.id}
+                                onClick={() => toggleRole(role.id)}
+                                className={`rounded px-2 py-1 text-[10px] font-medium transition-colors ${
+                                  selectedRoles.includes(role.id)
+                                    ? roleBadge[role.name] || "bg-gray-200 text-gray-700"
+                                    : "bg-gray-100 text-gray-400 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-500"
+                                }`}
+                              >
+                                {selectedRoles.includes(role.id) && <Check className="inline h-3 w-3 mr-0.5" />}
+                                {role.displayName}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => saveRoles(user.id)}
+                              disabled={savingRoles}
+                              className="rounded bg-teal-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-teal-700 disabled:opacity-50"
+                            >
+                              {savingRoles ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save"}
+                            </button>
+                            <button
+                              onClick={cancelEditingRoles}
+                              className="rounded bg-gray-200 px-2 py-1 text-[10px] font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-300"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles.length > 0 ? (
+                            user.roles.map((role) => (
+                              <span
+                                key={role.id}
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${roleBadge[role.name] || "bg-gray-100 text-gray-700"}`}
+                              >
+                                {role.displayName}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-gray-400">No roles</span>
+                          )}
+                          <button
+                            onClick={() => startEditingRoles(user)}
+                            className="ml-1 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                            title="Edit roles"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
                     </td>
                     <td className="py-3 text-gray-500 dark:text-gray-400">
                       {new Date(user.createdAt).toLocaleDateString()}
@@ -195,28 +304,24 @@ export default function UserManagementPage() {
 
       <Card className="p-4">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Role Permissions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-xs">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Users can have multiple roles. Permissions are combined (OR logic).</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 text-xs">
           <div>
             <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.admin}`}>Admin</span>
             <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
               <li>✓ Manage users & roles</li>
-              <li>✓ Create/edit changes</li>
-              <li>✓ Approve changes</li>
-              <li>✓ Implement changes</li>
-              <li>✓ Manage releases</li>
+              <li>✓ All permissions</li>
               <li>✓ Edit settings</li>
               <li>✓ View all data</li>
             </ul>
           </div>
           <div>
-            <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.manager}`}>Manager</span>
+            <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.change_manager}`}>Change Mgr</span>
             <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
-              <li>✓ Create/edit changes</li>
+              <li>✓ Manage changes</li>
               <li>✓ Approve changes</li>
               <li>✓ Implement changes</li>
               <li>✓ Manage releases</li>
-              <li>✓ View metrics</li>
-              <li>✗ View all data</li>
             </ul>
           </div>
           <div>
@@ -224,8 +329,6 @@ export default function UserManagementPage() {
             <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
               <li>✓ Approve changes</li>
               <li>✓ View metrics</li>
-              <li>✗ Create/edit changes</li>
-              <li>✗ Implement changes</li>
             </ul>
           </div>
           <div>
@@ -233,26 +336,33 @@ export default function UserManagementPage() {
             <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
               <li>✓ Implement changes</li>
               <li>✓ View metrics</li>
-              <li>✗ Create/edit changes</li>
-              <li>✗ Approve changes</li>
             </ul>
           </div>
           <div>
             <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.requester}`}>Requester</span>
             <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
-              <li>✓ Create/edit own CRs</li>
-              <li>✗ Approve changes</li>
-              <li>✗ Implement changes</li>
-              <li>✗ View all data</li>
+              <li>✓ Create/edit CRs</li>
             </ul>
           </div>
           <div>
             <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.viewer}`}>Viewer</span>
             <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
-              <li>✓ View assigned CRs</li>
               <li>✓ View metrics</li>
-              <li>✗ Create/edit changes</li>
-              <li>✗ Approve changes</li>
+              <li>✓ Read-only access</li>
+            </ul>
+          </div>
+          <div>
+            <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.cab_member}`}>CAB Member</span>
+            <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
+              <li>✓ Approve changes</li>
+              <li>✓ View all data</li>
+            </ul>
+          </div>
+          <div>
+            <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.security_reviewer}`}>Security</span>
+            <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
+              <li>✓ Approve changes</li>
+              <li>✓ View metrics</li>
             </ul>
           </div>
         </div>

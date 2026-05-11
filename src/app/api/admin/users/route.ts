@@ -2,18 +2,27 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import type { Permissions } from "@/lib/auth-types";
 
-async function requireAdmin() {
+async function requireUserManagement() {
   const session = await getServerSession(authOptions);
   if (!session) return { error: "Unauthorized", status: 401 };
-  const role = (session.user as { role?: string }).role;
-  if (role !== "admin") return { error: "Forbidden: admin access required", status: 403 };
+  
+  const permissions = session.user?.permissions as Permissions | undefined;
+  const roles = session.user?.roles as string[] | undefined;
+  
+  // Admin or users with canManageUsers permission can manage users
+  const canManage = roles?.includes("admin") || permissions?.canManageUsers;
+  if (!canManage) {
+    return { error: "Forbidden: user management access required", status: 403 };
+  }
+  
   return { session };
 }
 
-// GET /api/admin/users — List all users
+// GET /api/admin/users — List all users with their roles
 export async function GET() {
-  const auth = await requireAdmin();
+  const auth = await requireUserManagement();
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -23,58 +32,42 @@ export async function GET() {
       id: true,
       email: true,
       name: true,
-      role: true,
       createdAt: true,
       updatedAt: true,
+      userRoles: {
+        include: {
+          role: {
+            select: {
+              id: true,
+              name: true,
+              displayName: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json({ users });
-}
-
-// PUT /api/admin/users — Update user role
-export async function PUT(request: Request) {
-  const auth = await requireAdmin();
-  if ("error" in auth) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
-  }
-
-  try {
-    const { userId, role } = await request.json();
-
-    if (!userId || !role) {
-      return NextResponse.json({ error: "userId and role are required" }, { status: 400 });
-    }
-
-    if (!["admin", "manager"].includes(role)) {
-      return NextResponse.json({ error: "Invalid role. Must be admin or manager" }, { status: 400 });
-    }
-
-    // Prevent self-demotion
-    if (userId === auth.session.user.id) {
-      return NextResponse.json({ error: "You cannot change your own role" }, { status: 400 });
-    }
-
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    await prisma.user.update({
-      where: { id: userId },
-      data: { role },
-    });
-
-    return NextResponse.json({ message: `User role updated to ${role}` });
-  } catch {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  return NextResponse.json({ 
+    users: users.map(u => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      createdAt: u.createdAt,
+      updatedAt: u.updatedAt,
+      roles: u.userRoles.map(ur => ({
+        id: ur.role.id,
+        name: ur.role.name,
+        displayName: ur.role.displayName,
+      })),
+    }))
+  });
 }
 
 // DELETE /api/admin/users — Delete a user
 export async function DELETE(request: Request) {
-  const auth = await requireAdmin();
+  const auth = await requireUserManagement();
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -97,6 +90,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // UserRoles will be cascade deleted
     await prisma.user.delete({ where: { id: userId } });
 
     return NextResponse.json({ message: "User deleted" });
