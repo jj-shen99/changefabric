@@ -155,7 +155,7 @@ export function getAvailableTransitionsForType(
     
     // Check role requirement
     if (t.requiredRole && role) {
-      const roleOrder = ["viewer", "manager", "admin"];
+      const roleOrder = ["requester", "manager", "admin"];
       if (roleOrder.indexOf(role) < roleOrder.indexOf(t.requiredRole)) continue;
     }
     

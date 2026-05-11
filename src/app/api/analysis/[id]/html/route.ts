@@ -1127,8 +1127,10 @@ export async function GET(
     }
     
     // Non-admin users can only view their own analyses
-    const userRole = (session.user as { role?: string }).role;
-    if (userRole !== "admin" && analysis.createdBy !== session.user.email) {
+    const userRoles = (session.user as { roles?: string[] }).roles || [];
+    const permissions = (session.user as { permissions?: { canViewAllData?: boolean } }).permissions;
+    const canViewAll = userRoles.includes("admin") || permissions?.canViewAllData;
+    if (!canViewAll && analysis.createdBy !== session.user.email) {
       return NextResponse.json({ error: "Not authorized to view this analysis" }, { status: 403 });
     }
 

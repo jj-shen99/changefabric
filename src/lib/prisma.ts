@@ -1,9 +1,18 @@
 import { PrismaClient } from "@prisma/client";
 import { decrypt } from "@/lib/crypto";
+import path from "path";
 
 // Decrypt DATABASE_URL before Prisma reads it (Prisma reads process.env.DATABASE_URL directly)
 if (process.env.DATABASE_URL?.startsWith("enc:")) {
   process.env.DATABASE_URL = decrypt(process.env.DATABASE_URL);
+}
+
+// Resolve relative SQLite paths to absolute paths from project root
+// This ensures the database is found regardless of the working directory
+if (process.env.DATABASE_URL?.startsWith("file:./")) {
+  const relativePath = process.env.DATABASE_URL.slice(7); // Remove "file:./"
+  const absolutePath = path.resolve(process.cwd(), relativePath);
+  process.env.DATABASE_URL = `file:${absolutePath}`;
 }
 
 // Auto-detect provider from URL if not set explicitly.

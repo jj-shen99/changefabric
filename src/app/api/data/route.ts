@@ -25,18 +25,20 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const days = parseInt(searchParams.get("days") || "0", 10);
 
-  const userRole = (session.user as { role?: string }).role;
+  const userRoles = (session.user as { roles?: string[] }).roles || [];
+  const permissions = (session.user as { permissions?: { canViewAllData?: boolean } }).permissions;
   const userEmail = session.user.email || "";
+  const canViewAll = userRoles.includes("admin") || permissions?.canViewAllData;
 
   const repo = new PrismaChangeRequestRepository(prisma);
   const since =
     days > 0 ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
 
-  // Admin sees all CRs, regular users see only their own (requested, assigned, or approver)
+  // Users with canViewAllData see all CRs, others see only their own (requested, assigned, or approver)
   const allCrs = await repo.list();
   let crs = allCrs;
   
-  if (userRole !== "admin") {
+  if (!canViewAll) {
     // Get CR numbers where user is an approver
     const approverCRs = await prisma.$queryRaw<Array<{ changeRequestId: string }>>`
       SELECT DISTINCT changeRequestId FROM Approval WHERE approverEmail = ${userEmail}

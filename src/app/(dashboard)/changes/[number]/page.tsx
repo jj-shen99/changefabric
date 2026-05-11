@@ -98,7 +98,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<"overview" | "approvals" | "comments" | "analysis">("overview");
+  const [tab, setTab] = useState<"overview" | "approvals" | "comments" | "activity" | "analysis">("overview");
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CR>>({});
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
@@ -329,12 +329,24 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
             </button>
           </div>
         </div>
-        {/* Workflow transitions - only show for CR owner (submitter) or admin users, not approvers */}
-        {transitions.length > 0 && (userAccess?.isOwner || userAccess?.isAdmin) && (
+        {/* Workflow transitions - only show for CR owner, assigned user, or admin - not for approver-only users or draft state */}
+        {transitions.length > 0 && cr.state !== "draft" && (userAccess?.isOwner || userAccess?.isAssigned || userAccess?.isAdmin) && !userAccess?.isApproverOnly && (
           <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
             <div className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Workflow actions</div>
             <div className="flex flex-wrap gap-2">
-              {transitions.map((t) => (
+              {transitions
+                .filter((t) => {
+                  // Submit button should only be visible to CR requester (owner)
+                  if (t.event === "submit") {
+                    return userAccess?.isOwner;
+                  }
+                  // Hide 'approve' button - approval happens automatically when all approval steps are approved
+                  if (t.event === "approve") {
+                    return false;
+                  }
+                  return true;
+                })
+                .map((t) => (
                 <button
                   key={t.event}
                   disabled={busy}
@@ -343,7 +355,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
                   title={`${t.from} → ${t.to}`}
                 >
                   <Send className="h-3 w-3" />
-                  {t.event} <span className="opacity-70">→ {t.to}</span>
+                  {t.event}
                 </button>
               ))}
             </div>
@@ -353,7 +365,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-gray-200 dark:border-gray-800">
-        {(["overview", "approvals", "comments", "analysis"] as const).map((t) => {
+        {(["overview", "approvals", "comments", "activity", "analysis"] as const).map((t) => {
           // Hide approvals tab for pre-approved workflows, disable for closed CRs
           const isPreApproved = userAccess?.isPreApproved;
           const isHidden = t === "approvals" && isPreApproved;
@@ -567,7 +579,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
                 <EditField label="Assignment Group" value={editForm.assignmentGroup ?? ""} onChange={(v) => setEditForm({ ...editForm, assignmentGroup: v || null })} placeholder="Team name" />
               </div>
               <EditField label="Category" value={editForm.category ?? ""} onChange={(v) => setEditForm({ ...editForm, category: v })} />
-              <div className="grid grid-cols-2 gap-2 md:col-span-2">
+              <div className="grid grid-cols-2 gap-2 md:col-span-2 pb-48">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">Planned Start</label>
                   <input
@@ -608,6 +620,10 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
 
       {tab === "comments" && (
         <CommentsTab comments={comments} onAdd={addComment} />
+      )}
+
+      {tab === "activity" && (
+        <ActivityTab crNumber={cr.number} />
       )}
 
       {tab === "analysis" && (
@@ -947,6 +963,126 @@ function CommentsTab({ comments, onAdd }: { comments: Comment[]; onAdd: (b: stri
           </button>
         </div>
       </div>
+    </Card>
+  );
+}
+
+interface AuditEvent {
+  id: string;
+  actor: string;
+  action: string;
+  payload: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+const ACTION_LABELS: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+  cr_create: { label: "Created", icon: <FileText className="h-4 w-4" />, color: "text-blue-600" },
+  cr_update: { label: "Updated", icon: <Pencil className="h-4 w-4" />, color: "text-amber-600" },
+  cr_transition: { label: "State Changed", icon: <Activity className="h-4 w-4" />, color: "text-purple-600" },
+  approval_start: { label: "Approval Started", icon: <ShieldCheck className="h-4 w-4" />, color: "text-indigo-600" },
+  approval_decide: { label: "Approval Decision", icon: <CheckCircle2 className="h-4 w-4" />, color: "text-green-600" },
+  comment_create: { label: "Comment Added", icon: <MessageSquare className="h-4 w-4" />, color: "text-gray-600" },
+};
+
+function ActivityTab({ crNumber }: { crNumber: string }) {
+  const [events, setEvents] = useState<AuditEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadEvents() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/v2/changes/${crNumber}/audit`);
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          throw new Error(e.error || `HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        setEvents(data.events || []);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadEvents();
+  }, [crNumber]);
+
+  function formatPayload(action: string, payload: Record<string, unknown> | null): string {
+    if (!payload) return "";
+    
+    if (action === "cr_transition") {
+      const from = payload.from || "unknown";
+      const to = payload.to || "unknown";
+      const event = payload.event || "";
+      return `${from} → ${to}${event ? ` (${event})` : ""}`;
+    }
+    
+    if (action === "approval_decide") {
+      const decision = payload.decision || "";
+      const stepName = payload.stepName || "";
+      return `${decision}${stepName ? ` on ${stepName}` : ""}`;
+    }
+    
+    if (action === "cr_update") {
+      const fields = payload.updatedFields as string[] | undefined;
+      if (fields && fields.length > 0) {
+        return `Fields: ${fields.join(", ")}`;
+      }
+    }
+    
+    return "";
+  }
+
+  return (
+    <Card>
+      <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+        <Activity className="h-4 w-4" />
+        <h3 className="text-sm font-semibold">Activity Log</h3>
+      </div>
+      {loading ? (
+        <div className="p-4 text-sm text-gray-500">Loading activity...</div>
+      ) : error ? (
+        <div className="p-4 text-sm text-red-500">{error}</div>
+      ) : events.length === 0 ? (
+        <div className="p-4 text-sm text-gray-500">No activity recorded yet.</div>
+      ) : (
+        <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+          {events.map((event) => {
+            const actionInfo = ACTION_LABELS[event.action] || { 
+              label: event.action, 
+              icon: <Activity className="h-4 w-4" />, 
+              color: "text-gray-600" 
+            };
+            const payloadText = formatPayload(event.action, event.payload);
+            
+            return (
+              <li key={event.id} className="flex items-start gap-3 p-4">
+                <div className={`mt-0.5 ${actionInfo.color}`}>
+                  {actionInfo.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm text-gray-900 dark:text-gray-100">
+                      {actionInfo.label}
+                    </span>
+                    {payloadText && (
+                      <span className="text-xs text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                        {payloadText}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    by <strong>{event.actor}</strong> · {new Date(event.createdAt).toLocaleString()}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </Card>
   );
 }

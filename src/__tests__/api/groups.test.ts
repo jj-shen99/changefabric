@@ -95,10 +95,10 @@ describe("Groups API", () => {
   describe("Authorization", () => {
     it("should only allow admin users", () => {
       const adminPerms = { canViewAllData: true };
-      const viewerPerms = { canViewAllData: false };
+      const requesterPerms = { canViewAllData: false };
       
       expect(adminPerms.canViewAllData).toBe(true);
-      expect(viewerPerms.canViewAllData).toBe(false);
+      expect(requesterPerms.canViewAllData).toBe(false);
     });
   });
 });

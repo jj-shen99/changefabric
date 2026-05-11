@@ -10,7 +10,8 @@ export async function POST(request: Request) {
   }
   
   // Only admins can test integration settings
-  if ((session.user as { role?: string }).role !== "admin") {
+  const userRoles = (session.user as { roles?: string[] }).roles || [];
+  if (!userRoles.includes("admin")) {
     return NextResponse.json({ error: "Forbidden - Admin role required" }, { status: 403 });
   }
 

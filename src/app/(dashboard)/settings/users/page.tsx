@@ -31,7 +31,7 @@ interface AvailableRole {
 }
 
 export default function UserManagementPage() {
-  const { canManageUsers, isAdmin } = usePermissions();
+  const { canManageUsers, canManageRoles, isAdmin } = usePermissions();
   const router = useRouter();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [availableRoles, setAvailableRoles] = useState<AvailableRole[]>([]);
@@ -149,7 +149,7 @@ export default function UserManagementPage() {
     }
   }
 
-  if (!canManageUsers && !isAdmin) {
+  if (!canManageUsers && !canManageRoles && !isAdmin) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">
@@ -167,9 +167,7 @@ export default function UserManagementPage() {
     approver: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
     implementer: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
     requester: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
-    viewer: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
     cab_member: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300",
-    security_reviewer: "bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300",
   };
 
   return (
@@ -222,7 +220,9 @@ export default function UserManagementPage() {
                       {editingUserId === user.id ? (
                         <div className="space-y-2">
                           <div className="flex flex-wrap gap-1">
-                            {availableRoles.map((role) => (
+                            {availableRoles
+                              .filter((role) => isAdmin || role.name !== "admin")
+                              .map((role) => (
                               <button
                                 key={role.id}
                                 onClick={() => toggleRole(role.id)}
@@ -267,13 +267,16 @@ export default function UserManagementPage() {
                           ) : (
                             <span className="text-xs text-gray-400">No roles</span>
                           )}
-                          <button
-                            onClick={() => startEditingRoles(user)}
-                            className="ml-1 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
-                            title="Edit roles"
-                          >
-                            <Plus className="h-3 w-3" />
-                          </button>
+                          {/* Only show edit button if: current user is admin, OR target user is not admin */}
+                          {(isAdmin || !user.roles.some(r => r.name === "admin")) && (
+                            <button
+                              onClick={() => startEditingRoles(user)}
+                              className="ml-1 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+                              title="Edit roles"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -345,24 +348,10 @@ export default function UserManagementPage() {
             </ul>
           </div>
           <div>
-            <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.viewer}`}>Viewer</span>
-            <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
-              <li>✓ View metrics</li>
-              <li>✓ Read-only access</li>
-            </ul>
-          </div>
-          <div>
             <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.cab_member}`}>CAB Member</span>
             <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
               <li>✓ Approve changes</li>
               <li>✓ View all data</li>
-            </ul>
-          </div>
-          <div>
-            <span className={`rounded px-1.5 py-0.5 font-medium ${roleBadge.security_reviewer}`}>Security</span>
-            <ul className="mt-2 space-y-1 text-gray-500 dark:text-gray-400">
-              <li>✓ Approve changes</li>
-              <li>✓ View metrics</li>
             </ul>
           </div>
         </div>

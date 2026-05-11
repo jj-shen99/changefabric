@@ -2,12 +2,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { ROLE_PERMISSIONS } from "@/lib/auth-types";
-import type { UserRole } from "@/lib/auth-types";
+import { DEFAULT_PERMISSIONS, type Permissions } from "@/lib/auth-types";
 
-function getPermissions(session: { user: { role?: string } }) {
-  const role = (session.user.role || "manager") as UserRole;
-  return ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.manager;
+function getPermissions(session: { user: { permissions?: Permissions } }) {
+  return session.user.permissions || DEFAULT_PERMISSIONS;
 }
 
 // POST /api/data/changes — Create a new change request (SN schema)
@@ -17,7 +15,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const perms = getPermissions(session as { user: { role?: string } });
+  const perms = getPermissions(session as { user: { permissions?: Permissions } });
   if (!perms.canManageChanges) {
     return NextResponse.json({ error: "Forbidden: insufficient permissions" }, { status: 403 });
   }
@@ -56,7 +54,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const perms = getPermissions(session as { user: { role?: string } });
+  const perms = getPermissions(session as { user: { permissions?: Permissions } });
   if (!perms.canManageChanges) {
     return NextResponse.json({ error: "Forbidden: insufficient permissions" }, { status: 403 });
   }
@@ -90,7 +88,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const perms = getPermissions(session as { user: { role?: string } });
+  const perms = getPermissions(session as { user: { permissions?: Permissions } });
   if (!perms.canManageChanges) {
     return NextResponse.json({ error: "Forbidden: insufficient permissions" }, { status: 403 });
   }

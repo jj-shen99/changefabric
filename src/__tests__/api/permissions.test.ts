@@ -15,9 +15,6 @@ describe("Role Permissions", () => {
       expect(ROLE_PERMISSIONS.manager.canViewAllData).toBe(false);
     });
 
-    it("viewer cannot view all data (only their own CRs)", () => {
-      expect(ROLE_PERMISSIONS.viewer.canViewAllData).toBe(false);
-    });
   });
 
   describe("canManageChanges permission", () => {
@@ -29,21 +26,17 @@ describe("Role Permissions", () => {
       expect(ROLE_PERMISSIONS.manager.canManageChanges).toBe(true);
     });
 
-    it("viewer cannot manage changes", () => {
-      expect(ROLE_PERMISSIONS.viewer.canManageChanges).toBe(false);
-    });
   });
 
   describe("canManageUsers permission", () => {
     it("only admin can manage users", () => {
       expect(ROLE_PERMISSIONS.admin.canManageUsers).toBe(true);
       expect(ROLE_PERMISSIONS.manager.canManageUsers).toBe(false);
-      expect(ROLE_PERMISSIONS.viewer.canManageUsers).toBe(false);
     });
   });
 
   describe("all roles are defined", () => {
-    const expectedRoles: UserRole[] = ["admin", "manager", "approver", "implementer", "requester", "viewer"];
+    const expectedRoles: UserRole[] = ["admin", "manager", "approver", "implementer", "requester"];
 
     it("has all expected roles", () => {
       expectedRoles.forEach((role) => {

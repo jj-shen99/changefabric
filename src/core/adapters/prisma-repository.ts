@@ -298,6 +298,28 @@ export class PrismaChangeRequestRepository implements ChangeRequestRepository {
       createdAt: r.createdAt.toISOString(),
     }));
   }
+
+  async getCRTypeApprovers(crType: string): Promise<Array<{
+    crType: string;
+    approverEmail: string;
+    approverGroup: string | null;
+    stepName: string;
+    ordering: number;
+  }>> {
+    const rows = await this.prisma.$queryRaw<Array<{
+      crType: string;
+      approverEmail: string;
+      approverGroup: string | null;
+      stepName: string;
+      ordering: number;
+    }>>`
+      SELECT crType, approverEmail, approverGroup, stepName, ordering
+      FROM CRTypeApprover
+      WHERE isActive = 1 AND crType = ${crType}
+      ORDER BY ordering, stepName
+    `;
+    return rows;
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

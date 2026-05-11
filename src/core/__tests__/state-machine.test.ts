@@ -30,7 +30,7 @@ describe("state-machine", () => {
   });
 
   it("filters by RBAC role", () => {
-    const ts = availableTransitions(STANDARD_WORKFLOW, "draft", "viewer");
+    const ts = availableTransitions(STANDARD_WORKFLOW, "draft", "requester");
     expect(ts).toHaveLength(0);
   });
 
@@ -65,7 +65,7 @@ describe("state-machine", () => {
       applyTransition(STANDARD_WORKFLOW, noopRuntime, "draft", "submit", {
         changeRequest: { number: "x" },
         actor: "a",
-        actorRole: "viewer",
+        actorRole: "requester",
       })
     ).rejects.toMatchObject({ code: "rbac_denied" });
   });

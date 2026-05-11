@@ -72,9 +72,7 @@ export type SystemRoleName =
   | "approver" 
   | "implementer" 
   | "requester" 
-  | "viewer"
-  | "cab_member"
-  | "security_reviewer";
+  | "cab_member";
 
 export const SYSTEM_ROLE_LABELS: Record<SystemRoleName, string> = {
   admin: "Administrator",
@@ -82,9 +80,7 @@ export const SYSTEM_ROLE_LABELS: Record<SystemRoleName, string> = {
   approver: "Approver",
   implementer: "Implementer",
   requester: "Requester",
-  viewer: "Viewer",
   cab_member: "CAB Member",
-  security_reviewer: "Security Reviewer",
 };
 
 // Default permissions (all false)
@@ -148,15 +144,14 @@ export function canManageRoles(userRoles: string[], permissions: Permissions): b
 
 // ── Legacy compatibility ─────────────────────────────────────────
 // Keep old types for backward compatibility during migration
-export type UserRole = "admin" | "manager" | "approver" | "implementer" | "requester" | "viewer";
+export type UserRole = "admin" | "manager" | "approver" | "implementer" | "requester";
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Administrator",
-  manager: "Change Manager",
+  manager: "Manager",
   approver: "Approver",
   implementer: "Implementer",
   requester: "Requester",
-  viewer: "Viewer",
 };
 
 // Legacy ROLE_PERMISSIONS for backward compatibility
@@ -174,7 +169,7 @@ export const ROLE_PERMISSIONS = {
   },
   manager: {
     canManageUsers: false,
-    canManageRoles: false,
+    canManageRoles: true,
     canManageChanges: true,
     canApproveChanges: true,
     canImplementChanges: true,
@@ -214,17 +209,6 @@ export const ROLE_PERMISSIONS = {
     canManageReleases: false,
     canEditSettings: false,
     canViewMetrics: false,
-    canViewAllData: false,
-  },
-  viewer: {
-    canManageUsers: false,
-    canManageRoles: false,
-    canManageChanges: false,
-    canApproveChanges: false,
-    canImplementChanges: false,
-    canManageReleases: false,
-    canEditSettings: false,
-    canViewMetrics: true,
     canViewAllData: false,
   },
 } as const;

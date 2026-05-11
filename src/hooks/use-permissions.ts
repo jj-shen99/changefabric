@@ -22,10 +22,9 @@ export function usePermissions() {
     // Convenience flags for common checks
     isAdmin: roles.includes("admin"),
     isChangeManager: roles.includes("change_manager"),
-    isApprover: roles.includes("approver") || roles.includes("cab_member") || roles.includes("security_reviewer"),
+    isApprover: roles.includes("approver") || roles.includes("cab_member"),
     isImplementer: roles.includes("implementer"),
     isRequester: roles.includes("requester"),
-    isViewer: roles.includes("viewer"),
     
     // Legacy compatibility
     isManager: roles.includes("change_manager") || roles.includes("admin"),

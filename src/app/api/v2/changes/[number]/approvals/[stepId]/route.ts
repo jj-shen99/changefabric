@@ -36,7 +36,7 @@ export async function POST(
   }
   try {
     const result = await getChangeRequestService().decideApproval(
-      { actor: ctx.email, actorRole: ctx.role },
+      { actor: ctx.email, actorRole: ctx.primaryRole },
       params.number,
       params.stepId,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

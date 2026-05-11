@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   try {
     const ctx = await requireSession();
     if (ctx instanceof NextResponse) return ctx;
-    if (ctx.role !== "admin") {
+    if (!ctx.isAdmin) {
       return forbidden("Only admins can create templates");
     }
 

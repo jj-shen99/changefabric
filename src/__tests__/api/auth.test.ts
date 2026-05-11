@@ -126,11 +126,11 @@ describe("Session Management", () => {
 
   describe("Role fallback", () => {
     it("defaults to manager role if role is missing", () => {
-      const getRole = (sessionRole?: string) => (sessionRole || "manager") as "admin" | "manager" | "viewer";
+      const getRole = (sessionRole?: string) => (sessionRole || "manager") as "admin" | "manager" | "requester";
 
       expect(getRole("admin")).toBe("admin");
       expect(getRole("manager")).toBe("manager");
-      expect(getRole("viewer")).toBe("viewer");
+      expect(getRole("requester")).toBe("requester");
       expect(getRole(undefined)).toBe("manager");
       expect(getRole("")).toBe("manager");
     });

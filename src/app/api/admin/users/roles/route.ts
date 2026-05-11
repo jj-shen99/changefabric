@@ -101,6 +101,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Role not found" }, { status: 404 });
     }
 
+    // Check if current user is admin
+    const currentUserRoles = auth.session.user?.roles as string[] | undefined;
+    const isCurrentUserAdmin = currentUserRoles?.includes("admin");
+
+    // Non-admins cannot assign admin role
+    if (!isCurrentUserAdmin && role.name === "admin") {
+      return NextResponse.json({ error: "Only admins can assign the admin role" }, { status: 403 });
+    }
+
+    // Non-admins cannot modify admin users
+    if (!isCurrentUserAdmin) {
+      const targetUserRoles = await prisma.userRole.findMany({
+        where: { userId },
+        include: { role: true },
+      });
+      const targetIsAdmin = targetUserRoles.some(ur => ur.role.name === "admin");
+      if (targetIsAdmin) {
+        return NextResponse.json({ error: "Only admins can modify admin user roles" }, { status: 403 });
+      }
+    }
+
     // Check if already assigned
     const existing = await prisma.userRole.findUnique({
       where: { userId_roleId: { userId, roleId } },
@@ -224,6 +245,27 @@ export async function PUT(request: Request) {
     });
     if (roles.length !== roleIds.length) {
       return NextResponse.json({ error: "One or more roles not found" }, { status: 404 });
+    }
+
+    // Check if current user is admin
+    const currentUserRoles = auth.session.user?.roles as string[] | undefined;
+    const isCurrentUserAdmin = currentUserRoles?.includes("admin");
+
+    // Non-admins cannot assign or remove admin role
+    if (!isCurrentUserAdmin) {
+      const adminRole = roles.find(r => r.name === "admin");
+      if (adminRole) {
+        return NextResponse.json({ error: "Only admins can assign the admin role" }, { status: 403 });
+      }
+      // Check if target user currently has admin role - non-admins can't modify admin users
+      const targetUserRoles = await prisma.userRole.findMany({
+        where: { userId },
+        include: { role: true },
+      });
+      const targetIsAdmin = targetUserRoles.some(ur => ur.role.name === "admin");
+      if (targetIsAdmin) {
+        return NextResponse.json({ error: "Only admins can modify admin user roles" }, { status: 403 });
+      }
     }
 
     // If removing admin role from self, prevent it

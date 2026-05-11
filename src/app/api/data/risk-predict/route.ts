@@ -28,9 +28,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Change request not found" }, { status: 404 });
   }
 
-  const userRole = (session.user as { role?: string }).role;
+  const userRoles = (session.user as { roles?: string[] }).roles || [];
+  const permissions = (session.user as { permissions?: { canViewAllData?: boolean } }).permissions;
   const userEmail = session.user.email || "";
-  if (userRole !== "admin" && cr.requestedBy !== userEmail) {
+  const canViewAll = userRoles.includes("admin") || permissions?.canViewAllData;
+  if (!canViewAll && cr.requestedBy !== userEmail && cr.assignedTo !== userEmail) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

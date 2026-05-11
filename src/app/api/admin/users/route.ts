@@ -11,8 +11,10 @@ async function requireUserManagement() {
   const permissions = session.user?.permissions as Permissions | undefined;
   const roles = session.user?.roles as string[] | undefined;
   
-  // Admin or users with canManageUsers permission can manage users
-  const canManage = roles?.includes("admin") || permissions?.canManageUsers;
+  // Admin or users with canManageUsers or canManageRoles permission can view/manage users
+  const canManage = roles?.includes("admin") || 
+                    permissions?.canManageUsers || 
+                    permissions?.canManageRoles;
   if (!canManage) {
     return { error: "Forbidden: user management access required", status: 403 };
   }
@@ -26,6 +28,9 @@ export async function GET() {
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+
+  const currentUserRoles = auth.session.user?.roles as string[] | undefined;
+  const isCurrentUserAdmin = currentUserRoles?.includes("admin");
 
   const users = await prisma.user.findMany({
     select: {
@@ -49,8 +54,13 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
+  // Filter out admin users for non-admin viewers
+  const filteredUsers = isCurrentUserAdmin 
+    ? users 
+    : users.filter(u => !u.userRoles.some(ur => ur.role.name === "admin"));
+
   return NextResponse.json({ 
-    users: users.map(u => ({
+    users: filteredUsers.map(u => ({
       id: u.id,
       email: u.email,
       name: u.name,

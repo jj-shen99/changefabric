@@ -23,8 +23,10 @@ export async function GET(request: Request) {
     if (crId) where.changeRequestId = crId;
     
     // Non-admin users can only see their own analyses
-    const userRole = (session.user as { role?: string }).role;
-    if (userRole !== "admin") {
+    const userRoles = (session.user as { roles?: string[] }).roles || [];
+    const permissions = (session.user as { permissions?: { canViewAllData?: boolean } }).permissions;
+    const canViewAll = userRoles.includes("admin") || permissions?.canViewAllData;
+    if (!canViewAll) {
       where.createdBy = session.user.email;
     }
 
@@ -126,7 +128,9 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Analysis not found" }, { status: 404 });
     }
 
-    if (existing.createdBy !== session.user.email && session.user.role !== "admin") {
+    const userRoles = session.user.roles || [];
+    const isAdmin = userRoles.includes("admin");
+    if (existing.createdBy !== session.user.email && !isAdmin) {
       return NextResponse.json({ error: "Not authorized to delete this analysis" }, { status: 403 });
     }
 

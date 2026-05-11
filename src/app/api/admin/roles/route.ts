@@ -20,6 +20,9 @@ async function requireRoleManagement() {
   return { session };
 }
 
+// Deprecated roles that should not be shown
+const DEPRECATED_ROLES = ["viewer", "security_reviewer"];
+
 // GET /api/admin/roles — List all roles
 export async function GET() {
   const auth = await requireRoleManagement();
@@ -28,7 +31,10 @@ export async function GET() {
   }
 
   const roles = await prisma.role.findMany({
-    where: { isActive: true },
+    where: { 
+      isActive: true,
+      name: { notIn: DEPRECATED_ROLES },
+    },
     orderBy: [{ isSystem: "desc" }, { name: "asc" }],
     select: {
       id: true,

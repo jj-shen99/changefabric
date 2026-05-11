@@ -22,15 +22,15 @@ Complete guide to using the Change Request Management AI Dashboard.
 
 The system has 6 user roles with different permission levels:
 
-| Permission | Admin | Manager | Approver | Implementer | Requester | Viewer |
-|------------|:-----:|:-------:|:--------:|:-----------:|:---------:|:------:|
+| Permission | Admin | Change Manager | Approver | Implementer | Requester | CAB Member |
+|------------|:-----:|:--------------:|:--------:|:-----------:|:---------:|:----------:|
 | View Dashboard | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | View Own CRs | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| View All CRs | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| View All CRs | ✓ | ✓ | ✗ | ✗ | ✗ | ✓ |
 | Create CR | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ |
 | Edit Own CR | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ |
 | Edit Any CR | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
-| Approve CR | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Approve CR | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ |
 | Implement CR | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ |
 | Manage Releases | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
 | Manage Users | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
@@ -39,11 +39,11 @@ The system has 6 user roles with different permission levels:
 
 **Role Descriptions:**
 - **Admin**: Full system access including user management and settings
-- **Manager**: Create/edit CRs, approve changes, implement changes, manage releases
-- **Approver**: Review and approve CRs assigned to them (CAB members, security reviewers)
+- **Change Manager**: Create/edit CRs, approve changes, implement changes, manage releases
+- **Approver**: Review and approve CRs assigned to them
 - **Implementer**: Execute approved changes (DevOps, SREs, DBAs)
 - **Requester**: Create and manage their own CRs (developers, product managers)
-- **Viewer**: Read-only access to CRs they're associated with
+- **CAB Member**: Change Advisory Board member, can approve changes and view all data
 
 ## Dashboard Pages
 

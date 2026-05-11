@@ -3,7 +3,7 @@
  */
 
 // Define types and constants locally to avoid importing next-auth
-type UserRole = "admin" | "manager" | "approver" | "implementer" | "requester" | "viewer";
+type UserRole = "admin" | "manager" | "approver" | "implementer" | "requester";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   admin: "Administrator",
@@ -11,7 +11,6 @@ const ROLE_LABELS: Record<UserRole, string> = {
   approver: "Approver",
   implementer: "Implementer",
   requester: "Requester",
-  viewer: "Viewer",
 };
 
 const ROLE_PERMISSIONS = {
@@ -65,20 +64,10 @@ const ROLE_PERMISSIONS = {
     canViewMetrics: false,
     canViewAllData: false,
   },
-  viewer: {
-    canManageUsers: false,
-    canManageChanges: false,
-    canApproveChanges: false,
-    canImplementChanges: false,
-    canManageReleases: false,
-    canEditSettings: false,
-    canViewMetrics: true,
-    canViewAllData: false,
-  },
 } as const;
 
 describe("User Roles", () => {
-  const allRoles: UserRole[] = ["admin", "manager", "approver", "implementer", "requester", "viewer"];
+  const allRoles: UserRole[] = ["admin", "manager", "approver", "implementer", "requester"];
 
   describe("Role Labels", () => {
     it("has labels for all roles", () => {
@@ -95,7 +84,6 @@ describe("User Roles", () => {
       expect(ROLE_LABELS.approver).toBe("Approver");
       expect(ROLE_LABELS.implementer).toBe("Implementer");
       expect(ROLE_LABELS.requester).toBe("Requester");
-      expect(ROLE_LABELS.viewer).toBe("Viewer");
     });
   });
 
@@ -189,23 +177,6 @@ describe("User Roles", () => {
       });
     });
 
-    describe("Viewer permissions", () => {
-      const perms = ROLE_PERMISSIONS.viewer;
-
-      it("can only view metrics", () => {
-        expect(perms.canViewMetrics).toBe(true);
-      });
-
-      it("cannot do anything else", () => {
-        expect(perms.canManageChanges).toBe(false);
-        expect(perms.canApproveChanges).toBe(false);
-        expect(perms.canImplementChanges).toBe(false);
-        expect(perms.canManageUsers).toBe(false);
-        expect(perms.canManageReleases).toBe(false);
-        expect(perms.canEditSettings).toBe(false);
-        expect(perms.canViewAllData).toBe(false);
-      });
-    });
   });
 
   describe("Permission Hierarchy", () => {
@@ -215,7 +186,6 @@ describe("User Roles", () => {
       expect(ROLE_PERMISSIONS.approver.canManageUsers).toBe(false);
       expect(ROLE_PERMISSIONS.implementer.canManageUsers).toBe(false);
       expect(ROLE_PERMISSIONS.requester.canManageUsers).toBe(false);
-      expect(ROLE_PERMISSIONS.viewer.canManageUsers).toBe(false);
     });
 
     it("only admin can view all data", () => {
@@ -224,7 +194,6 @@ describe("User Roles", () => {
       expect(ROLE_PERMISSIONS.approver.canViewAllData).toBe(false);
       expect(ROLE_PERMISSIONS.implementer.canViewAllData).toBe(false);
       expect(ROLE_PERMISSIONS.requester.canViewAllData).toBe(false);
-      expect(ROLE_PERMISSIONS.viewer.canViewAllData).toBe(false);
     });
 
     it("only admin can edit settings", () => {
@@ -233,7 +202,6 @@ describe("User Roles", () => {
       expect(ROLE_PERMISSIONS.approver.canEditSettings).toBe(false);
       expect(ROLE_PERMISSIONS.implementer.canEditSettings).toBe(false);
       expect(ROLE_PERMISSIONS.requester.canEditSettings).toBe(false);
-      expect(ROLE_PERMISSIONS.viewer.canEditSettings).toBe(false);
     });
 
     it("admin, manager, and approver can approve changes", () => {
@@ -242,7 +210,6 @@ describe("User Roles", () => {
       expect(ROLE_PERMISSIONS.approver.canApproveChanges).toBe(true);
       expect(ROLE_PERMISSIONS.implementer.canApproveChanges).toBe(false);
       expect(ROLE_PERMISSIONS.requester.canApproveChanges).toBe(false);
-      expect(ROLE_PERMISSIONS.viewer.canApproveChanges).toBe(false);
     });
 
     it("admin, manager, and implementer can implement changes", () => {
@@ -251,7 +218,6 @@ describe("User Roles", () => {
       expect(ROLE_PERMISSIONS.implementer.canImplementChanges).toBe(true);
       expect(ROLE_PERMISSIONS.approver.canImplementChanges).toBe(false);
       expect(ROLE_PERMISSIONS.requester.canImplementChanges).toBe(false);
-      expect(ROLE_PERMISSIONS.viewer.canImplementChanges).toBe(false);
     });
 
     it("admin, manager, and requester can manage changes", () => {
@@ -260,7 +226,6 @@ describe("User Roles", () => {
       expect(ROLE_PERMISSIONS.requester.canManageChanges).toBe(true);
       expect(ROLE_PERMISSIONS.approver.canManageChanges).toBe(false);
       expect(ROLE_PERMISSIONS.implementer.canManageChanges).toBe(false);
-      expect(ROLE_PERMISSIONS.viewer.canManageChanges).toBe(false);
     });
   });
 });

@@ -26,7 +26,7 @@ export interface TransitionDef {
    * transition is committed. */
   effects?: string[];
   /** Required role for this transition (RBAC). */
-  requiredRole?: "admin" | "manager" | "viewer";
+  requiredRole?: "admin" | "manager" | "requester";
   description?: string;
 }
 
@@ -111,7 +111,7 @@ export function availableTransitions(
 }
 
 function canActAs(actual: string, required: string): boolean {
-  const order = ["viewer", "manager", "admin"];
+  const order = ["requester", "manager", "admin"];
   return order.indexOf(actual) >= order.indexOf(required);
 }
 

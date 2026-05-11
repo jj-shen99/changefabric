@@ -44,13 +44,15 @@ export default function GroupsPage() {
     setLoading(true);
     setError(null);
     try {
-      // Check if user is admin
+      // Check if user has permission
       const sessionRes = await fetch("/api/auth/session");
       const session = await sessionRes.json();
-      const userRole = session?.user?.role;
-      setIsAdmin(userRole === "admin");
+      const userRoles = session?.user?.roles || [];
+      const permissions = session?.user?.permissions || {};
+      const hasAccess = userRoles.includes("admin") || permissions.canManageUsers;
+      setIsAdmin(userRoles.includes("admin"));
 
-      if (userRole !== "admin") {
+      if (!hasAccess) {
         setError("Access denied. Admin privileges required.");
         setLoading(false);
         return;

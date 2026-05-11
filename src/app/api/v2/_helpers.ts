@@ -5,12 +5,15 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { ROLE_PERMISSIONS, type UserRole } from "@/lib/auth-types";
+import { DEFAULT_PERMISSIONS, type Permissions } from "@/lib/auth-types";
 
 export interface SessionContext {
   email: string;
-  role: UserRole;
-  perms: (typeof ROLE_PERMISSIONS)[UserRole];
+  roles: string[];
+  perms: Permissions;
+  isAdmin: boolean;
+  /** Primary role for backward compatibility with workflow RBAC */
+  primaryRole: "admin" | "manager" | "viewer";
 }
 
 /** Returns either a SessionContext or a NextResponse error to short-circuit. */
@@ -19,11 +22,23 @@ export async function requireSession(): Promise<SessionContext | NextResponse> {
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const role = ((session.user as { role?: string }).role || "manager") as UserRole;
+  const roles = session.user.roles || [];
+  const perms = session.user.permissions || DEFAULT_PERMISSIONS;
+  const isAdmin = roles.includes("admin");
+  
+  // Determine primary role for backward compatibility with workflow RBAC
+  const primaryRole: "admin" | "manager" | "viewer" = isAdmin 
+    ? "admin" 
+    : roles.includes("change_manager") || perms.canManageChanges 
+      ? "manager" 
+      : "viewer";
+  
   return {
     email: session.user.email,
-    role,
-    perms: ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.manager,
+    roles,
+    perms,
+    isAdmin,
+    primaryRole,
   };
 }
 

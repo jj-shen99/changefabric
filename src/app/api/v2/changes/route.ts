@@ -109,7 +109,7 @@ export async function POST(request: Request) {
   const svc = getChangeRequestService();
   try {
     const cr = await svc.create(
-      { actor: ctx.email, actorRole: ctx.role },
+      { actor: ctx.email, actorRole: ctx.primaryRole },
       body as unknown as Parameters<typeof svc.create>[1]
     );
     return NextResponse.json(cr, { status: 201 });

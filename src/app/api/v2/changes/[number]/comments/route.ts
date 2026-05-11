@@ -37,7 +37,7 @@ export async function POST(
   if (!body.body) return badRequest("Missing 'body'");
   try {
     const c = await getChangeRequestService().addComment(
-      { actor: ctx.email, actorRole: ctx.role },
+      { actor: ctx.email, actorRole: ctx.primaryRole },
       params.number,
       body.body,
       body.visibility ?? "public"

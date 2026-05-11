@@ -16,14 +16,16 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const days = parseInt(searchParams.get("days") || "0", 10);
-  const userRole = (session.user as { role?: string }).role;
+  const userRoles = (session.user as { roles?: string[] }).roles || [];
+  const permissions = (session.user as { permissions?: { canViewAllData?: boolean } }).permissions;
   const userEmail = session.user.email || "";
+  const canViewAll = userRoles.includes("admin") || permissions?.canViewAllData;
 
   const repo = new PrismaChangeRequestRepository(prisma);
   const since = days > 0 ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
 
   const [allCRs, releases] = await Promise.all([
-    repo.list(userRole !== "admin" ? { requestedBy: userEmail } : undefined),
+    repo.list(!canViewAll ? { requestedBy: userEmail } : undefined),
     prisma.release.findMany({ orderBy: { scheduledDate: "desc" } }),
   ]);
   const crs = since ? allCRs.filter((c) => new Date(c.createdAt) >= since) : allCRs;

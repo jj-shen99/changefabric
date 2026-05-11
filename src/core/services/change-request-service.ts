@@ -65,6 +65,14 @@ export interface CreateApprovalStepInput {
   approvers: Array<{ email: string; group?: string }>;
 }
 
+export interface CRTypeApprover {
+  crType: string;
+  approverEmail: string;
+  approverGroup: string | null;
+  stepName: string;
+  ordering: number;
+}
+
 export interface ChangeRequestRepository {
   nextNumber(): Promise<string>;
   create(cr: ChangeRequest): Promise<ChangeRequest>;
@@ -89,11 +97,13 @@ export interface ChangeRequestRepository {
 
   addComment(comment: Omit<Comment, "id" | "createdAt"> & { id?: string }): Promise<Comment>;
   listComments(crNumber: string): Promise<Comment[]>;
+
+  getCRTypeApprovers(crType: string): Promise<CRTypeApprover[]>;
 }
 
 export interface ServiceContext {
   actor: string;
-  actorRole?: "admin" | "manager" | "viewer";
+  actorRole?: "admin" | "manager" | "requester";
 }
 
 export class ChangeRequestService {
@@ -185,80 +195,57 @@ export class ChangeRequestService {
 
   /**
    * Create default approval steps based on CR type.
-   * - standard: Manager Review + CAB Review (2 steps)
-   * - normal: Technical Review (1 step)
-   * - emergency: Emergency CAB (1 step, post-implementation)
+   * Fetches approvers from CRTypeApprover table, grouped by stepName.
+   * Falls back to assignedTo if no approvers configured.
    */
-  private async createDefaultApprovalSteps(cr: ChangeRequest, requestor: string): Promise<void> {
-    const steps = this.getApprovalStepsForType(cr.type, cr.assignedTo, requestor);
+  private async createDefaultApprovalSteps(cr: ChangeRequest, _requestor: string): Promise<void> {
+    // Fetch configured approvers for this CR type
+    const typeApprovers = await this.repo.getCRTypeApprovers(cr.type);
     
-    for (const step of steps) {
-      // Only create step if there are approvers
-      if (step.approvers.length > 0) {
+    if (typeApprovers.length > 0) {
+      // Group approvers by stepName
+      const stepMap = new Map<string, { ordering: number; approvers: Array<{ email: string; group?: string }> }>();
+      
+      for (const approver of typeApprovers) {
+        const existing = stepMap.get(approver.stepName);
+        if (existing) {
+          existing.approvers.push({ 
+            email: approver.approverEmail, 
+            group: approver.approverGroup || undefined 
+          });
+        } else {
+          stepMap.set(approver.stepName, {
+            ordering: approver.ordering,
+            approvers: [{ 
+              email: approver.approverEmail, 
+              group: approver.approverGroup || undefined 
+            }],
+          });
+        }
+      }
+      
+      // Create approval steps from grouped approvers
+      for (const [stepName, stepData] of stepMap) {
         await this.repo.createApprovalStep({
           changeRequestId: cr.number,
-          name: step.name,
-          ordering: step.ordering,
-          policy: step.policy,
+          name: stepName,
+          ordering: stepData.ordering,
+          policy: "any",
           status: "pending",
-          approvers: step.approvers,
+          approvers: stepData.approvers,
         });
       }
-    }
-  }
-
-  private getApprovalStepsForType(
-    crType: string, 
-    assignedTo: string | null | undefined,
-    _requestor: string
-  ): Array<{ name: string; ordering: number; policy: "all" | "any"; approvers: Array<{ email: string }> }> {
-    switch (crType) {
-      case "standard":
-        // Standard changes need Manager Review + CAB Review
-        return [
-          {
-            name: "Manager Review",
-            ordering: 0,
-            policy: "any",
-            approvers: assignedTo ? [{ email: assignedTo }] : [],
-          },
-          {
-            name: "CAB Review",
-            ordering: 1,
-            policy: "any",
-            approvers: [], // CAB members to be added manually or via config
-          },
-        ];
-      case "normal":
-        // Normal changes need Technical Review
-        return [
-          {
-            name: "Technical Review",
-            ordering: 0,
-            policy: "any",
-            approvers: assignedTo ? [{ email: assignedTo }] : [],
-          },
-        ];
-      case "emergency":
-        // Emergency changes have post-implementation CAB review
-        return [
-          {
-            name: "Emergency CAB (Post-Implementation)",
-            ordering: 0,
-            policy: "any",
-            approvers: assignedTo ? [{ email: assignedTo }] : [],
-          },
-        ];
-      default:
-        // Default: single review step
-        return [
-          {
-            name: "Review",
-            ordering: 0,
-            policy: "any",
-            approvers: assignedTo ? [{ email: assignedTo }] : [],
-          },
-        ];
+    } else {
+      // Fallback: create a single default step with assignedTo or requestor as approver
+      const defaultApprover = cr.assignedTo || cr.requestedBy;
+      await this.repo.createApprovalStep({
+        changeRequestId: cr.number,
+        name: "Review",
+        ordering: 0,
+        policy: "any",
+        status: "pending",
+        approvers: [{ email: defaultApprover }],
+      });
     }
   }
 

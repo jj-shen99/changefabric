@@ -54,7 +54,7 @@ export async function POST(
   }
   try {
     const step = await getChangeRequestService().addApprovalStep(
-      { actor: ctx.email, actorRole: ctx.role },
+      { actor: ctx.email, actorRole: ctx.primaryRole },
       params.number,
       {
         name: body.name,

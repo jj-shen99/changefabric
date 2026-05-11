@@ -70,7 +70,7 @@ export async function GET(
     
     // Get all valid transitions for current state and role
     let transitions = canEdit && wf
-      ? availableTransitions(wf, cr.state, ctx.role)
+      ? availableTransitions(wf, cr.state, ctx.primaryRole)
       : [];
     
     // Filter transitions based on user's relationship to the CR
@@ -179,7 +179,7 @@ export async function PATCH(
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updated = await svc.update({ actor: ctx.email, actorRole: ctx.role }, params.number, body as any);
+    const updated = await svc.update({ actor: ctx.email, actorRole: ctx.primaryRole }, params.number, body as any);
     return NextResponse.json(updated);
   } catch (err) {
     return serverError(err);

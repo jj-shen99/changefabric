@@ -26,7 +26,7 @@ export async function GET(
   if (!cr) return notFound();
   const wf = BUILTIN_WORKFLOWS.find((w) => w.key === cr.workflowKey);
   if (!wf) return notFound("Workflow not registered");
-  return NextResponse.json({ availableTransitions: availableTransitions(wf, cr.state, ctx.role) });
+  return NextResponse.json({ availableTransitions: availableTransitions(wf, cr.state, ctx.primaryRole) });
 }
 
 export async function POST(
@@ -45,7 +45,7 @@ export async function POST(
   if (!body.event) return badRequest("Missing 'event'");
   try {
     const cr = await getChangeRequestService().transition(
-      { actor: ctx.email, actorRole: ctx.role },
+      { actor: ctx.email, actorRole: ctx.primaryRole },
       params.number,
       body.event,
       body.reason

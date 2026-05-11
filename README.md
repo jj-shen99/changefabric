@@ -39,11 +39,11 @@ A full-stack **software change validation and release impact analysis dashboard*
 - **JWT-based sessions** via NextAuth.js with credentials provider
 - **6 User Roles** with granular permission matrix:
   - **Admin** — Full system access, user management, settings
-  - **Manager** — Create/edit CRs, approve, implement, manage releases
+  - **Change Manager** — Create/edit CRs, approve, implement, manage releases
   - **Approver** — Approve CRs assigned to them, read-only otherwise
   - **Implementer** — Execute approved changes, cannot create/approve
   - **Requester** — Create and edit their own CRs, cannot approve/implement
-  - **Viewer** — Read-only access to assigned CRs
+  - **CAB Member** — Change Advisory Board member, can approve changes
 - **Per-user data isolation** — non-admin users only see their own synced change requests and analyses
 - **Per-user credential storage** — each user saves their own ServiceNow/Git credentials (AES-256-GCM encrypted)
 - **Role-based UI gating** — sidebar items, CRUD buttons, and pages hidden based on permissions
