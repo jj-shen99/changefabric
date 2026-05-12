@@ -149,7 +149,6 @@ export const CR_STATES = [
   { value: "awaiting_approval", label: "Awaiting Approval", tag: "in-flight" },
   { value: "approved", label: "Approved", tag: "in-flight" },
   { value: "scheduled", label: "Scheduled", tag: "in-flight" },
-  { value: "in_progress", label: "In Progress", tag: "in-flight", noCancel: true },
   { value: "implemented", label: "Implemented", tag: "in-flight", noCancel: true },
   { value: "rolled_back", label: "Rolled Back", tag: "done" },
   { value: "closed", label: "Closed", tag: "done" },

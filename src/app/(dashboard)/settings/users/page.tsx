@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { usePermissions } from "@/hooks";
 import { Card, CardHeader, CardTitle } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
-import { Shield, Trash2, Loader2, UserPlus, Plus, Check } from "lucide-react";
+import { Shield, Trash2, Loader2, UserPlus, Plus, Check, ChevronUp, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
+
+// Sorting types
+type SortKey = "name" | "email" | "roles" | "createdAt";
+type SortDir = "asc" | "desc";
 
 interface RoleInfo {
   id: string;
@@ -41,6 +45,50 @@ export default function UserManagementPage() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [savingRoles, setSavingRoles] = useState(false);
+  
+  // Sorting state
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  // Sorted users
+  const sortedUsers = useMemo(() => {
+    return [...users].sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "name":
+          cmp = (a.name || "").localeCompare(b.name || "");
+          break;
+        case "email":
+          cmp = (a.email || "").localeCompare(b.email || "");
+          break;
+        case "roles":
+          // Sort by number of roles, then by first role name
+          const aRoles = a.roles.length;
+          const bRoles = b.roles.length;
+          if (aRoles !== bRoles) {
+            cmp = aRoles - bRoles;
+          } else {
+            const aFirstRole = a.roles[0]?.displayName || "";
+            const bFirstRole = b.roles[0]?.displayName || "";
+            cmp = aFirstRole.localeCompare(bFirstRole);
+          }
+          break;
+        case "createdAt":
+          cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [users, sortKey, sortDir]);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -197,15 +245,47 @@ export default function UserManagementPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-800">
-                  <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Name</th>
-                  <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Email</th>
-                  <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Roles</th>
-                  <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Joined</th>
+                  <th 
+                    className="pb-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none"
+                    onClick={() => toggleSort("name")}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      Name
+                      {sortKey === "name" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                    </span>
+                  </th>
+                  <th 
+                    className="pb-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none"
+                    onClick={() => toggleSort("email")}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      Email
+                      {sortKey === "email" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                    </span>
+                  </th>
+                  <th 
+                    className="pb-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none"
+                    onClick={() => toggleSort("roles")}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      Roles
+                      {sortKey === "roles" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                    </span>
+                  </th>
+                  <th 
+                    className="pb-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none"
+                    onClick={() => toggleSort("createdAt")}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      Joined
+                      {sortKey === "createdAt" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                    </span>
+                  </th>
                   <th className="pb-3 font-medium text-gray-500 dark:text-gray-400 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((user) => (
+                {sortedUsers.map((user) => (
                   <tr key={user.id} className="border-b border-gray-50 dark:border-gray-800">
                     <td className="py-3">
                       <div className="flex items-center gap-3">

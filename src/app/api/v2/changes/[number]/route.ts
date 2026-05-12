@@ -132,7 +132,7 @@ const POST_APPROVAL_EDITABLE_FIELDS = new Set(["assignedTo", "plannedStart", "pl
 
 // States that are considered "post-approval" (approved and beyond)
 const POST_APPROVAL_STATES = new Set([
-  "approved", "scheduled", "in_progress", "implemented", "reviewing", "closed", "rolled_back"
+  "approved", "scheduled", "implemented", "reviewing", "closed", "rolled_back"
 ]);
 
 export async function PATCH(

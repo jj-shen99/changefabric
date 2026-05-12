@@ -41,7 +41,6 @@ const STATE_TONE: Record<string, string> = {
   awaiting_approval: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
   approved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
   scheduled: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-  in_progress: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
   implemented: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
   rolled_back: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
   closed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
@@ -160,7 +159,7 @@ export default function ChangesPage() {
         ["draft", "submitted", "assessing", "awaiting_approval", "new", "assess", "authorize"].includes(normalizeState(c.state))
       ).length,
       inFlight: items.filter((c) =>
-        ["approved", "scheduled", "in_progress", "implemented", "reviewing", "implement", "review"].includes(normalizeState(c.state))
+        ["approved", "scheduled", "implemented", "reviewing", "implement", "review"].includes(normalizeState(c.state))
       ).length,
       closed: items.filter((c) => normalizeState(c.state) === "closed").length,
       rejected: items.filter((c) => ["rejected", "canceled"].includes(normalizeState(c.state))).length,

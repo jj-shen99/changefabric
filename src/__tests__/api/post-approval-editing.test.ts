@@ -13,7 +13,7 @@ const POST_APPROVAL_EDITABLE_FIELDS = new Set(["assignedTo", "plannedStart", "pl
 
 // States considered post-approval
 const POST_APPROVAL_STATES = new Set([
-  "approved", "scheduled", "in_progress", "implemented", "reviewing", "closed", "rolled_back"
+  "approved", "scheduled", "implemented", "reviewing", "closed", "rolled_back"
 ]);
 
 // Pre-approval states
@@ -90,8 +90,8 @@ describe("Post-Approval CR Editing Restrictions", () => {
       expect(disallowedFields).toContain("description");
     });
 
-    test("editing restricted field in in_progress state should be rejected", () => {
-      const state = "in_progress";
+    test("editing restricted field in implemented state should be rejected", () => {
+      const state = "implemented";
       const requestedFields = ["implementationPlan"];
       const disallowedFields = requestedFields.filter(f => !POST_APPROVAL_EDITABLE_FIELDS.has(f));
       
@@ -135,8 +135,8 @@ describe("Post-Approval CR Editing Restrictions", () => {
       expect(POST_APPROVAL_EDITABLE_FIELDS.size).toBe(3);
     });
 
-    test("exactly 7 states are post-approval", () => {
-      expect(POST_APPROVAL_STATES.size).toBe(7);
+    test("exactly 6 states are post-approval", () => {
+      expect(POST_APPROVAL_STATES.size).toBe(6);
     });
   });
 
@@ -157,7 +157,7 @@ describe("Post-Approval CR Editing Restrictions", () => {
 
     // Partition 2: Post-approval states (limited fields editable)
     describe("Post-approval states", () => {
-      test.each(["approved", "scheduled", "in_progress", "implemented", "reviewing", "closed", "rolled_back"])(
+      test.each(["approved", "scheduled", "implemented", "reviewing", "closed", "rolled_back"])(
         "%s restricts field edits",
         (state) => {
           expect(POST_APPROVAL_STATES.has(state)).toBe(true);
@@ -218,14 +218,14 @@ describe("Post-Approval CR Editing Restrictions", () => {
       expect(canEditField("approved", "assignedTo")).toBe(true);
       expect(canEditField("approved", "plannedStart")).toBe(true);
       expect(canEditField("approved", "plannedEnd")).toBe(true);
-      expect(canEditField("in_progress", "assignedTo")).toBe(true);
+      expect(canEditField("implemented", "assignedTo")).toBe(true);
       expect(canEditField("closed", "plannedEnd")).toBe(true);
     });
 
     test("post-approval state + restricted field = rejected", () => {
       expect(canEditField("approved", "title")).toBe(false);
       expect(canEditField("approved", "description")).toBe(false);
-      expect(canEditField("in_progress", "implementationPlan")).toBe(false);
+      expect(canEditField("implemented", "implementationPlan")).toBe(false);
       expect(canEditField("closed", "riskLevel")).toBe(false);
     });
   });
@@ -269,7 +269,7 @@ describe("Post-Approval CR Editing Restrictions", () => {
     });
 
     test("path: post-approval + only restricted fields -> reject all", () => {
-      const result = validatePatchRequest("in_progress", ["title", "description"]);
+      const result = validatePatchRequest("implemented", ["title", "description"]);
       expect(result.allowed).toBe(false);
       expect(result.disallowedFields).toEqual(["title", "description"]);
     });
@@ -355,11 +355,11 @@ describe("Post-Approval CR Editing Restrictions", () => {
       expect(POST_APPROVAL_EDITABLE_FIELDS.has("title")).toBe(false);
     });
 
-    test("CR lifecycle: approved -> in_progress -> edit dates", () => {
+    test("CR lifecycle: approved -> implemented -> edit dates", () => {
       let state = "approved";
       expect(POST_APPROVAL_STATES.has(state)).toBe(true);
       
-      state = "in_progress";
+      state = "implemented";
       expect(POST_APPROVAL_STATES.has(state)).toBe(true);
       
       // Dates still editable
@@ -368,7 +368,7 @@ describe("Post-Approval CR Editing Restrictions", () => {
     });
 
     test("reassigning implementer during implementation", () => {
-      const state = "in_progress";
+      const state = "implemented";
       const patch = { assignedTo: "new.implementer@example.com" };
       
       expect(POST_APPROVAL_STATES.has(state)).toBe(true);

@@ -14,7 +14,6 @@ describe("Workflow State Definitions", () => {
       expect(stateKeys).toContain("awaiting_approval");
       expect(stateKeys).toContain("approved");
       expect(stateKeys).toContain("scheduled");
-      expect(stateKeys).toContain("in_progress");
       expect(stateKeys).toContain("implemented");
       expect(stateKeys).toContain("rolled_back");
       expect(stateKeys).toContain("closed");
@@ -22,33 +21,31 @@ describe("Workflow State Definitions", () => {
       expect(stateKeys).toContain("canceled");
     });
 
-    it("does NOT have assessing or reviewing states", () => {
+    it("does NOT have assessing, reviewing, or in_progress states", () => {
       const stateKeys = Object.keys(workflow.states);
       expect(stateKeys).not.toContain("assessing");
       expect(stateKeys).not.toContain("reviewing");
+      expect(stateKeys).not.toContain("in_progress");
     });
 
     it("has rolled_back as terminal state", () => {
       expect(workflow.states.rolled_back.terminal).toBe(true);
     });
 
-    it("has no-cancel tag on in_progress and implemented", () => {
-      expect(workflow.states.in_progress.tags).toContain("no-cancel");
+    it("has no-cancel tag on implemented", () => {
       expect(workflow.states.implemented.tags).toContain("no-cancel");
     });
 
-    it("has rollback transition from in_progress and implemented", () => {
+    it("has rollback transition from implemented", () => {
       const rollbackTransition = workflow.transitions.find(t => t.event === "rollback");
       expect(rollbackTransition).toBeDefined();
-      expect(rollbackTransition?.from).toContain("in_progress");
-      expect(rollbackTransition?.from).toContain("implemented");
+      expect(rollbackTransition?.from).toBe("implemented");
       expect(rollbackTransition?.to).toBe("rolled_back");
     });
 
-    it("cancel transition excludes in_progress and later states", () => {
+    it("cancel transition excludes implemented and later states", () => {
       const cancelTransition = workflow.transitions.find(t => t.event === "cancel");
       expect(cancelTransition).toBeDefined();
-      expect(cancelTransition?.from).not.toContain("in_progress");
       expect(cancelTransition?.from).not.toContain("implemented");
       expect(cancelTransition?.from).not.toContain("rolled_back");
       expect(cancelTransition?.from).not.toContain("closed");

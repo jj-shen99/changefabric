@@ -64,7 +64,7 @@ export default function OverviewPage() {
 
   // Calculate accurate KPIs from actual change request data
   const pendingStates = new Set(["draft", "submitted", "awaiting_approval"]);
-  const inProgressStates = new Set(["approved", "scheduled", "in_progress", "implemented"]);
+  const inProgressStates = new Set(["approved", "scheduled", "implemented"]);
   const pendingCount = changeRequests.filter(cr => pendingStates.has(cr.state)).length;
   const inProgressCount = changeRequests.filter(cr => inProgressStates.has(cr.state)).length;
   const closedCount = changeRequests.filter(cr => cr.state === "closed").length;
@@ -214,15 +214,6 @@ export default function OverviewPage() {
                   <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-300">Scheduled</span>
                 </div>
                 <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'scheduled').length}</span>
-              </div>
-              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
-              
-              {/* In Progress */}
-              <div className="flex flex-col items-center">
-                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-orange-50 dark:bg-orange-950 border-2 border-orange-400 dark:border-orange-600 animate-pulse">
-                  <span className="text-xs font-semibold text-orange-600 dark:text-orange-300">In Progress</span>
-                </div>
-                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'in_progress').length}</span>
               </div>
               <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
               
