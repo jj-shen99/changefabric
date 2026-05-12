@@ -84,11 +84,32 @@ List, search, filter, and manage change requests.
 **Features:**
 - Search by CR number, title, or description
 - Filter by state, risk level, category, team
+- **Column sorting** - Click any column header to sort
 - Pagination (configurable page size)
 - Click to view details
 
+**Sorting:**
+Click any column header to sort the table. Click again to toggle between ascending and descending order.
+
+| Column | Sort Behavior |
+|--------|---------------|
+| Number | Alphanumeric (CHG0000001, CHG0000002, ...) |
+| Title | Alphabetical (A-Z or Z-A) |
+| State | Alphabetical by state name |
+| Approval | Alphabetical by approval status |
+| Risk | Numeric by computed risk score (0-100) |
+| ML | Numeric by ML risk score (0-100) |
+| Requester | Alphabetical by requester name |
+| Created | Chronological (oldest/newest first) |
+
+**Visual Indicators:**
+- Active sort column shows highlighted chevron icons
+- ▲ indicates ascending order
+- ▼ indicates descending order
+
 **Actions:**
 - **+ New Change** - Create a new CR
+- **Click column header** - Sort by that column
 - **Click row** - View CR details
 
 ### 3. Change Request Detail (`/changes/[number]`)
@@ -169,22 +190,39 @@ Analyze plan quality and ML risk scores for change requests.
 │  Filters: [Search...] [Risk Level ▼] [State ▼] [Team ▼]                     │
 │                                                                              │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  CR Number  │  Title                    │  Score  │  Gaps  │  Risk  │   │
-│  ├─────────────┼───────────────────────────┼─────────┼────────┼────────┤   │
-│  │  CHG0000001 │  Payment Gateway          │   72    │   1    │  Med   │   │
-│  │  CHG0000002 │  Redis Caching            │   85    │   0    │  Low   │   │
-│  │  CHG0000003 │  Auth Hotfix              │   45    │   3    │  High  │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│  Plan Quality Dimensions:                                                    │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  Implementation Plan  ████████████████████░░░░  80%                 │   │
-│  │  Backout Plan         ██████████████░░░░░░░░░░  60%                 │   │
-│  │  Test Plan            ████████████████████████  95%                 │   │
-│  │  Risk Analysis        ████████████░░░░░░░░░░░░  50%                 │   │
-│  │  Justification        ██████████████████░░░░░░  70%                 │   │
+│  │  Change ▲▼  │  Readiness ▲▼  │  Risk  │  Gaps ▲▼  │  State ▲▼      │   │
+│  ├─────────────┼────────────────┼────────┼───────────┼────────────────┤   │
+│  │  CHG0000001 │      72        │  Med   │     1     │  draft         │   │
+│  │  CHG0000002 │      85        │  Low   │     0     │  approved      │   │
+│  │  CHG0000003 │      45        │  High  │     3     │  awaiting      │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Sorting (Plan Analysis & ML Analysis):**
+Click any sortable column header to sort. Click again to toggle direction.
+
+| Column | Sort Behavior |
+|--------|---------------|
+| Change | Alphanumeric by CR number |
+| Readiness | Numeric by overall plan score (0-100) |
+| Gaps | Numeric by number of missing plans (0-5) |
+| State | Alphabetical by workflow state |
+
+**Visual Indicators:**
+- Active sort column shows teal-highlighted chevron icons
+- ▲ indicates ascending order (lowest first for scores)
+- ▼ indicates descending order (highest first for scores)
+
+**Plan Quality Dimensions:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Implementation Plan  ████████████████████░░░░  80%                 │
+│  Backout Plan         ██████████████░░░░░░░░░░  60%                 │
+│  Test Plan            ████████████████████████  95%                 │
+│  Risk Analysis        ████████████░░░░░░░░░░░░  50%                 │
+│  Justification        ██████████████████░░░░░░  70%                 │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 #### ML Analysis Tab
@@ -192,6 +230,7 @@ Analyze plan quality and ML risk scores for change requests.
 - Structure, completeness, clarity, risk-awareness scores
 - Detected actions and risks
 - Recommendations with severity
+- **Same sorting functionality** as Plan Analysis tab (independent sort state)
 
 ## Workflow States
 

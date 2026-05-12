@@ -7,10 +7,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Plus, AlertTriangle, Clock, CheckCircle2, XCircle, Info } from "lucide-react";
+import { Search, Plus, AlertTriangle, Clock, CheckCircle2, XCircle, Info, ChevronUp, ChevronDown } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 import { usePermissions } from "@/hooks";
+
+type SortKey = "number" | "title" | "state" | "approvalState" | "computedRiskScore" | "mlRiskScore" | "requestedBy" | "createdAt";
+type SortDir = "asc" | "desc";
 
 interface CR {
   number: string;
@@ -83,6 +86,8 @@ export default function ChangesPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("createdAt");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   useEffect(() => {
     void load();
@@ -104,7 +109,7 @@ export default function ChangesPage() {
   }
 
   const filtered = useMemo(() => {
-    return items.filter((c) => {
+    let result = items.filter((c) => {
       const normalizedState = normalizeState(c.state);
       if (stateFilter !== "all" && normalizedState !== stateFilter) return false;
       if (!search) return true;
@@ -116,7 +121,37 @@ export default function ChangesPage() {
         (c.assignedTo ?? "").toLowerCase().includes(q)
       );
     });
-  }, [items, search, stateFilter]);
+    
+    // Sort
+    result = [...result].sort((a, b) => {
+      let aVal: string | number | null = a[sortKey];
+      let bVal: string | number | null = b[sortKey];
+      
+      // Handle null/undefined
+      if (aVal == null) aVal = sortKey === "mlRiskScore" || sortKey === "computedRiskScore" ? -1 : "";
+      if (bVal == null) bVal = sortKey === "mlRiskScore" || sortKey === "computedRiskScore" ? -1 : "";
+      
+      // Compare
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortDir === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      const aStr = String(aVal).toLowerCase();
+      const bStr = String(bVal).toLowerCase();
+      if (sortDir === "asc") return aStr.localeCompare(bStr);
+      return bStr.localeCompare(aStr);
+    });
+    
+    return result;
+  }, [items, search, stateFilter, sortKey, sortDir]);
+  
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
 
   const counts = useMemo(() => {
     return {
@@ -195,14 +230,14 @@ export default function ChangesPage() {
             <table className="w-full text-sm">
               <thead className="border-y border-gray-200 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-gray-900/50 dark:text-gray-400">
                 <tr>
-                  <Th>Number</Th>
-                  <Th>Title</Th>
-                  <Th>State</Th>
-                  <Th>Approval</Th>
-                  <Th>Risk</Th>
-                  <Th>ML</Th>
-                  <Th>Requester</Th>
-                  <Th>Created</Th>
+                  <SortTh sortKey="number" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>Number</SortTh>
+                  <SortTh sortKey="title" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>Title</SortTh>
+                  <SortTh sortKey="state" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>State</SortTh>
+                  <SortTh sortKey="approvalState" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>Approval</SortTh>
+                  <SortTh sortKey="computedRiskScore" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>Risk</SortTh>
+                  <SortTh sortKey="mlRiskScore" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>ML</SortTh>
+                  <SortTh sortKey="requestedBy" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>Requester</SortTh>
+                  <SortTh sortKey="createdAt" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>Created</SortTh>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -265,9 +300,36 @@ function Stat({ icon, label, value, tone, tooltip }: { icon: React.ReactNode; la
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
-  return <th className="px-4 py-2 font-medium">{children}</th>;
+function SortTh({ 
+  children, 
+  sortKey, 
+  currentKey, 
+  dir, 
+  onClick 
+}: { 
+  children: React.ReactNode; 
+  sortKey: SortKey; 
+  currentKey: SortKey; 
+  dir: SortDir; 
+  onClick: (key: SortKey) => void;
+}) {
+  const isActive = sortKey === currentKey;
+  return (
+    <th 
+      className="px-4 py-2 font-medium cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+      onClick={() => onClick(sortKey)}
+    >
+      <div className="flex items-center gap-1">
+        {children}
+        <span className={`inline-flex flex-col ${isActive ? "text-indigo-600 dark:text-indigo-400" : "text-gray-300 dark:text-gray-600"}`}>
+          <ChevronUp className={`h-3 w-3 -mb-1 ${isActive && dir === "asc" ? "text-indigo-600 dark:text-indigo-400" : ""}`} />
+          <ChevronDown className={`h-3 w-3 -mt-1 ${isActive && dir === "desc" ? "text-indigo-600 dark:text-indigo-400" : ""}`} />
+        </span>
+      </div>
+    </th>
+  );
 }
+
 function Td({ children }: { children: React.ReactNode }) {
   return <td className="px-4 py-3 align-top">{children}</td>;
 }

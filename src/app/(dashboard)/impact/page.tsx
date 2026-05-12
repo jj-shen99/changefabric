@@ -10,8 +10,44 @@ import {
   Shield, AlertTriangle, Gauge, Zap, Layers, Settings2, RotateCcw, Search,
   Info, Brain, RefreshCw,
   ClipboardCheck, FileText, CheckCircle2, XCircle, TrendingUp, Sparkles,
-  Save,
+  Save, ChevronUp, ChevronDown,
 } from "lucide-react";
+
+type PlanSortKey = "number" | "overallScore" | "gapCount" | "state" | "group";
+type SortDir = "asc" | "desc";
+
+function SortableTh({ 
+  children, 
+  sortKey, 
+  currentKey, 
+  dir, 
+  onClick,
+  align = "center"
+}: { 
+  children: React.ReactNode; 
+  sortKey: PlanSortKey; 
+  currentKey: PlanSortKey; 
+  dir: SortDir; 
+  onClick: (key: PlanSortKey) => void;
+  align?: "left" | "center";
+}) {
+  const isActive = sortKey === currentKey;
+  return (
+    <th 
+      className={`pb-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer select-none hover:text-gray-700 dark:hover:text-gray-200 transition-colors ${align === "left" ? "text-left" : "text-center"}`}
+      onClick={() => onClick(sortKey)}
+    >
+      <div className={`inline-flex items-center gap-1 ${align === "center" ? "justify-center" : ""}`}>
+        {children}
+        <span className={`inline-flex flex-col ${isActive ? "text-teal-600 dark:text-teal-400" : "text-gray-300 dark:text-gray-600"}`}>
+          <ChevronUp className={`h-2.5 w-2.5 -mb-0.5 ${isActive && dir === "asc" ? "text-teal-600 dark:text-teal-400" : ""}`} />
+          <ChevronDown className={`h-2.5 w-2.5 -mt-0.5 ${isActive && dir === "desc" ? "text-teal-600 dark:text-teal-400" : ""}`} />
+        </span>
+      </div>
+    </th>
+  );
+}
+
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { RiskBadge } from "@/components/risk-badge";
 import { useData } from "@/hooks";
@@ -128,10 +164,14 @@ function ImpactPageContent() {
   const [planFilterState, setPlanFilterState] = useState<string>("all");
   const [planFilterGroup, setPlanFilterGroup] = useState<string>("all");
   const [planScoringOpen, setPlanScoringOpen] = useState(false);
+  const [planSortKey, setPlanSortKey] = useState<PlanSortKey>("overallScore");
+  const [planSortDir, setPlanSortDir] = useState<SortDir>("asc");
   const [mlSearch, setMlSearch] = useState(crParam || "");
   const [mlFilterRisk, setMlFilterRisk] = useState<string>("all");
   const [mlFilterState, setMlFilterState] = useState<string>("all");
   const [mlFilterGroup, setMlFilterGroup] = useState<string>("all");
+  const [mlSortKey, setMlSortKey] = useState<PlanSortKey>("overallScore");
+  const [mlSortDir, setMlSortDir] = useState<SortDir>("asc");
   const [selectedMlCR, setSelectedMlCR] = useState<string | null>(crParam);
 
   // Auto-select CR from URL param
@@ -369,13 +409,41 @@ function ImpactPageContent() {
           (p.cr.number || "").toLowerCase().includes(pq) || 
           (p.cr.short_description || "").toLowerCase().includes(pq) || 
           (p.cr.assignment_group || "").toLowerCase().includes(pq)
-        ) : planResults;
+        ) : [...planResults];
         if (planFilterRisk !== "all") filteredPlans = filteredPlans.filter((p) => p.cr.risk === planFilterRisk);
         if (planFilterState !== "all") filteredPlans = filteredPlans.filter((p) => p.cr.state === planFilterState);
         if (planFilterGroup !== "all") filteredPlans = filteredPlans.filter((p) => p.cr.assignment_group === planFilterGroup);
+        
+        // Sort filtered plans
+        filteredPlans = filteredPlans.sort((a, b) => {
+          let aVal: string | number;
+          let bVal: string | number;
+          switch (planSortKey) {
+            case "number": aVal = a.cr.number || ""; bVal = b.cr.number || ""; break;
+            case "overallScore": aVal = a.overallScore; bVal = b.overallScore; break;
+            case "gapCount": aVal = a.gapCount; bVal = b.gapCount; break;
+            case "state": aVal = a.cr.state || ""; bVal = b.cr.state || ""; break;
+            case "group": aVal = a.cr.assignment_group || ""; bVal = b.cr.assignment_group || ""; break;
+            default: aVal = a.overallScore; bVal = b.overallScore;
+          }
+          if (typeof aVal === "number" && typeof bVal === "number") {
+            return planSortDir === "asc" ? aVal - bVal : bVal - aVal;
+          }
+          return planSortDir === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+        });
+        
         const selectedPlan = selectedPlanCR ? planResults.find((p) => p.cr.number === selectedPlanCR) : null;
         const n = planResults.length;
         const planRadarData = selectedPlan ? PLAN_DIMS.map((d) => ({ dimension: d.label.replace(" Plan","").replace(" Analysis",""), score: selectedPlan[d.key].quality, fullMark: 100 })) : [];
+
+        function togglePlanSort(key: PlanSortKey) {
+          if (planSortKey === key) {
+            setPlanSortDir(d => d === "asc" ? "desc" : "asc");
+          } else {
+            setPlanSortKey(key);
+            setPlanSortDir("asc");
+          }
+        }
 
         // Risk keywords to highlight in plan text
         const HIGHLIGHT_WORDS = ["risk","rollback","revert","downtime","failure","outage","restore","backup","critical","emergency","security","vulnerability","impact","mitigation","contingency","fallback","test","verify","validate"];
@@ -782,17 +850,17 @@ function ImpactPageContent() {
             <Card>
               <CardHeader>
                 <CardTitle>Change Requests — Plan Risk Assessment ({filteredPlans.length}{pq ? ` of ${n}` : ""})</CardTitle>
-                <CardDescription>Click a row to view full plan details and content. {pq ? "Filtered by search." : "Sorted by readiness (lowest first = highest risk)."}</CardDescription>
+                <CardDescription>Click a column header to sort. Click a row to view full plan details.</CardDescription>
               </CardHeader>
               <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
                     <tr className="border-b border-gray-100 dark:border-gray-800">
-                      <th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Readiness</th>
+                      <SortableTh sortKey="number" currentKey={planSortKey} dir={planSortDir} onClick={togglePlanSort} align="left">Change</SortableTh>
+                      <SortableTh sortKey="overallScore" currentKey={planSortKey} dir={planSortDir} onClick={togglePlanSort}>Readiness</SortableTh>
                       <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Risk</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Gaps</th>
-                      <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">State</th>
+                      <SortableTh sortKey="gapCount" currentKey={planSortKey} dir={planSortDir} onClick={togglePlanSort}>Gaps</SortableTh>
+                      <SortableTh sortKey="state" currentKey={planSortKey} dir={planSortDir} onClick={togglePlanSort}>State</SortableTh>
                       {PLAN_DIMS.map((d) => (
                         <th key={d.key} className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400" title={d.label}><d.icon className="h-3.5 w-3.5 inline text-gray-400" /></th>
                       ))}
@@ -832,11 +900,39 @@ function ImpactPageContent() {
           (p.cr.number || "").toLowerCase().includes(mq) || 
           (p.cr.short_description || "").toLowerCase().includes(mq) || 
           (p.cr.assignment_group || "").toLowerCase().includes(mq)
-        ) : planResults;
+        ) : [...planResults];
         if (mlFilterRisk !== "all") mlFiltered = mlFiltered.filter((p) => p.cr.risk === mlFilterRisk);
         if (mlFilterState !== "all") mlFiltered = mlFiltered.filter((p) => p.cr.state === mlFilterState);
         if (mlFilterGroup !== "all") mlFiltered = mlFiltered.filter((p) => p.cr.assignment_group === mlFilterGroup);
+        
+        // Sort ML filtered results
+        mlFiltered = mlFiltered.sort((a, b) => {
+          let aVal: string | number;
+          let bVal: string | number;
+          switch (mlSortKey) {
+            case "number": aVal = a.cr.number || ""; bVal = b.cr.number || ""; break;
+            case "overallScore": aVal = a.overallScore; bVal = b.overallScore; break;
+            case "gapCount": aVal = a.gapCount; bVal = b.gapCount; break;
+            case "state": aVal = a.cr.state || ""; bVal = b.cr.state || ""; break;
+            case "group": aVal = a.cr.assignment_group || ""; bVal = b.cr.assignment_group || ""; break;
+            default: aVal = a.overallScore; bVal = b.overallScore;
+          }
+          if (typeof aVal === "number" && typeof bVal === "number") {
+            return mlSortDir === "asc" ? aVal - bVal : bVal - aVal;
+          }
+          return mlSortDir === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+        });
+        
         const selectedMlPlan = selectedMlCR ? planResults.find((p) => p.cr.number === selectedMlCR) : null;
+
+        function toggleMlSort(key: PlanSortKey) {
+          if (mlSortKey === key) {
+            setMlSortDir(d => d === "asc" ? "desc" : "asc");
+          } else {
+            setMlSortKey(key);
+            setMlSortDir("asc");
+          }
+        }
 
         const sevColor = (s: string) => s === "critical" ? "text-red-600 bg-red-50 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800"
           : s === "high" ? "text-orange-600 bg-orange-50 border-orange-200 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800"
@@ -875,17 +971,17 @@ function ImpactPageContent() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2"><Brain className="h-4 w-4 text-indigo-500" /> Select a Change Request for ML Analysis ({mlFiltered.length})</CardTitle>
-                  <CardDescription>Click a row to run deep ML content analysis on its implementation plan</CardDescription>
+                  <CardDescription>Click a column header to sort. Click a row to run ML analysis.</CardDescription>
                 </CardHeader>
                 <div className="overflow-x-auto max-h-[300px] overflow-y-auto">
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
                       <tr className="border-b border-gray-100 dark:border-gray-800">
-                        <th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th>
-                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Readiness</th>
+                        <SortableTh sortKey="number" currentKey={mlSortKey} dir={mlSortDir} onClick={toggleMlSort} align="left">Change</SortableTh>
+                        <SortableTh sortKey="overallScore" currentKey={mlSortKey} dir={mlSortDir} onClick={toggleMlSort}>Readiness</SortableTh>
                         <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Risk</th>
-                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Gaps</th>
-                        <th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">State</th>
+                        <SortableTh sortKey="gapCount" currentKey={mlSortKey} dir={mlSortDir} onClick={toggleMlSort}>Gaps</SortableTh>
+                        <SortableTh sortKey="state" currentKey={mlSortKey} dir={mlSortDir} onClick={toggleMlSort}>State</SortableTh>
                       </tr>
                     </thead>
                     <tbody>
