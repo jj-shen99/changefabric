@@ -12,7 +12,7 @@ import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 import { usePermissions } from "@/hooks";
 
-type SortKey = "number" | "title" | "state" | "approvalState" | "computedRiskScore" | "mlRiskScore" | "requestedBy" | "createdAt";
+type SortKey = "number" | "title" | "state" | "computedRiskScore" | "mlRiskScore" | "requestedBy" | "createdAt";
 type SortDir = "asc" | "desc";
 
 interface CR {
@@ -23,7 +23,6 @@ interface CR {
   category: string;
   priority: string;
   riskLevel: string;
-  approvalState: string;
   computedRiskScore: number;
   mlRiskScore: number | null;
   requestedBy: string;
@@ -232,7 +231,6 @@ export default function ChangesPage() {
                   <SortTh sortKey="number" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>Number</SortTh>
                   <SortTh sortKey="title" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>Title</SortTh>
                   <SortTh sortKey="state" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>State</SortTh>
-                  <SortTh sortKey="approvalState" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>Approval</SortTh>
                   <SortTh sortKey="computedRiskScore" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>Risk</SortTh>
                   <SortTh sortKey="mlRiskScore" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>ML</SortTh>
                   <SortTh sortKey="requestedBy" currentKey={sortKey} dir={sortDir} onClick={toggleSort}>Requester</SortTh>
@@ -252,7 +250,6 @@ export default function ChangesPage() {
                       <div className="text-xs text-gray-500">{c.type} · {c.category}</div>
                     </Td>
                     <Td><StatePill state={c.state} /></Td>
-                    <Td><span className="text-xs text-gray-600 dark:text-gray-300">{c.approvalState.replace(/_/g, " ")}</span></Td>
                     <Td><RiskPill score={c.computedRiskScore} /></Td>
                     <Td>{c.mlRiskScore !== null && c.mlRiskScore !== undefined ? <RiskPill score={c.mlRiskScore} /> : <span className="text-xs text-gray-400">—</span>}</Td>
                     <Td><span className="text-xs text-gray-600 dark:text-gray-300">{c.requestedBy}</span></Td>

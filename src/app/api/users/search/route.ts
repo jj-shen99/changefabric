@@ -4,10 +4,13 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 /**
- * GET /api/users/search?q=<query>
+ * GET /api/users/search?q=<query>&role=<role>
  * Search users by name or email for autocomplete.
  * Returns name and email (no sensitive data).
- * Excludes admin users from results (admins should not be assigned to CR tasks).
+ * 
+ * Query params:
+ * - q: search query (required, min 1 char)
+ * - role: filter by role - "assignable" returns only implementer/manager users (for CR assignment)
  */
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -17,6 +20,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q") || "";
+  const roleFilter = searchParams.get("role") || "";
 
   if (query.length < 1) {
     return NextResponse.json({ users: [] });
@@ -25,7 +29,7 @@ export async function GET(request: Request) {
   // SQLite doesn't support case-insensitive mode, so we use lowercase comparison
   const lowerQuery = query.toLowerCase();
   
-  // Fetch users with their roles to filter out admins
+  // Fetch users with their roles
   const allUsers = await prisma.user.findMany({
     select: {
       id: true,
@@ -42,12 +46,30 @@ export async function GET(request: Request) {
     orderBy: { name: "asc" },
   });
 
-  // Filter by search query and exclude admin users
+  // Filter by search query and role requirements
   const users = allUsers
     .filter(u => {
-      // Exclude users with admin role
-      const isAdmin = u.userRoles.some(ur => ur.role.name === "admin");
-      if (isAdmin) return false;
+      const userRoles = u.userRoles.map(ur => ur.role.name);
+      
+      // For "assignable" filter: only return users who can implement changes
+      // Exclude: requester (can only create CRs), approver (can only approve)
+      // Include: implementer, manager, change_manager, admin (can implement)
+      if (roleFilter === "assignable") {
+        // User must have at least one role that allows implementation
+        const implementerRoles = ["implementer", "manager", "change_manager", "admin"];
+        const canBeAssigned = userRoles.some(role => implementerRoles.includes(role));
+        
+        // Exclude users who ONLY have requester or approver roles
+        const onlyRequesterOrApprover = userRoles.every(role => 
+          ["requester", "approver"].includes(role)
+        );
+        
+        if (!canBeAssigned || onlyRequesterOrApprover) return false;
+      } else {
+        // Default behavior: exclude admin users
+        const isAdmin = userRoles.includes("admin");
+        if (isAdmin) return false;
+      }
       
       // Match search query
       return u.name.toLowerCase().includes(lowerQuery) || 

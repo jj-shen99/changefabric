@@ -33,7 +33,6 @@ const mockCRs = [
     category: "infrastructure",
     priority: "2",
     riskLevel: "moderate",
-    approvalState: "not_required",
     computedRiskScore: 45,
     mlRiskScore: 52,
     requestedBy: "Alice Smith",
@@ -48,7 +47,6 @@ const mockCRs = [
     category: "application",
     priority: "1",
     riskLevel: "high",
-    approvalState: "pending",
     computedRiskScore: 78,
     mlRiskScore: 85,
     requestedBy: "Charlie Brown",
@@ -63,7 +61,6 @@ const mockCRs = [
     category: "security",
     priority: "1",
     riskLevel: "low",
-    approvalState: "approved",
     computedRiskScore: 25,
     mlRiskScore: 30,
     requestedBy: "Eve Wilson",
@@ -73,7 +70,7 @@ const mockCRs = [
 ];
 
 // Sorting utility function (mirrors implementation)
-type SortKey = "number" | "title" | "state" | "approvalState" | "computedRiskScore" | "mlRiskScore" | "requestedBy" | "createdAt";
+type SortKey = "number" | "title" | "state" | "computedRiskScore" | "mlRiskScore" | "requestedBy" | "createdAt";
 type SortDir = "asc" | "desc";
 
 function sortCRs(items: typeof mockCRs, sortKey: SortKey, sortDir: SortDir) {
