@@ -218,7 +218,7 @@ function ImpactPageContent() {
   const uniqueStates = useMemo(() => {
     const fromData = changeRequests.map((c) => c.state).filter(Boolean);
     // Use workflow states from the new schema
-    const standard = ["draft", "submitted", "assessing", "awaiting_approval", "approved", "scheduled", "in_progress", "implemented", "reviewing", "closed", "rejected", "canceled"];
+    const standard = ["draft", "submitted", "awaiting_approval", "approved", "scheduled", "implemented", "closed", "rejected", "canceled", "rolled_back"];
     return [...new Set([...standard, ...fromData])].sort();
   }, [changeRequests]);
   const uniqueGroups = useMemo(() => {

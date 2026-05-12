@@ -9,13 +9,13 @@ describe("KPI Tooltip Definitions", () => {
     const kpiDefinitions = {
       pending: {
         label: "Pending",
-        tooltip: "CRs in: Draft, Submitted, Assessing, Awaiting Approval",
-        states: ["draft", "submitted", "assessing", "awaiting_approval"],
+        tooltip: "CRs in: Draft, Submitted, Awaiting Approval",
+        states: ["draft", "submitted", "awaiting_approval"],
       },
       inFlight: {
         label: "In Flight",
-        tooltip: "CRs in: Approved, Scheduled, In Progress, Implemented, Reviewing",
-        states: ["approved", "scheduled", "in_progress", "implemented", "reviewing"],
+        tooltip: "CRs in: Approved, Scheduled, Implemented",
+        states: ["approved", "scheduled", "implemented"],
       },
       closed: {
         label: "Closed",
@@ -37,7 +37,6 @@ describe("KPI Tooltip Definitions", () => {
       const pendingStates = kpiDefinitions.pending.states;
       expect(pendingStates).toContain("draft");
       expect(pendingStates).toContain("submitted");
-      expect(pendingStates).toContain("assessing");
       expect(pendingStates).toContain("awaiting_approval");
       expect(pendingStates).not.toContain("approved");
       expect(pendingStates).not.toContain("closed");
@@ -47,9 +46,7 @@ describe("KPI Tooltip Definitions", () => {
       const inFlightStates = kpiDefinitions.inFlight.states;
       expect(inFlightStates).toContain("approved");
       expect(inFlightStates).toContain("scheduled");
-      expect(inFlightStates).toContain("in_progress");
       expect(inFlightStates).toContain("implemented");
-      expect(inFlightStates).toContain("reviewing");
       expect(inFlightStates).not.toContain("draft");
       expect(inFlightStates).not.toContain("closed");
     });

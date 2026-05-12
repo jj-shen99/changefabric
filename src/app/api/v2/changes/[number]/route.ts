@@ -45,11 +45,11 @@ export async function GET(
     
     // Approvers can see CRs in states relevant to the approval workflow:
     // - awaiting_approval: pending their decision
-    // - approved, in_progress, implemented, closed: to track CRs they approved
+    // - approved, scheduled, implemented, closed: to track CRs they approved
     // - rejected, rolled_back: to see outcome of their rejection or rollback
-    // NOT visible: draft, submitted, scheduled, canceled (pre-approval or unrelated states)
+    // NOT visible: draft, submitted, canceled (pre-approval or unrelated states)
     const approverVisibleStates = new Set([
-      "awaiting_approval", "approved", "in_progress", "implemented", "rolled_back", "closed", "rejected"
+      "awaiting_approval", "approved", "scheduled", "implemented", "rolled_back", "closed", "rejected"
     ]);
     const approverCanView = isApprover && approverVisibleStates.has(cr.state);
     

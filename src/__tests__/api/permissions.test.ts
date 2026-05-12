@@ -128,14 +128,14 @@ describe("State Normalization", () => {
       expect(normalizeState("awaiting_approval")).toBe("awaiting_approval");
     });
 
-    it("keeps 'in_progress' as 'in_progress'", () => {
-      expect(normalizeState("in_progress")).toBe("in_progress");
+    it("keeps 'implemented' as 'implemented'", () => {
+      expect(normalizeState("implemented")).toBe("implemented");
     });
   });
 
   describe("handles edge cases", () => {
     it("handles states with spaces", () => {
-      expect(normalizeState("In Progress")).toBe("in_progress");
+      expect(normalizeState("Awaiting Approval")).toBe("awaiting_approval");
     });
 
     it("handles mixed case", () => {
@@ -152,7 +152,7 @@ describe("KPI State Categorization", () => {
   const normalizeState = (state: string) => state.toLowerCase().replace(/\s+/g, "_");
 
   const pendingStates = ["draft", "submitted", "awaiting_approval", "new", "authorize"];
-  const inFlightStates = ["approved", "scheduled", "in_progress", "implemented", "implement"];
+  const inFlightStates = ["approved", "scheduled", "implemented", "implement"];
   const closedStates = ["closed"];
   const terminalStates = ["rejected", "canceled", "rolled_back"];
 
@@ -181,7 +181,6 @@ describe("KPI State Categorization", () => {
       // Native in-flight states
       expect(inFlightStates).toContain("approved");
       expect(inFlightStates).toContain("scheduled");
-      expect(inFlightStates).toContain("in_progress");
       expect(inFlightStates).toContain("implemented");
       // ServiceNow in-flight states
       expect(inFlightStates).toContain("implement");

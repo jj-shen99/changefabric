@@ -40,7 +40,6 @@ const PENDING_STATES = new Set(["draft", "submitted", "awaiting_approval"]);
 const IN_FLIGHT_STATES = new Set([
   "approved",
   "scheduled",
-  "in_progress",
   "implemented",
 ]);
 

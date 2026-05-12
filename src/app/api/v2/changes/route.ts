@@ -39,7 +39,7 @@ export async function GET(request: Request) {
       
       // Approvers can see CRs in states relevant to the approval workflow
       const approverVisibleStates = new Set([
-        "awaiting_approval", "approved", "in_progress", "implemented", "rolled_back", "closed", "rejected"
+        "awaiting_approval", "approved", "scheduled", "implemented", "rolled_back", "closed", "rejected"
       ]);
       
       items = items.filter(cr => {

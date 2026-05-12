@@ -8,7 +8,7 @@ describe("KPI Count Calculations", () => {
   // State definitions matching the application
   const STATE_GROUPS = {
     pending: ["draft", "submitted", "awaiting_approval"],
-    inFlight: ["approved", "scheduled", "in_progress", "implemented"],
+    inFlight: ["approved", "scheduled", "implemented"],
     closed: ["closed"],
     terminal: ["canceled", "rejected", "rolled_back"],
   };
@@ -19,13 +19,12 @@ describe("KPI Count Calculations", () => {
     { number: "CHG003", state: "awaiting_approval" },
     { number: "CHG004", state: "approved" },
     { number: "CHG005", state: "scheduled" },
-    { number: "CHG006", state: "in_progress" },
-    { number: "CHG007", state: "implemented" },
+    { number: "CHG006", state: "implemented" },
+    { number: "CHG007", state: "closed" },
     { number: "CHG008", state: "closed" },
-    { number: "CHG009", state: "closed" },
-    { number: "CHG010", state: "canceled" },
-    { number: "CHG011", state: "rejected" },
-    { number: "CHG012", state: "rolled_back" },
+    { number: "CHG009", state: "canceled" },
+    { number: "CHG010", state: "rejected" },
+    { number: "CHG011", state: "rolled_back" },
   ];
 
   // Calculation functions matching the application
@@ -49,7 +48,7 @@ describe("KPI Count Calculations", () => {
     const counts = calculateCounts(mockChangeRequests);
 
     it("calculates total correctly", () => {
-      expect(counts.total).toBe(12);
+      expect(counts.total).toBe(11);
     });
 
     it("calculates pending correctly", () => {
@@ -58,8 +57,8 @@ describe("KPI Count Calculations", () => {
     });
 
     it("calculates in flight correctly", () => {
-      // approved, scheduled, in_progress, implemented = 4
-      expect(counts.inFlight).toBe(4);
+      // approved, scheduled, implemented = 3
+      expect(counts.inFlight).toBe(3);
     });
 
     it("calculates closed correctly", () => {
@@ -85,12 +84,11 @@ describe("KPI Count Calculations", () => {
       "awaiting_approval",
       "approved",
       "scheduled",
-      "in_progress",
       "implemented",
-      "rolled_back",
       "closed",
       "canceled",
       "rejected",
+      "rolled_back",
     ];
 
     it("all states are categorized", () => {
@@ -157,7 +155,7 @@ describe("KPI Count Calculations", () => {
   });
 
   describe("Overview Page KPI Calculations", () => {
-    // Overview page uses different calculation from changes list
+    // Overview page uses same calculation as changes list
     const overviewKpiDefinitions = {
       pending: {
         label: "Pending",
@@ -165,7 +163,7 @@ describe("KPI Count Calculations", () => {
       },
       inProgress: {
         label: "In Progress",
-        states: ["approved", "scheduled", "in_progress", "implemented"],
+        states: ["approved", "scheduled", "implemented"],
       },
       closed: {
         label: "Closed",
@@ -191,12 +189,12 @@ describe("KPI Display Consistency", () => {
     // Both pages should categorize states identically
     const changesPageStates = {
       pending: ["draft", "submitted", "awaiting_approval"],
-      inFlight: ["approved", "scheduled", "in_progress", "implemented"],
+      inFlight: ["approved", "scheduled", "implemented"],
     };
 
     const overviewPageStates = {
       pending: ["draft", "submitted", "awaiting_approval"],
-      inProgress: ["approved", "scheduled", "in_progress", "implemented"],
+      inProgress: ["approved", "scheduled", "implemented"],
     };
 
     expect(changesPageStates.pending).toEqual(overviewPageStates.pending);
