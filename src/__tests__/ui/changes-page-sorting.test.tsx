@@ -78,8 +78,8 @@ function sortCRs(items: typeof mockCRs, sortKey: SortKey, sortDir: SortDir) {
     let aVal: string | number | null = a[sortKey];
     let bVal: string | number | null = b[sortKey];
     
-    if (aVal == null) aVal = sortKey === "mlRiskScore" || sortKey === "computedRiskScore" ? -1 : "";
-    if (bVal == null) bVal = sortKey === "mlRiskScore" || sortKey === "computedRiskScore" ? -1 : "";
+    if (aVal === null || aVal === undefined) aVal = sortKey === "mlRiskScore" || sortKey === "computedRiskScore" ? -1 : "";
+    if (bVal === null || bVal === undefined) bVal = sortKey === "mlRiskScore" || sortKey === "computedRiskScore" ? -1 : "";
     
     if (typeof aVal === "number" && typeof bVal === "number") {
       return sortDir === "asc" ? aVal - bVal : bVal - aVal;

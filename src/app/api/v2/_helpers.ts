@@ -13,7 +13,7 @@ export interface SessionContext {
   perms: Permissions;
   isAdmin: boolean;
   /** Primary role for backward compatibility with workflow RBAC */
-  primaryRole: "admin" | "manager" | "viewer";
+  primaryRole: "admin" | "manager" | "requester";
 }
 
 /** Returns either a SessionContext or a NextResponse error to short-circuit. */
@@ -27,11 +27,12 @@ export async function requireSession(): Promise<SessionContext | NextResponse> {
   const isAdmin = roles.includes("admin");
   
   // Determine primary role for backward compatibility with workflow RBAC
-  const primaryRole: "admin" | "manager" | "viewer" = isAdmin 
+  // Maps to: admin, manager, or requester (default for all other users)
+  const primaryRole: "admin" | "manager" | "requester" = isAdmin 
     ? "admin" 
     : roles.includes("change_manager") || perms.canManageChanges 
       ? "manager" 
-      : "viewer";
+      : "requester";
   
   return {
     email: session.user.email,

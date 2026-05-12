@@ -805,9 +805,9 @@ function ApprovalsTab({
             <div className="flex items-start gap-2">
               <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
               <div className="space-y-1">
-                <p><strong>Step Name:</strong> A label for this approval stage (e.g., "Manager Review", "CAB", "Security Team")</p>
+                <p><strong>Step Name:</strong> A label for this approval stage (e.g., &quot;Manager Review&quot;, &quot;CAB&quot;, &quot;Security Team&quot;)</p>
                 <p><strong>Order:</strong> The sequence number - lower numbers are processed first (0, 1, 2...)</p>
-                <p><strong>Policy:</strong> How approvals are counted - "all" requires everyone, "any" needs just one, "quorum:N" needs N approvals</p>
+                <p><strong>Policy:</strong> How approvals are counted - &quot;all&quot; requires everyone, &quot;any&quot; needs just one, &quot;quorum:N&quot; needs N approvals</p>
                 <p><strong>Approvers:</strong> Start typing a name to search and select team members</p>
               </div>
             </div>
@@ -912,7 +912,7 @@ function ApprovalsTab({
         </div>
       )}
       {steps.length === 0 ? (
-        <div className="p-6 text-sm text-gray-500">No approval steps yet. Click "+ Add step" to create one.</div>
+        <div className="p-6 text-sm text-gray-500">No approval steps yet. Click &quot;+ Add step&quot; to create one.</div>
       ) : (
         (() => {
           // Calculate active steps (lowest pending ordering)
@@ -956,7 +956,7 @@ function ApprovalsTab({
                             <div className="font-medium">{a.approverEmail}{a.approverGroup ? <span className="ml-1 text-xs text-gray-500">({a.approverGroup})</span> : null}</div>
                             <div className="text-xs">
                               Decision: <span className={a.decision === "approved" ? "text-emerald-600 font-medium" : a.decision === "rejected" ? "text-rose-600 font-medium" : "text-gray-500"}>{a.decision}</span>
-                              {a.comment ? <span className="ml-2 italic text-gray-500">"{a.comment}"</span> : null}
+                              {a.comment ? <span className="ml-2 italic text-gray-500">&quot;{a.comment}&quot;</span> : null}
                               {a.decidedAt ? <span className="ml-2 text-gray-400">({new Date(a.decidedAt).toLocaleDateString()})</span> : null}
                             </div>
                           </div>
@@ -1450,7 +1450,7 @@ function AnalysisTab({ cr, analysis, onRun, busy }: { cr: CR; analysis: { impact
           {!analysis && (
             <div className="text-center py-8">
               <Activity className="h-12 w-12 mx-auto text-gray-300 dark:text-gray-600" />
-              <p className="mt-2 text-sm text-gray-500">Click "Run Analysis" to generate detailed impact and ML analysis</p>
+              <p className="mt-2 text-sm text-gray-500">Click &quot;Run Analysis&quot; to generate detailed impact and ML analysis</p>
             </div>
           )}
         </div>

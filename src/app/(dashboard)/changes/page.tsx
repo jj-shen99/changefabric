@@ -126,8 +126,8 @@ export default function ChangesPage() {
       let bVal: string | number | null = b[sortKey];
       
       // Handle null/undefined
-      if (aVal == null) aVal = sortKey === "mlRiskScore" || sortKey === "computedRiskScore" ? -1 : "";
-      if (bVal == null) bVal = sortKey === "mlRiskScore" || sortKey === "computedRiskScore" ? -1 : "";
+      if (aVal === null || aVal === undefined) aVal = sortKey === "mlRiskScore" || sortKey === "computedRiskScore" ? -1 : "";
+      if (bVal === null || bVal === undefined) bVal = sortKey === "mlRiskScore" || sortKey === "computedRiskScore" ? -1 : "";
       
       // Compare
       if (typeof aVal === "number" && typeof bVal === "number") {

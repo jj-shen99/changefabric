@@ -291,7 +291,7 @@ export default function GroupsPage() {
 
           <div className="px-4 pb-4">
             {activeGroups.length === 0 ? (
-              <p className="text-sm text-gray-500 italic">No groups configured. Click "Add Group" to create one.</p>
+              <p className="text-sm text-gray-500 italic">No groups configured. Click &quot;Add Group&quot; to create one.</p>
             ) : (
               <div className="space-y-2">
                 {activeGroups.map((group) => (
