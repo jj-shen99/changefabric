@@ -95,11 +95,14 @@ export async function GET(
     // Check if this is a pre-approved workflow (no approval steps needed)
     const isPreApproved = cr.workflowKey === "standard_preapproved";
     
-    // Check if user is admin (can delete imported CRs)
-    const isAdmin = ctx.perms.canViewAllData;
+    // Check if user is admin (can delete CRs)
+    const isAdmin = ctx.roles?.includes("admin") ?? false;
     
     // Check if CR is imported (has externalSource)
     const isImported = !!cr.externalSource;
+    
+    // Check if CR is in post-approval state (only limited fields editable)
+    const isPostApproval = POST_APPROVAL_STATES.has(cr.state);
     
     return NextResponse.json({ 
       changeRequest: cr, 
@@ -115,6 +118,7 @@ export async function GET(
         isPreApproved,
         isAdmin,
         isImported,
+        isPostApproval,
         currentUserEmail: ctx.email,
       },
     });
@@ -122,6 +126,14 @@ export async function GET(
     return serverError(err);
   }
 }
+
+// Fields that can be edited after CR is approved (post-approval editable fields)
+const POST_APPROVAL_EDITABLE_FIELDS = new Set(["assignedTo", "plannedStart", "plannedEnd"]);
+
+// States that are considered "post-approval" (approved and beyond)
+const POST_APPROVAL_STATES = new Set([
+  "approved", "scheduled", "in_progress", "implemented", "reviewing", "closed", "rolled_back"
+]);
 
 export async function PATCH(
   request: Request,
@@ -135,6 +147,25 @@ export async function PATCH(
     body = await request.json();
   } catch {
     return badRequest("Invalid JSON body");
+  }
+
+  // Check if CR is in a post-approval state
+  const svc = getChangeRequestService();
+  const existing = await svc.get(params.number);
+  if (!existing) {
+    return notFound();
+  }
+  
+  // If CR is in post-approval state, only allow editing specific fields
+  if (POST_APPROVAL_STATES.has(existing.state)) {
+    const requestedFields = Object.keys(body);
+    const disallowedFields = requestedFields.filter(f => !POST_APPROVAL_EDITABLE_FIELDS.has(f));
+    if (disallowedFields.length > 0) {
+      return badRequest(
+        `Cannot edit fields [${disallowedFields.join(", ")}] after CR is approved. ` +
+        `Only [${Array.from(POST_APPROVAL_EDITABLE_FIELDS).join(", ")}] can be modified.`
+      );
+    }
   }
 
   // Validate planned dates if provided
@@ -166,9 +197,8 @@ export async function PATCH(
     }
   }
   // If only one is provided, we need to check against existing values
-  const svc = getChangeRequestService();
   if ((body.plannedStart && !body.plannedEnd) || (!body.plannedStart && body.plannedEnd)) {
-    const existing = await svc.get(params.number);
+    // Use existing CR data already fetched above
     if (existing) {
       const newStart = body.plannedStart ? new Date(body.plannedStart as string) : (existing.plannedStart ? new Date(existing.plannedStart) : null);
       const newEnd = body.plannedEnd ? new Date(body.plannedEnd as string) : (existing.plannedEnd ? new Date(existing.plannedEnd) : null);

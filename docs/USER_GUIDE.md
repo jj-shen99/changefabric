@@ -112,6 +112,18 @@ Click any column header to sort the table. Click again to toggle between ascendi
 - **Click column header** - Sort by that column
 - **Click row** - View CR details
 
+### Editing Restrictions
+
+**Pre-Approval States** (draft, submitted, assessing, awaiting_approval):
+- All fields are editable by the CR owner
+
+**Post-Approval States** (approved, scheduled, in_progress, implemented, reviewing, closed, rolled_back):
+- Only **Assigned To**, **Planned Start**, and **Planned End** can be modified
+- All other fields are locked to preserve the approved change details
+- A notice is displayed when editing in post-approval states
+
+This ensures that once a change is approved, its core details (implementation plan, risk assessment, etc.) remain unchanged while still allowing operational adjustments like reassigning the implementer or rescheduling the change window.
+
 ### 3. Change Request Detail (`/changes/[number]`)
 
 Detailed view with tabs for different aspects of the CR.

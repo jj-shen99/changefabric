@@ -83,7 +83,8 @@ interface UserAccess {
   isPreApproved: boolean;
   isAdmin: boolean;
   isImported: boolean;
-  currentUserEmail?: string;
+  isPostApproval: boolean;
+  currentUserEmail: string;
 }
 
 export default function ChangeDetailPage({ params }: { params: { number: string } }) {
@@ -114,7 +115,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
     setCR(null); // Reset CR when loading new one
     setAnalysis(null); // Reset analysis
     try {
-      const res = await fetch(`/api/v2/changes/${crNumber}`);
+      const res = await fetch(`/api/v2/changes/${crNumber}`, { cache: "no-store" });
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
         throw new Error(e.error || `HTTP ${res.status}`);
@@ -135,6 +136,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
   useEffect(() => { void load(); }, [load]);
 
   // Search users for Assigned To autocomplete in edit mode
+  // Only show users with implementer or manager roles (who can implement changes)
   useEffect(() => {
     if (assignedToSearch.length < 1) {
       setAssignedToSuggestions([]);
@@ -142,7 +144,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
     }
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/users/search?q=${encodeURIComponent(assignedToSearch)}`);
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(assignedToSearch)}&role=assignable`);
         if (res.ok) {
           const data = await res.json();
           setAssignedToSuggestions(data.users || []);
@@ -217,23 +219,32 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
 
   function startEdit() {
     if (!cr) return;
-    setEditForm({
-      title: cr.title,
-      description: cr.description,
-      justification: cr.justification,
-      implementationPlan: cr.implementationPlan,
-      backoutPlan: cr.backoutPlan,
-      testPlan: cr.testPlan,
-      riskAndImpactAnalysis: cr.riskAndImpactAnalysis,
-      assignedTo: cr.assignedTo,
-      assignmentGroup: cr.assignmentGroup,
-      riskLevel: cr.riskLevel,
-      impactLevel: cr.impactLevel,
-      priority: cr.priority,
-      category: cr.category,
-      plannedStart: cr.plannedStart,
-      plannedEnd: cr.plannedEnd,
-    });
+    // For post-approval CRs, only allow editing limited fields
+    if (userAccess?.isPostApproval) {
+      setEditForm({
+        assignedTo: cr.assignedTo,
+        plannedStart: cr.plannedStart,
+        plannedEnd: cr.plannedEnd,
+      });
+    } else {
+      setEditForm({
+        title: cr.title,
+        description: cr.description,
+        justification: cr.justification,
+        implementationPlan: cr.implementationPlan,
+        backoutPlan: cr.backoutPlan,
+        testPlan: cr.testPlan,
+        riskAndImpactAnalysis: cr.riskAndImpactAnalysis,
+        assignedTo: cr.assignedTo,
+        assignmentGroup: cr.assignmentGroup,
+        riskLevel: cr.riskLevel,
+        impactLevel: cr.impactLevel,
+        priority: cr.priority,
+        category: cr.category,
+        plannedStart: cr.plannedStart,
+        plannedEnd: cr.plannedEnd,
+      });
+    }
     setEditing(true);
   }
 
@@ -475,55 +486,70 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
           ) : (
             /* Edit Mode */
             <div className="grid gap-4 p-4 md:grid-cols-2">
-              <EditField label="Title" value={editForm.title ?? ""} onChange={(v) => setEditForm({ ...editForm, title: v })} />
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Risk Level</label>
-                  <select
-                    value={editForm.riskLevel ?? ""}
-                    onChange={(e) => setEditForm({ ...editForm, riskLevel: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-                  >
-                    <option value="low">Low</option>
-                    <option value="moderate">Moderate</option>
-                    <option value="high">High</option>
-                    <option value="very_high">Very High</option>
-                  </select>
+              {/* Post-approval notice */}
+              {userAccess?.isPostApproval && (
+                <div className="md:col-span-2 rounded-lg bg-amber-50 border border-amber-200 p-3 dark:bg-amber-950/30 dark:border-amber-800">
+                  <p className="text-sm text-amber-700 dark:text-amber-300">
+                    <strong>Limited editing:</strong> This CR is approved. Only Assigned To and Planned Dates can be modified.
+                  </p>
                 </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Impact Level</label>
-                  <select
-                    value={editForm.impactLevel ?? ""}
-                    onChange={(e) => setEditForm({ ...editForm, impactLevel: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-                  >
-                    <option value="1">1 - High</option>
-                    <option value="2">2 - Medium</option>
-                    <option value="3">3 - Low</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Priority</label>
-                  <select
-                    value={editForm.priority ?? ""}
-                    onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-                  >
-                    <option value="1">1 - Critical</option>
-                    <option value="2">2 - High</option>
-                    <option value="3">3 - Moderate</option>
-                    <option value="4">4 - Low</option>
-                  </select>
-                </div>
-              </div>
-              <EditTextarea label="Description" value={editForm.description ?? ""} onChange={(v) => setEditForm({ ...editForm, description: v })} />
-              <EditTextarea label="Justification" value={editForm.justification ?? ""} onChange={(v) => setEditForm({ ...editForm, justification: v })} />
-              <EditTextarea label="Implementation Plan" value={editForm.implementationPlan ?? ""} onChange={(v) => setEditForm({ ...editForm, implementationPlan: v })} rows={6} />
-              <EditTextarea label="Backout Plan" value={editForm.backoutPlan ?? ""} onChange={(v) => setEditForm({ ...editForm, backoutPlan: v })} rows={6} />
-              <EditTextarea label="Test Plan" value={editForm.testPlan ?? ""} onChange={(v) => setEditForm({ ...editForm, testPlan: v })} rows={6} />
-              <EditTextarea label="Risk & Impact Analysis" value={editForm.riskAndImpactAnalysis ?? ""} onChange={(v) => setEditForm({ ...editForm, riskAndImpactAnalysis: v })} rows={6} />
+              )}
+              
+              {/* Full edit fields - only shown pre-approval */}
+              {!userAccess?.isPostApproval && (
+                <>
+                  <EditField label="Title" value={editForm.title ?? ""} onChange={(v) => setEditForm({ ...editForm, title: v })} />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Risk Level</label>
+                      <select
+                        value={editForm.riskLevel ?? ""}
+                        onChange={(e) => setEditForm({ ...editForm, riskLevel: e.target.value })}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                      >
+                        <option value="low">Low</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="high">High</option>
+                        <option value="very_high">Very High</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Impact Level</label>
+                      <select
+                        value={editForm.impactLevel ?? ""}
+                        onChange={(e) => setEditForm({ ...editForm, impactLevel: e.target.value })}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                      >
+                        <option value="1">1 - High</option>
+                        <option value="2">2 - Medium</option>
+                        <option value="3">3 - Low</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">Priority</label>
+                      <select
+                        value={editForm.priority ?? ""}
+                        onChange={(e) => setEditForm({ ...editForm, priority: e.target.value })}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                      >
+                        <option value="1">1 - Critical</option>
+                        <option value="2">2 - High</option>
+                        <option value="3">3 - Moderate</option>
+                        <option value="4">4 - Low</option>
+                      </select>
+                    </div>
+                  </div>
+                  <EditTextarea label="Description" value={editForm.description ?? ""} onChange={(v) => setEditForm({ ...editForm, description: v })} />
+                  <EditTextarea label="Justification" value={editForm.justification ?? ""} onChange={(v) => setEditForm({ ...editForm, justification: v })} />
+                  <EditTextarea label="Implementation Plan" value={editForm.implementationPlan ?? ""} onChange={(v) => setEditForm({ ...editForm, implementationPlan: v })} rows={6} />
+                  <EditTextarea label="Backout Plan" value={editForm.backoutPlan ?? ""} onChange={(v) => setEditForm({ ...editForm, backoutPlan: v })} rows={6} />
+                  <EditTextarea label="Test Plan" value={editForm.testPlan ?? ""} onChange={(v) => setEditForm({ ...editForm, testPlan: v })} rows={6} />
+                  <EditTextarea label="Risk & Impact Analysis" value={editForm.riskAndImpactAnalysis ?? ""} onChange={(v) => setEditForm({ ...editForm, riskAndImpactAnalysis: v })} rows={6} />
+                </>
+              )}
+              
+              {/* Assigned To - always editable */}
               <div className="grid grid-cols-2 gap-2">
-                {/* Assigned To with user autocomplete */}
                 <div className="relative">
                   <label className="mb-1 block text-xs font-medium text-gray-500">Assigned To</label>
                   {editForm.assignedTo ? (
@@ -570,9 +596,18 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
                     </>
                   )}
                 </div>
-                <EditField label="Assignment Group" value={editForm.assignmentGroup ?? ""} onChange={(v) => setEditForm({ ...editForm, assignmentGroup: v || null })} placeholder="Team name" />
+                {/* Assignment Group - only shown pre-approval */}
+                {!userAccess?.isPostApproval && (
+                  <EditField label="Assignment Group" value={editForm.assignmentGroup ?? ""} onChange={(v) => setEditForm({ ...editForm, assignmentGroup: v || null })} placeholder="Team name" />
+                )}
               </div>
-              <EditField label="Category" value={editForm.category ?? ""} onChange={(v) => setEditForm({ ...editForm, category: v })} />
+              
+              {/* Category - only shown pre-approval */}
+              {!userAccess?.isPostApproval && (
+                <EditField label="Category" value={editForm.category ?? ""} onChange={(v) => setEditForm({ ...editForm, category: v })} />
+              )}
+              
+              {/* Planned dates - always editable */}
               <div className="grid grid-cols-2 gap-3 md:col-span-2 pb-48">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Planned start</label>
