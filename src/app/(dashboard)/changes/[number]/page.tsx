@@ -83,6 +83,7 @@ interface UserAccess {
   isPreApproved: boolean;
   isAdmin: boolean;
   isImported: boolean;
+  currentUserEmail?: string;
 }
 
 export default function ChangeDetailPage({ params }: { params: { number: string } }) {
@@ -101,7 +102,6 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
   const [tab, setTab] = useState<"overview" | "approvals" | "comments" | "activity" | "analysis">("overview");
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<CR>>({});
-  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   
   // Assigned To user autocomplete state for edit mode
   const [assignedToSearch, setAssignedToSearch] = useState("");
@@ -133,21 +133,6 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
   }, [crNumber]);
 
   useEffect(() => { void load(); }, [load]);
-
-  useEffect(() => {
-    async function fetchCurrentUser() {
-      try {
-        const res = await fetch("/api/auth/session");
-        if (res.ok) {
-          const session = await res.json();
-          setCurrentUserEmail(session.user?.email || null);
-        }
-      } catch {
-        // Session fetch failed, user will see approval buttons disabled
-      }
-    }
-    fetchCurrentUser();
-  }, []);
 
   // Search users for Assigned To autocomplete in edit mode
   useEffect(() => {
@@ -273,7 +258,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
   }
 
   async function deleteCR() {
-    if (!confirm(`Are you sure you want to delete this imported change request (${crNumber})?\n\nThis action cannot be undone.`)) {
+    if (!confirm(`Are you sure you want to delete change request ${crNumber}?\n\nThis will permanently remove the CR and all associated data (approvals, comments, audit logs).\n\nThis action cannot be undone.`)) {
       return;
     }
     setBusy(true);
@@ -329,19 +314,28 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
             </button>
           </div>
         </div>
-        {/* Workflow transitions - only show for CR owner, assigned user, or admin - not for approver-only users or draft state */}
-        {transitions.length > 0 && cr.state !== "draft" && (userAccess?.isOwner || userAccess?.isAssigned || userAccess?.isAdmin) && !userAccess?.isApproverOnly && (
+        {/* Workflow transitions - only show for CR owner, assigned user, or admin - not for approver-only users */}
+        {/* In draft state, only show submit button to owner */}
+        {transitions.length > 0 && (userAccess?.isOwner || userAccess?.isAssigned || userAccess?.isAdmin) && !userAccess?.isApproverOnly && (
           <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
             <div className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Workflow actions</div>
             <div className="flex flex-wrap gap-2">
               {transitions
                 .filter((t) => {
+                  // In draft state, only show submit button to owner
+                  if (cr.state === "draft") {
+                    return t.event === "submit" && userAccess?.isOwner;
+                  }
                   // Submit button should only be visible to CR requester (owner)
                   if (t.event === "submit") {
                     return userAccess?.isOwner;
                   }
                   // Hide 'approve' button - approval happens automatically when all approval steps are approved
                   if (t.event === "approve") {
+                    return false;
+                  }
+                  // Hide 'reject' workflow action for approver-only users - they use the reject button in approval steps
+                  if (t.event === "reject" && userAccess?.isApproverOnly) {
                     return false;
                   }
                   return true;
@@ -400,13 +394,13 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
           <div className="flex items-center justify-end gap-2 border-b border-gray-100 px-4 py-2 dark:border-gray-800">
             {!editing ? (
               <>
-                {/* Delete button - only for admins and imported CRs */}
-                {userAccess?.isAdmin && userAccess?.isImported && (
+                {/* Delete button - only for admins: imported CRs or CRs in draft/awaiting_approval state */}
+                {userAccess?.isAdmin && (userAccess?.isImported || cr.state === "draft" || cr.state === "awaiting_approval") && (
                   <button
                     onClick={deleteCR}
                     disabled={busy}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-50 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40"
-                    title="Delete this imported change request"
+                    title={userAccess?.isImported ? "Delete this imported change request" : `Delete this ${cr.state} change request`}
                   >
                     <Trash2 className="h-3 w-3" /> Delete
                   </button>
@@ -579,23 +573,25 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
                 <EditField label="Assignment Group" value={editForm.assignmentGroup ?? ""} onChange={(v) => setEditForm({ ...editForm, assignmentGroup: v || null })} placeholder="Team name" />
               </div>
               <EditField label="Category" value={editForm.category ?? ""} onChange={(v) => setEditForm({ ...editForm, category: v })} />
-              <div className="grid grid-cols-2 gap-2 md:col-span-2 pb-48">
+              <div className="grid grid-cols-2 gap-3 md:col-span-2 pb-48">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Planned Start</label>
+                  <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Planned start</label>
                   <input
                     type="datetime-local"
                     value={editForm.plannedStart ? new Date(editForm.plannedStart).toISOString().slice(0, 16) : ""}
                     onChange={(e) => setEditForm({ ...editForm, plannedStart: e.target.value ? new Date(e.target.value).toISOString() : null })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                    min={new Date().toISOString().slice(0, 16)}
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Planned End</label>
+                  <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Planned end</label>
                   <input
                     type="datetime-local"
                     value={editForm.plannedEnd ? new Date(editForm.plannedEnd).toISOString().slice(0, 16) : ""}
                     onChange={(e) => setEditForm({ ...editForm, plannedEnd: e.target.value ? new Date(e.target.value).toISOString() : null })}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+                    min={editForm.plannedStart ? new Date(editForm.plannedStart).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16)}
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
                   />
                 </div>
               </div>
@@ -605,7 +601,7 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
       )}
 
       {tab === "approvals" && !isClosed && (
-        <ApprovalsTab steps={steps} crNumber={cr.number} onDecide={decide} onChange={load} busy={busy} currentUserEmail={currentUserEmail} canManageSteps={userAccess?.isOwner || false} />
+        <ApprovalsTab steps={steps} crNumber={cr.number} onDecide={decide} onChange={load} busy={busy} currentUserEmail={userAccess?.currentUserEmail || null} canManageSteps={userAccess?.isOwner || false} />
       )}
 
       {tab === "approvals" && isClosed && (
@@ -883,45 +879,68 @@ function ApprovalsTab({
       {steps.length === 0 ? (
         <div className="p-6 text-sm text-gray-500">No approval steps yet. Click "+ Add step" to create one.</div>
       ) : (
-        <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-          {steps.map((s) => (
-            <li key={s.id} className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-semibold">
-                    #{s.ordering} · {s.name}{" "}
-                    <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-600 dark:bg-gray-800 dark:text-gray-300">
-                      {s.policy === "all" ? "All must approve" : s.policy === "any" ? "Any one" : s.policy}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 text-xs text-gray-500">
-                    Status: <span className={s.status === "approved" ? "text-emerald-600" : s.status === "rejected" ? "text-rose-600" : "text-amber-600"}>{s.status}</span>
-                  </div>
-                </div>
-              </div>
-              <ul className="mt-3 space-y-1">
-                {s.approvals.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-gray-900/50">
-                    <div>
-                      <div className="font-medium">{a.approverEmail}{a.approverGroup ? <span className="ml-1 text-xs text-gray-500">({a.approverGroup})</span> : null}</div>
-                      <div className="text-xs">
-                        Decision: <span className={a.decision === "approved" ? "text-emerald-600 font-medium" : a.decision === "rejected" ? "text-rose-600 font-medium" : "text-gray-500"}>{a.decision}</span>
-                        {a.comment ? <span className="ml-2 italic text-gray-500">"{a.comment}"</span> : null}
-                        {a.decidedAt ? <span className="ml-2 text-gray-400">({new Date(a.decidedAt).toLocaleDateString()})</span> : null}
+        (() => {
+          // Calculate active steps (lowest pending ordering)
+          const pendingSteps = steps.filter(s => s.status === "pending");
+          const minOrder = pendingSteps.length > 0 ? Math.min(...pendingSteps.map(s => s.ordering)) : -1;
+          const activeStepIds = new Set(pendingSteps.filter(s => s.ordering === minOrder).map(s => s.id));
+          
+          return (
+            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+              {steps.map((s) => {
+                const isActive = activeStepIds.has(s.id);
+                return (
+                  <li key={s.id} className={`p-4 ${!isActive && s.status === "pending" ? "opacity-60" : ""}`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-semibold">
+                          #{s.ordering} · {s.name}{" "}
+                          <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                            {s.policy === "all" ? "All must approve" : s.policy === "any" ? "Any one" : s.policy}
+                          </span>
+                          {isActive && s.status === "pending" && (
+                            <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                              Active
+                            </span>
+                          )}
+                          {!isActive && s.status === "pending" && (
+                            <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-normal text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                              Waiting
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-0.5 text-xs text-gray-500">
+                          Status: <span className={s.status === "approved" ? "text-emerald-600" : s.status === "rejected" ? "text-rose-600" : "text-amber-600"}>{s.status}</span>
+                        </div>
                       </div>
                     </div>
-                    {a.decision === "pending" && s.status === "pending" && currentUserEmail === a.approverEmail && (
-                      <div className="flex gap-1">
-                        <button onClick={() => onDecide(s.id, "approved")} disabled={busy} className="rounded-md bg-emerald-600 px-2 py-1 text-xs text-white hover:bg-emerald-700 disabled:opacity-50">Approve</button>
-                        <button onClick={() => onDecide(s.id, "rejected")} disabled={busy} className="rounded-md bg-rose-600 px-2 py-1 text-xs text-white hover:bg-rose-700 disabled:opacity-50">Reject</button>
-                      </div>
-                    )}
+                    <ul className="mt-3 space-y-1">
+                      {s.approvals.map((a) => (
+                        <li key={a.id} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm dark:bg-gray-900/50">
+                          <div>
+                            <div className="font-medium">{a.approverEmail}{a.approverGroup ? <span className="ml-1 text-xs text-gray-500">({a.approverGroup})</span> : null}</div>
+                            <div className="text-xs">
+                              Decision: <span className={a.decision === "approved" ? "text-emerald-600 font-medium" : a.decision === "rejected" ? "text-rose-600 font-medium" : "text-gray-500"}>{a.decision}</span>
+                              {a.comment ? <span className="ml-2 italic text-gray-500">"{a.comment}"</span> : null}
+                              {a.decidedAt ? <span className="ml-2 text-gray-400">({new Date(a.decidedAt).toLocaleDateString()})</span> : null}
+                            </div>
+                          </div>
+                          {/* Only show buttons for active steps */}
+                          {a.decision === "pending" && s.status === "pending" && isActive && currentUserEmail === a.approverEmail && (
+                            <div className="flex gap-1">
+                              <button onClick={() => onDecide(s.id, "approved")} disabled={busy} className="rounded-md bg-emerald-600 px-2 py-1 text-xs text-white hover:bg-emerald-700 disabled:opacity-50">Approve</button>
+                              <button onClick={() => onDecide(s.id, "rejected")} disabled={busy} className="rounded-md bg-rose-600 px-2 py-1 text-xs text-white hover:bg-rose-700 disabled:opacity-50">Reject</button>
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
                   </li>
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ul>
+                );
+              })}
+            </ul>
+          );
+        })()
       )}
     </Card>
   );

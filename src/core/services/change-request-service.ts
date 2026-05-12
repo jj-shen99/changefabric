@@ -361,6 +361,14 @@ export class ChangeRequestService {
     input: CreateApprovalStepInput
   ): Promise<ApprovalStep> {
     await this.requireCR(crNumber);
+    
+    // Check for duplicate step name
+    const existingSteps = await this.repo.listApprovalSteps(crNumber);
+    const duplicate = existingSteps.find(s => s.name.toLowerCase() === input.name.toLowerCase());
+    if (duplicate) {
+      throw new Error(`An approval step named "${input.name}" already exists for this CR`);
+    }
+    
     const step = await this.repo.createApprovalStep({
       changeRequestId: crNumber,
       name: input.name,

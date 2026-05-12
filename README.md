@@ -37,13 +37,13 @@ A full-stack **software change validation and release impact analysis dashboard*
 ### Authentication & Authorization
 - **Login / Register / Reset Password** pages with form validation
 - **JWT-based sessions** via NextAuth.js with credentials provider
-- **6 User Roles** with granular permission matrix:
-  - **Admin** — Full system access, user management, settings
-  - **Change Manager** — Create/edit CRs, approve, implement, manage releases
-  - **Approver** — Approve CRs assigned to them, read-only otherwise
+- **5 Core User Roles** with granular permission matrix:
+  - **Admin** — Full system access, user management, settings, CR deletion
+  - **Manager** — Create/edit CRs, approve, implement, manage releases (includes approver + implementer abilities)
+  - **Approver** — Approve CRs assigned to them, view activity logs
   - **Implementer** — Execute approved changes, cannot create/approve
-  - **Requester** — Create and edit their own CRs, cannot approve/implement
-  - **CAB Member** — Change Advisory Board member, can approve changes
+  - **Requester** — Create and edit their own CRs, view metrics for own CRs
+- **Role Hierarchy** — Admin supersedes all; Manager includes approver + implementer (system prevents redundant role assignments)
 - **Per-user data isolation** — non-admin users only see their own synced change requests and analyses
 - **Per-user credential storage** — each user saves their own ServiceNow/Git credentials (AES-256-GCM encrypted)
 - **Role-based UI gating** — sidebar items, CRUD buttons, and pages hidden based on permissions
@@ -351,11 +351,12 @@ prisma/
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](docs/ARCHITECTURE.md) | System architecture with diagrams (workflow, approval, data flow) |
+| [Architecture](docs/ARCHITECTURE.md) | System architecture with diagrams (workflow, approval, data flow, RBAC) |
 | [API Reference](docs/API.md) | Complete REST API documentation |
 | [User Guide](docs/USER_GUIDE.md) | Feature guide for all dashboard pages |
 | [Deployment Guide](docs/DEPLOYMENT.md) | Setup, deployment, and operations guide |
 | [Testing Guide](docs/TESTING.md) | Test structure, running tests, writing tests |
+| [Architecture Diagrams](docs/diagrams/) | Mermaid diagrams (PNG + source) for system visualization |
 
 ## License
 

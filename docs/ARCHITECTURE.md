@@ -272,6 +272,57 @@ A vendor-neutral change management application built on Next.js 14 + Prisma with
                                  └────────────────────┘
 ```
 
+## Role-Based Access Control (RBAC)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           ROLE HIERARCHY                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              ┌─────────┐
+                              │  ADMIN  │  ← Full system access
+                              └────┬────┘
+                                   │
+                              ┌────▼────┐
+                              │ MANAGER │  ← Includes approver + implementer abilities
+                              └────┬────┘
+                                   │
+              ┌────────────────────┼────────────────────┐
+              │                    │                    │
+         ┌────▼────┐          ┌────▼────┐         ┌────▼────┐
+         │APPROVER │          │IMPLEMENT│         │REQUESTER│
+         └─────────┘          │   ER    │         └─────────┘
+                              └─────────┘
+
+  Role Redundancy Rules:
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │  • Admin supersedes ALL roles (no additional roles needed)              │
+  │  • Manager includes approver + implementer (no need to add those)       │
+  │  • System prevents adding redundant roles automatically                 │
+  └─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Permission Matrix
+
+| Permission | Admin | Manager | Approver | Implementer | Requester |
+|------------|:-----:|:-------:|:--------:|:-----------:|:---------:|
+| canManageUsers | ✓ | ✗ | ✗ | ✗ | ✗ |
+| canManageRoles | ✓ | ✓ | ✗ | ✗ | ✗ |
+| canManageChanges | ✓ | ✓ | ✗ | ✗ | ✓ |
+| canApproveChanges | ✓ | ✓ | ✓ | ✗ | ✗ |
+| canImplementChanges | ✓ | ✓ | ✗ | ✓ | ✗ |
+| canManageReleases | ✓ | ✓ | ✗ | ✗ | ✗ |
+| canEditSettings | ✓ | ✗ | ✗ | ✗ | ✗ |
+| canViewMetrics | ✓ | ✓ | ✓ | ✓ | ✓ |
+| canViewAllData | ✓ | ✓ | ✗ | ✗ | ✗ |
+
+### Admin-Only Actions
+
+- Delete CRs in `draft` or `awaiting_approval` states
+- Delete imported CRs
+- Manage user accounts and role assignments
+- Edit system settings
+
 ## Technology Stack
 
 | Layer | Technology |

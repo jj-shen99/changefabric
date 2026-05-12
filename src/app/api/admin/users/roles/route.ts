@@ -130,6 +130,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "User already has this role" }, { status: 409 });
     }
 
+    // Get user's current roles to check for redundancy
+    const currentUserRolesData = await prisma.userRole.findMany({
+      where: { userId },
+      include: { role: true },
+    });
+    const currentRoleNames = currentUserRolesData.map(ur => ur.role.name);
+
+    // Prevent adding redundant roles:
+    // - If user is already a manager/change_manager, don't add approver or implementer
+    //   (manager already has those abilities)
+    // - If user is already admin, don't add any other roles (admin has all abilities)
+    const hasManager = currentRoleNames.includes("change_manager") || currentRoleNames.includes("manager");
+    const hasAdmin = currentRoleNames.includes("admin");
+
+    if (hasAdmin && role.name !== "admin") {
+      return NextResponse.json({ 
+        error: "Admin role already includes all permissions. No need to add additional roles." 
+      }, { status: 409 });
+    }
+
+    if (hasManager && (role.name === "approver" || role.name === "implementer")) {
+      return NextResponse.json({ 
+        error: `Manager role already includes ${role.name} abilities. No need to add this role.` 
+      }, { status: 409 });
+    }
+
     // Assign the role
     const userRole = await prisma.userRole.create({
       data: {
@@ -281,11 +307,33 @@ export async function PUT(request: Request) {
       }
     }
 
+    // Filter out redundant roles:
+    // - If admin is selected, only keep admin (admin has all abilities)
+    // - If manager/change_manager is selected, remove approver and implementer (manager includes those)
+    const roleNames = roles.map(r => r.name);
+    let filteredRoleIds = roleIds as string[];
+    
+    if (roleNames.includes("admin")) {
+      // Admin only - no other roles needed
+      const adminRole = roles.find(r => r.name === "admin");
+      filteredRoleIds = adminRole ? [adminRole.id] : filteredRoleIds;
+    } else if (roleNames.includes("change_manager") || roleNames.includes("manager")) {
+      // Remove approver and implementer if manager is present
+      filteredRoleIds = roles
+        .filter(r => r.name !== "approver" && r.name !== "implementer")
+        .map(r => r.id);
+    }
+
+    // Ensure at least one role remains
+    if (filteredRoleIds.length === 0) {
+      return NextResponse.json({ error: "User must have at least one role" }, { status: 400 });
+    }
+
     // Transaction: delete all existing roles and add new ones
     await prisma.$transaction([
       prisma.userRole.deleteMany({ where: { userId } }),
       prisma.userRole.createMany({
-        data: roleIds.map((roleId: string) => ({
+        data: filteredRoleIds.map((roleId: string) => ({
           userId,
           roleId,
           assignedBy: auth.session.user.email,

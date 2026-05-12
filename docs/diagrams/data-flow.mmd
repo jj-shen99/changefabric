@@ -1,0 +1,63 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4F46E5', 'primaryTextColor': '#fff', 'lineColor': '#6366F1'}}}%%
+sequenceDiagram
+    participant U as 👤 User
+    participant UI as 🖥️ UI (React)
+    participant API as ⚡ API Route
+    participant SVC as 🧠 Service
+    participant WF as 🔄 Workflow
+    participant ML as 🤖 ML Scorer
+    participant DB as 💾 Database
+
+    Note over U,DB: Create Change Request Flow
+    
+    U->>UI: Fill CR form
+    UI->>API: POST /api/v2/changes
+    API->>SVC: create(data)
+    
+    par Parallel Analysis
+        SVC->>ML: computeRiskScore()
+        ML-->>SVC: mlRiskScore, confidence
+    and
+        SVC->>SVC: computeImpactScore()
+    end
+    
+    SVC->>DB: Insert ChangeRequest
+    SVC->>DB: Insert AuditEvent
+    DB-->>SVC: CR created
+    SVC-->>API: CR object
+    API-->>UI: JSON response
+    UI-->>U: Show success
+
+    Note over U,DB: Workflow Transition Flow
+    
+    U->>UI: Click "Submit"
+    UI->>API: POST /api/v2/changes/:n/transitions
+    API->>SVC: transition(event)
+    SVC->>WF: canTransition(event)?
+    WF->>WF: Check guards
+    WF-->>SVC: allowed
+    SVC->>DB: Update state
+    SVC->>DB: Log transition
+    DB-->>SVC: Updated
+    SVC-->>API: New state
+    API-->>UI: Success
+    UI-->>U: State updated
+
+    Note over U,DB: Approval Decision Flow
+    
+    U->>UI: Click "Approve"
+    UI->>API: POST /api/v2/changes/:n/approvals/:stepId
+    API->>SVC: decideApproval(stepId, decision)
+    SVC->>SVC: Check step is active
+    SVC->>DB: Update Approval
+    SVC->>SVC: Evaluate step policy
+    
+    alt All steps approved
+        SVC->>WF: Auto-transition to approved
+        SVC->>DB: Update CR state
+    end
+    
+    SVC->>DB: Log audit event
+    SVC-->>API: Updated step
+    API-->>UI: Success
+    UI-->>U: Decision recorded

@@ -57,25 +57,40 @@ export async function GET() {
   );
 
   // Get pending approvals for this user using raw query
+  // Only include approvals where the step is active (lowest pending ordering for that CR)
   const pendingApprovals = await prisma.$queryRaw<Array<{
     stepId: string;
     stepName: string;
     crNumber: string;
+    stepOrdering: number;
   }>>`
     SELECT 
       a.stepId,
       s.name as stepName,
-      s.changeRequestId as crNumber
+      s.changeRequestId as crNumber,
+      s.ordering as stepOrdering
     FROM Approval a
     JOIN ApprovalStep s ON a.stepId = s.id
     WHERE a.approverEmail = ${userEmail}
     AND a.decision = 'pending'
+    AND s.status = 'pending'
   `;
 
-  // Build approval CRs with step info
+  // Group by CR and find the minimum ordering for each CR's pending steps
+  const crMinOrdering = new Map<string, number>();
+  for (const pa of pendingApprovals) {
+    const current = crMinOrdering.get(pa.crNumber);
+    if (current === undefined || pa.stepOrdering < current) {
+      crMinOrdering.set(pa.crNumber, pa.stepOrdering);
+    }
+  }
+
+  // Build approval CRs with step info - only include if step is active (at min ordering)
   const approvalCRMap = new Map<string, { stepId: string; stepName: string }>();
   for (const pa of pendingApprovals) {
-    if (!approvalCRMap.has(pa.crNumber)) {
+    const minOrdering = crMinOrdering.get(pa.crNumber);
+    // Only include if this step is at the minimum ordering (active)
+    if (pa.stepOrdering === minOrdering && !approvalCRMap.has(pa.crNumber)) {
       approvalCRMap.set(pa.crNumber, { stepId: pa.stepId, stepName: pa.stepName });
     }
   }

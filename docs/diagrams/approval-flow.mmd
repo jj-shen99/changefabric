@@ -1,0 +1,51 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4F46E5', 'primaryTextColor': '#fff', 'lineColor': '#6366F1'}}}%%
+flowchart TB
+    subgraph CR["📝 Change Request (CHG0000001)"]
+        direction TB
+        CRState["State: awaiting_approval"]
+    end
+
+    subgraph Step1["Step 1: Tech Review (ordering: 1)"]
+        direction TB
+        S1Policy["Policy: ALL must approve"]
+        S1Status["Status: ✅ approved"]
+        subgraph S1Approvers["Approvers"]
+            A1["👤 User A\n✅ APPROVED"]
+            A2["👤 User B\n✅ APPROVED"]
+        end
+    end
+
+    subgraph Step2["Step 2: Security Review (ordering: 2)"]
+        direction TB
+        S2Policy["Policy: ANY one approves"]
+        S2Status["Status: 🟡 pending (ACTIVE)"]
+        subgraph S2Approvers["Approvers"]
+            A3["👤 User C\n⏳ PENDING"]
+            A4["👤 User D\n⏳ PENDING"]
+        end
+    end
+
+    subgraph Step3["Step 3: CAB Approval (ordering: 3)"]
+        direction TB
+        S3Policy["Policy: QUORUM:2"]
+        S3Status["Status: ⏸️ waiting"]
+        subgraph S3Approvers["Approvers"]
+            A5["👤 CAB 1\n⏳ PENDING"]
+            A6["👤 CAB 2\n⏳ PENDING"]
+            A7["👤 CAB 3\n⏳ PENDING"]
+        end
+    end
+
+    CR --> Step1
+    Step1 -->|"completed"| Step2
+    Step2 -->|"waiting for Step 2"| Step3
+
+    subgraph Legend["📋 Approval Policies"]
+        L1["ALL: Every approver must approve"]
+        L2["ANY: At least one must approve"]
+        L3["QUORUM:N: At least N must approve"]
+    end
+
+    subgraph ParallelNote["⚡ Parallel Execution"]
+        P1["Steps with same ordering\nrun in parallel"]
+    end

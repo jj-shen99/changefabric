@@ -20,30 +20,34 @@ Complete guide to using the Change Request Management AI Dashboard.
 
 ### Role Permissions
 
-The system has 6 user roles with different permission levels:
+The system has 5 core user roles with different permission levels:
 
-| Permission | Admin | Change Manager | Approver | Implementer | Requester | CAB Member |
-|------------|:-----:|:--------------:|:--------:|:-----------:|:---------:|:----------:|
-| View Dashboard | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| View Own CRs | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| View All CRs | ✓ | ✓ | ✗ | ✗ | ✗ | ✓ |
-| Create CR | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ |
-| Edit Own CR | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ |
-| Edit Any CR | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
-| Approve CR | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ |
-| Implement CR | ✓ | ✓ | ✗ | ✓ | ✗ | ✗ |
-| Manage Releases | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ |
-| Manage Users | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Manage Settings | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| View Metrics | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ |
+| Permission | Admin | Manager | Approver | Implementer | Requester |
+|------------|:-----:|:-------:|:--------:|:-----------:|:---------:|
+| View Dashboard | ✓ | ✓ | ✓ | ✓ | ✓ |
+| View Own CRs | ✓ | ✓ | ✓ | ✓ | ✓ |
+| View All CRs | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Create CR | ✓ | ✓ | ✗ | ✗ | ✓ |
+| Edit Own CR | ✓ | ✓ | ✗ | ✗ | ✓ |
+| Edit Any CR | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Approve CR | ✓ | ✓ | ✓ | ✗ | ✗ |
+| Implement CR | ✓ | ✓ | ✗ | ✓ | ✗ |
+| Manage Releases | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Manage Users | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Manage Settings | ✓ | ✗ | ✗ | ✗ | ✗ |
+| View Metrics | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Delete CRs (draft/awaiting) | ✓ | ✗ | ✗ | ✗ | ✗ |
 
 **Role Descriptions:**
-- **Admin**: Full system access including user management and settings
-- **Change Manager**: Create/edit CRs, approve changes, implement changes, manage releases
-- **Approver**: Review and approve CRs assigned to them
+- **Admin**: Full system access including user management, settings, and CR deletion
+- **Manager**: Create/edit CRs, approve changes, implement changes, manage releases (includes approver + implementer abilities)
+- **Approver**: Review and approve CRs assigned to them, view activity logs
 - **Implementer**: Execute approved changes (DevOps, SREs, DBAs)
-- **Requester**: Create and manage their own CRs (developers, product managers)
-- **CAB Member**: Change Advisory Board member, can approve changes and view all data
+- **Requester**: Create and manage their own CRs, view metrics for own CRs
+
+**Role Hierarchy:**
+- Admin supersedes all roles (no additional roles needed)
+- Manager includes approver + implementer abilities (system prevents adding redundant roles)
 
 ## Dashboard Pages
 

@@ -115,6 +115,7 @@ export async function GET(
         isPreApproved,
         isAdmin,
         isImported,
+        currentUserEmail: ctx.email,
       },
     });
   } catch (err) {
@@ -194,23 +195,28 @@ export async function DELETE(
   if (isResponse(ctx)) return ctx;
   
   // Only admins can delete CRs
-  if (!ctx.perms.canViewAllData) {
+  const isAdmin = ctx.roles?.includes("admin");
+  if (!isAdmin) {
     return forbidden();
   }
   
   const svc = getChangeRequestService();
   
   try {
-    // Check if CR exists and is imported (has externalSource)
     const cr = await svc.get(params.number);
     
     if (!cr) {
       return notFound();
     }
     
-    // Only allow deletion of imported CRs (those with an externalSource)
-    if (!cr.externalSource) {
-      return badRequest("Only imported change requests can be deleted. Native CRs should be canceled instead.");
+    // Allow deletion if:
+    // 1. CR is imported (has externalSource), OR
+    // 2. CR is in 'draft' or 'awaiting_approval' state
+    const deletableStates = ["draft", "awaiting_approval"];
+    const canDelete = cr.externalSource || deletableStates.includes(cr.state.toLowerCase());
+    
+    if (!canDelete) {
+      return badRequest(`Cannot delete CR in '${cr.state}' state. Only draft, awaiting_approval, or imported CRs can be deleted.`);
     }
     
     // Delete the CR and related records using raw queries for cascade
@@ -218,6 +224,7 @@ export async function DELETE(
     await prisma.$executeRaw`DELETE FROM ApprovalStep WHERE changeRequestId = ${params.number}`;
     await prisma.$executeRaw`DELETE FROM Comment WHERE changeRequestId = ${params.number}`;
     await prisma.$executeRaw`DELETE FROM AuditEvent WHERE changeRequestId = ${params.number}`;
+    await prisma.$executeRaw`DELETE FROM WorkflowTransitionLog WHERE changeRequestId = ${params.number}`;
     await prisma.$executeRaw`DELETE FROM ChangeRequest WHERE number = ${params.number}`;
     
     return NextResponse.json({ deleted: params.number });

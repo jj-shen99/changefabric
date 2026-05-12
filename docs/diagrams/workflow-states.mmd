@@ -1,0 +1,38 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4F46E5', 'primaryTextColor': '#fff', 'lineColor': '#6366F1'}}}%%
+stateDiagram-v2
+    [*] --> draft: Create CR
+
+    draft --> submitted: submit
+    draft --> canceled: cancel
+
+    submitted --> awaiting_approval: request_approval
+    submitted --> canceled: cancel
+
+    awaiting_approval --> approved: approve\n[allApprovalStepsApproved]
+    awaiting_approval --> rejected: reject
+    awaiting_approval --> canceled: cancel
+
+    approved --> scheduled: schedule\n[hasPlannedWindow]
+    approved --> canceled: cancel
+
+    scheduled --> in_progress: start\n[setActualStart]
+    scheduled --> canceled: cancel
+
+    in_progress --> implemented: complete\n[setActualEnd]
+    in_progress --> rolled_back: rollback
+
+    implemented --> closed: close\n[setClosed]
+    implemented --> rolled_back: rollback
+
+    rolled_back --> [*]
+    closed --> [*]
+    rejected --> [*]
+    canceled --> [*]
+
+    note right of draft: Initial state
+    note right of awaiting_approval: Approval steps\nmust complete
+    note right of approved: Ready for\nscheduling
+    note right of in_progress: Change being\nimplemented
+    note left of closed: Terminal state\n(success)
+    note left of rejected: Terminal state\n(denied)
+    note left of rolled_back: Terminal state\n(reverted)

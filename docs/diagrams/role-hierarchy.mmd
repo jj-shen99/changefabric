@@ -1,0 +1,23 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4F46E5', 'primaryTextColor': '#fff', 'lineColor': '#6366F1'}}}%%
+flowchart TB
+    subgraph Hierarchy["🔐 Role Hierarchy"]
+        Admin["👑 ADMIN\n━━━━━━━━━━\n✅ All permissions\n✅ User management\n✅ Settings\n✅ Delete CRs"]
+        
+        Manager["👔 MANAGER\n━━━━━━━━━━\n✅ Manage changes\n✅ Approve changes\n✅ Implement changes\n✅ Manage releases\n✅ View all data"]
+        
+        Approver["✅ APPROVER\n━━━━━━━━━━\n✅ Approve changes\n✅ View metrics\n✅ View activity logs\n❌ View all data"]
+        
+        Implementer["🔧 IMPLEMENTER\n━━━━━━━━━━\n✅ Implement changes\n✅ View metrics\n❌ Approve changes\n❌ View all data"]
+        
+        Requester["📝 REQUESTER\n━━━━━━━━━━\n✅ Create own CRs\n✅ Edit own CRs\n✅ View own metrics\n❌ Approve/Implement"]
+    end
+
+    Admin -->|"supersedes"| Manager
+    Manager -->|"includes"| Approver
+    Manager -->|"includes"| Implementer
+    
+    subgraph Rules["📋 Redundancy Rules"]
+        R1["🚫 Admin user cannot have additional roles"]
+        R2["🚫 Manager cannot have approver/implementer roles"]
+        R3["✅ System auto-prevents redundant assignments"]
+    end

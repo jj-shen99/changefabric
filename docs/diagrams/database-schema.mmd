@@ -1,0 +1,111 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4F46E5'}}}%%
+erDiagram
+    ChangeRequest ||--o{ ApprovalStep : "has"
+    ChangeRequest ||--o{ Comment : "has"
+    ChangeRequest ||--o{ AuditEvent : "has"
+    ChangeRequest ||--o{ WorkflowTransitionLog : "has"
+    ApprovalStep ||--o{ Approval : "has"
+    User ||--o{ UserRole : "has"
+    Role ||--o{ UserRole : "assigned to"
+
+    ChangeRequest {
+        string number PK "CHG0000001"
+        string title
+        string state "draft|submitted|awaiting_approval|..."
+        string workflowKey "standard|emergency|pre_approved"
+        string riskLevel "low|moderate|high|very_high"
+        string impactLevel "1|2|3|4"
+        string urgency "1|2|3|4"
+        string priority "1|2|3|4"
+        string category
+        string type "normal|standard|emergency"
+        text description
+        text implementationPlan
+        text backoutPlan
+        text testPlan
+        text riskAndImpactAnalysis
+        text justification
+        datetime plannedStart
+        datetime plannedEnd
+        datetime actualStart
+        datetime actualEnd
+        string requestedBy FK
+        string assignedTo FK
+        string assignmentGroup
+        float computedRiskScore
+        float mlRiskScore
+        float mlConfidence
+        string externalSource "nullable - for imports"
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    ApprovalStep {
+        string id PK
+        string changeRequestId FK
+        string name "Tech Review, CAB, etc"
+        int ordering "1, 2, 3..."
+        string policy "all|any|quorum:N"
+        string status "pending|approved|rejected"
+        datetime completedAt
+    }
+
+    Approval {
+        string id PK
+        string stepId FK
+        string approverEmail
+        string approverGroup
+        string decision "pending|approved|rejected"
+        text comment
+        datetime decidedAt
+    }
+
+    Comment {
+        string id PK
+        string changeRequestId FK
+        string authorEmail
+        text body
+        string visibility "public|internal"
+        datetime createdAt
+    }
+
+    AuditEvent {
+        string id PK
+        string changeRequestId FK
+        string actor
+        string action "cr_create|cr_update|cr_transition|..."
+        json payload
+        datetime createdAt
+    }
+
+    User {
+        string id PK
+        string email UK
+        string name
+        string password
+        datetime createdAt
+    }
+
+    Role {
+        string id PK
+        string name UK "admin|manager|approver|..."
+        string label
+        json permissions
+    }
+
+    UserRole {
+        string id PK
+        string userId FK
+        string roleId FK
+    }
+
+    WorkflowTransitionLog {
+        string id PK
+        string changeRequestId FK
+        string fromState
+        string toState
+        string event
+        string actor
+        text reason
+        datetime createdAt
+    }

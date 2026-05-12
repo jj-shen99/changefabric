@@ -208,7 +208,7 @@ export const ROLE_PERMISSIONS = {
     canImplementChanges: false,
     canManageReleases: false,
     canEditSettings: false,
-    canViewMetrics: false,
+    canViewMetrics: true,  // Can view metrics for their own CRs
     canViewAllData: false,
   },
 } as const;

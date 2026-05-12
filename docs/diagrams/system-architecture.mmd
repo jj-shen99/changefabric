@@ -1,0 +1,48 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#4F46E5', 'primaryTextColor': '#fff', 'primaryBorderColor': '#4338CA', 'lineColor': '#6366F1', 'secondaryColor': '#E0E7FF', 'tertiaryColor': '#F5F3FF'}}}%%
+flowchart TB
+    subgraph Client["🖥️ CLIENT (Browser)"]
+        Dashboard["📊 Dashboard"]
+        Changes["📝 Changes List"]
+        Impact["🔍 Impact Analysis"]
+        Analytics["📈 Analytics"]
+        MyTasks["✅ My Tasks"]
+    end
+
+    subgraph NextJS["⚡ NEXT.JS APP ROUTER"]
+        subgraph API["API Routes (/api/v2/*)"]
+            ChangesAPI["/changes\nCRUD"]
+            TransAPI["/transitions\nWorkflow"]
+            ApprovalsAPI["/approvals\nDecisions"]
+            AnalyticsAPI["/analytics\nMetrics"]
+            MyTasksAPI["/my-tasks\nUser Tasks"]
+        end
+    end
+
+    subgraph Core["🧠 CORE DOMAIN (src/core/)"]
+        CRService["ChangeRequestService\nOrchestrates all operations"]
+        WorkflowEngine["Workflow Engine\nState Machine"]
+        ApprovalEngine["Approval Engine\nMulti-step approvals"]
+        ImpactAnalyzer["Impact Analyzer\nRisk scoring"]
+        MLScorer["ML Risk Scorer\nPredictive analysis"]
+    end
+
+    subgraph Adapters["🔌 ADAPTERS"]
+        PrismaRepo["PrismaChangeRequestRepository\nDatabase Operations"]
+    end
+
+    subgraph DB["💾 DATABASE"]
+        CR[(ChangeRequest)]
+        Steps[(ApprovalStep)]
+        Approvals[(Approval)]
+        Comments[(Comment)]
+        Audit[(AuditEvent)]
+    end
+
+    Client --> NextJS
+    API --> Core
+    CRService --> WorkflowEngine
+    CRService --> ApprovalEngine
+    CRService --> ImpactAnalyzer
+    CRService --> MLScorer
+    Core --> Adapters
+    Adapters --> DB

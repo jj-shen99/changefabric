@@ -11,8 +11,8 @@ describe("Role Permissions", () => {
       expect(ROLE_PERMISSIONS.admin.canViewAllData).toBe(true);
     });
 
-    it("manager cannot view all data (only their own CRs)", () => {
-      expect(ROLE_PERMISSIONS.manager.canViewAllData).toBe(false);
+    it("manager can view all data", () => {
+      expect(ROLE_PERMISSIONS.manager.canViewAllData).toBe(true);
     });
 
   });

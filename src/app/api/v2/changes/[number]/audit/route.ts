@@ -31,8 +31,16 @@ export async function GET(
     // Check access - same rules as viewing the CR
     const isOwner = cr.requestedBy === ctx.email;
     const isAssigned = cr.assignedTo === ctx.email;
+    
+    // Check if user is an approver for this CR
+    const isApprover = await prisma.approval.findFirst({
+      where: {
+        approverEmail: ctx.email,
+        step: { changeRequestId: params.number },
+      },
+    });
 
-    if (!ctx.perms.canViewAllData && !isOwner && !isAssigned) {
+    if (!ctx.perms.canViewAllData && !isOwner && !isAssigned && !isApprover) {
       return forbidden();
     }
 

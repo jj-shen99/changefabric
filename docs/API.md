@@ -159,6 +159,27 @@ Content-Type: application/json
 DELETE /api/v2/changes/:number
 ```
 
+**Authorization:** Admin only
+
+**Allowed States:**
+- `draft` - CRs not yet submitted
+- `awaiting_approval` - CRs pending approval
+- Imported CRs (any state)
+
+**Response:**
+```json
+{
+  "deleted": "CHG0000025"
+}
+```
+
+**Error Response (invalid state):**
+```json
+{
+  "error": "Cannot delete CR in 'in_progress' state. Only draft, awaiting_approval, or imported CRs can be deleted."
+}
+```
+
 ## Workflow Transitions
 
 ### Get Available Transitions
