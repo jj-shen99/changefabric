@@ -60,7 +60,9 @@ export async function POST(
 ) {
   const ctx = await requireSession();
   if (isResponse(ctx)) return ctx;
-  if (!ctx.perms.canManageChanges) return forbidden();
+  // Allow users who can manage changes OR implement changes to fire transitions
+  // The workflow engine will enforce role-based access for specific transitions
+  if (!ctx.perms.canManageChanges && !ctx.perms.canImplementChanges) return forbidden();
   let body: { event?: string; reason?: string };
   try {
     body = await request.json();
