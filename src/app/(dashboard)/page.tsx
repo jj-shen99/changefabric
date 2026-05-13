@@ -29,8 +29,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
   Legend,
   PieChart,
   Pie,
@@ -42,18 +40,13 @@ import {
   PolarRadiusAxis,
 } from "recharts";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
-import { RiskBadge } from "@/components/risk-badge";
-import { ChangeStatusBadge } from "@/components/status-badge";
-import { RiskGauge } from "@/components/risk-gauge";
 import { PageHeader } from "@/components/page-header";
 import { useData } from "@/hooks";
-import { formatDate } from "@/lib/utils";
-import Link from "next/link";
 import DashboardLoading from "./loading";
 
 export default function OverviewPage() {
   const [days, setDays] = useState(7);
-  const { changeRequests, dashboardMetrics, riskTrendData, deploymentFrequencyData, loading, error } = useData(days);
+  const { changeRequests, dashboardMetrics, loading, error } = useData(days);
 
   if (loading) return <DashboardLoading />;
   if (error) return <div className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">{error}</div>;
@@ -82,13 +75,6 @@ export default function OverviewPage() {
     { label: "Rollback Rate", value: `${rollbackRate}%`, icon: XCircle, color: "text-red-600", bg: "bg-red-50", tooltip: "Percentage of CRs rolled back (Rolled Back / Total)" },
   ];
 
-  const highRiskChanges = changeRequests.filter((cr) => cr.impact?.overallRisk >= 60);
-  const recentChanges = [...changeRequests].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  ).slice(0, 5);
-
-  const avgScore = (fn: (cr: typeof changeRequests[0]) => number) =>
-    changeRequests.length > 0 ? Math.round(changeRequests.reduce((a, c) => a + fn(c), 0) / changeRequests.length) : 0;
 
   /* ═══ Plan Scoring (lightweight inline) ═══ */
   const PLAN_KW: Record<string, string[]> = {
@@ -179,170 +165,6 @@ export default function OverviewPage() {
         ))}
       </div>
 
-      {/* High Risk Changes & Risk Gauges */}
-      <div className="grid grid-cols-3 gap-6">
-        <Card className="col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>
-                <span className="flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-red-500" />
-                  High Risk Changes Requiring Attention
-                </span>
-              </CardTitle>
-              <Link href="/impact" className="text-xs font-medium text-blue-600 hover:underline">
-                View All →
-              </Link>
-            </div>
-          </CardHeader>
-          <div className="space-y-3">
-            {highRiskChanges.map((cr) => (
-              <div
-                key={cr.id}
-                className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-gray-400">{cr.id}</span>
-                    <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{cr.title}</span>
-                  </div>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
-                    <span>{cr.team}</span>
-                    <span>•</span>
-                    <span>{cr.author}</span>
-                    <span>•</span>
-                    <span>{cr.risk} risk</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <ChangeStatusBadge status={cr.status} />
-                  <RiskBadge score={cr.impact.overallRisk} />
-                </div>
-              </div>
-            ))}
-            {highRiskChanges.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">No high risk changes — looking good!</p>
-            )}
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Risk Overview</CardTitle>
-          </CardHeader>
-          <div className="flex flex-wrap justify-center gap-4">
-            <RiskGauge score={dashboardMetrics.avgRiskScore} label="Overall" size="lg" />
-            <div className="grid grid-cols-2 gap-3">
-              <RiskGauge score={avgScore((c) => c.impact.outageRisk)} label="Outage" />
-              <RiskGauge score={avgScore((c) => c.impact.performanceRisk)} label="Performance" />
-              <RiskGauge score={avgScore((c) => c.impact.functionalityRisk)} label="Functionality" />
-              <RiskGauge score={avgScore((c) => c.impact.securityRisk)} label="Security" />
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Risk Score Trend</CardTitle>
-          </CardHeader>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={riskTrendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" domain={[0, 100]} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "8px",
-                    border: "1px solid #e2e8f0",
-                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                  }}
-                />
-                <Line type="monotone" dataKey="avgRisk" stroke="#2563eb" strokeWidth={2} dot={{ r: 4, fill: "#2563eb" }} name="Avg Risk Score" />
-                <Line type="monotone" dataKey="deployments" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4, fill: "#8b5cf6" }} name="Deployments" />
-                <Legend />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Deployment Frequency</CardTitle>
-          </CardHeader>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={deploymentFrequencyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "8px",
-                    border: "1px solid #e2e8f0",
-                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                  }}
-                />
-                <Bar dataKey="successful" stackId="a" fill="#22c55e" name="Successful" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="failed" stackId="a" fill="#ef4444" name="Failed" />
-                <Bar dataKey="rolledBack" stackId="a" fill="#f97316" name="Rolled Back" radius={[4, 4, 0, 0]} />
-                <Legend />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
-
-      {/* Recent Changes Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Recent Change Requests</CardTitle>
-            <Link href="/changes" className="text-xs font-medium text-blue-600 hover:underline">
-              View All →
-            </Link>
-          </div>
-        </CardHeader>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 dark:border-gray-800">
-                <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">ID</th>
-                <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Title</th>
-                <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Team</th>
-                <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Priority</th>
-                <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Status</th>
-                <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Risk Score</th>
-                <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentChanges.map((cr) => (
-                <tr key={cr.id} className="border-b border-gray-50 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50">
-                  <td className="py-3 font-mono text-xs text-gray-400">{cr.id}</td>
-                  <td className="py-3 font-medium text-gray-900 dark:text-gray-100">{cr.title}</td>
-                  <td className="py-3 text-gray-600 dark:text-gray-400">{cr.team}</td>
-                  <td className="py-3">
-                    <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
-                      {cr.priority}
-                    </span>
-                  </td>
-                  <td className="py-3">
-                    <ChangeStatusBadge status={cr.status} />
-                  </td>
-                  <td className="py-3">
-                    <RiskBadge score={cr.impact.overallRisk} size="sm" />
-                  </td>
-                  <td className="py-3 text-gray-500">{formatDate(cr.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
 
       {/* ═══ Plan Readiness KPIs ═══ */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -603,35 +425,6 @@ export default function OverviewPage() {
             );
           })()}
 
-          {/* ═══ Top Risk Change Requests ═══ */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-500" /> Top Risk Change Requests</CardTitle>
-                <Link href="/impact" className="text-xs font-medium text-blue-600 hover:underline">Analyze in Detail →</Link>
-              </div>
-              <CardDescription>Highest risk CRs with plan readiness scores</CardDescription>
-            </CardHeader>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="border-b border-gray-100 dark:border-gray-800"><th className="pb-3 text-left font-medium text-gray-500 dark:text-gray-400">Change</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Risk</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Readiness</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Status</th><th className="pb-3 text-center font-medium text-gray-500 dark:text-gray-400">Team</th></tr></thead>
-                <tbody>
-                  {[...changeRequests].sort((a, b) => (b.impact?.overallRisk || 0) - (a.impact?.overallRisk || 0)).slice(0, 6).map((cr) => {
-                    const pr = planResults.find(p => p.cr.id === cr.id || p.cr.number === cr.number);
-                    return (
-                      <tr key={cr.id || cr.number} className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                        <td className="py-2.5"><span className="font-mono text-[11px] text-gray-400">{cr.number || cr.id}</span><p className="font-medium text-gray-900 dark:text-gray-100 text-xs line-clamp-1">{cr.short_description || cr.title}</p></td>
-                        <td className="py-2.5 text-center"><RiskBadge score={cr.impact?.overallRisk || 0} size="sm" /></td>
-                        <td className="py-2.5 text-center">{pr ? <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${pBg(pr.overallScore)}`}>{pr.overallScore}</span> : <span className="text-gray-400">—</span>}</td>
-                        <td className="py-2.5 text-center"><ChangeStatusBadge status={cr.status || cr.state} /></td>
-                        <td className="py-2.5 text-center"><span className="text-[10px] text-gray-500">{cr.team || cr.assignment_group || "—"}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
           </>
         );
       })()}
