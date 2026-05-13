@@ -461,3 +461,18 @@ model CRTypeApprover {
   @@index([approverEmail])
   @@index([isActive])
 }
+
+// ── System Settings ──────────────────────────────────────────
+// Key-value store for system-wide settings like approval policies
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique  // e.g., "approval_policy_critical", "notification_threshold"
+  value     String             // JSON string for complex values
+  category  String   @default("general")  // e.g., "approval", "notification", "general"
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([category])
+}

@@ -1813,6 +1813,10 @@ ROI Analysis:
 
     // Approval steps + decisions
     if (s.approvalSteps) {
+      // Delete existing approval steps for this CR to avoid duplicates on re-seed
+      await prisma.approval.deleteMany({ where: { changeRequestId: s.number } });
+      await prisma.approvalStep.deleteMany({ where: { changeRequestId: s.number } });
+      
       for (const step of s.approvalSteps) {
         const created = await prisma.approvalStep.create({
           data: {

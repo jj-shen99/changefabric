@@ -314,7 +314,6 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
       <Card>
         <div className="flex flex-wrap items-center gap-3 p-4">
           <Pill tone="indigo">state: {cr.state}</Pill>
-          <Pill tone="amber">approval: {cr.approvalState}</Pill>
           <Pill tone="emerald">type: {cr.type}</Pill>
           <Pill tone="rose">risk: {cr.riskLevel}</Pill>
           <div className="ml-auto flex items-center gap-3 text-xs">

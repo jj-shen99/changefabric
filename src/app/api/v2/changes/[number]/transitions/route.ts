@@ -6,6 +6,8 @@
 
 import { NextResponse } from "next/server";
 import { availableTransitions, BUILTIN_WORKFLOWS, getChangeRequestService } from "@/core";
+import { prisma } from "@/lib/prisma";
+import type { ApprovalPolicyConfig } from "@/core/services/change-request-service";
 import {
   badRequest,
   forbidden,
@@ -14,6 +16,29 @@ import {
   requireSession,
   serverError,
 } from "../../../_helpers";
+
+// Default approval policies if none configured
+const DEFAULT_POLICIES: ApprovalPolicyConfig[] = [
+  { id: "critical", riskLevel: "critical", minScore: 80, maxScore: 100, requiredApprovals: 3, approverGroups: ["Tech Lead", "Security Lead", "CAB"], autoApprove: false },
+  { id: "high", riskLevel: "high", minScore: 60, maxScore: 79, requiredApprovals: 2, approverGroups: ["Tech Lead", "Manager"], autoApprove: false },
+  { id: "medium", riskLevel: "medium", minScore: 40, maxScore: 59, requiredApprovals: 1, approverGroups: ["Tech Lead"], autoApprove: false },
+  { id: "low", riskLevel: "low", minScore: 0, maxScore: 39, requiredApprovals: 0, approverGroups: [], autoApprove: true },
+];
+
+/** Load approval policies from database or return defaults */
+async function loadApprovalPolicies(): Promise<ApprovalPolicyConfig[]> {
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: "approval_policies" },
+    });
+    if (setting?.value) {
+      return JSON.parse(setting.value) as ApprovalPolicyConfig[];
+    }
+  } catch {
+    // Fall through to defaults
+  }
+  return DEFAULT_POLICIES;
+}
 
 export async function GET(
   _req: Request,
@@ -48,7 +73,8 @@ export async function POST(
       { actor: ctx.email, actorRole: ctx.primaryRole },
       params.number,
       body.event,
-      body.reason
+      body.reason,
+      { approvalPolicyLoader: loadApprovalPolicies }
     );
     return NextResponse.json(cr);
   } catch (err) {

@@ -73,6 +73,17 @@ export interface CRTypeApprover {
   ordering: number;
 }
 
+/** Configuration for risk-based approval policies */
+export interface ApprovalPolicyConfig {
+  id: string;
+  riskLevel: "critical" | "high" | "medium" | "low";
+  minScore: number;
+  maxScore: number;
+  requiredApprovals: number;
+  approverGroups: string[];
+  autoApprove: boolean;
+}
+
 export interface ChangeRequestRepository {
   nextNumber(): Promise<string>;
   create(cr: ChangeRequest): Promise<ChangeRequest>;
@@ -304,7 +315,8 @@ export class ChangeRequestService {
     ctx: ServiceContext,
     crNumber: string,
     event: string,
-    reason?: string
+    reason?: string,
+    options?: { approvalPolicyLoader?: () => Promise<ApprovalPolicyConfig[]> }
   ): Promise<ChangeRequest> {
     const cr = await this.requireCR(crNumber);
     const wf = this.requireWorkflow(cr.workflowKey);
@@ -337,6 +349,12 @@ export class ChangeRequestService {
       }
     }
     const updated = await this.repo.update(crNumber, patch);
+    
+    // Auto-create approval steps when entering awaiting_approval state
+    if (result.to === "awaiting_approval" && options?.approvalPolicyLoader) {
+      await this.applyApprovalPolicies(ctx, crNumber, cr.computedRiskScore ?? 0, options.approvalPolicyLoader);
+    }
+    
     await this.repo.logTransition({
       changeRequestId: crNumber,
       fromState: cr.state,
@@ -352,6 +370,69 @@ export class ChangeRequestService {
       payload: { from: cr.state, to: result.to, event, reason },
     });
     return updated;
+  }
+  
+  /** Apply approval policies based on risk score - auto-create approval steps */
+  private async applyApprovalPolicies(
+    ctx: ServiceContext,
+    crNumber: string,
+    riskScore: number,
+    policyLoader: () => Promise<ApprovalPolicyConfig[]>
+  ): Promise<void> {
+    try {
+      const policies = await policyLoader();
+      // Find the matching policy for this risk score
+      const policy = policies.find(p => riskScore >= p.minScore && riskScore <= p.maxScore);
+      
+      if (!policy || policy.autoApprove) {
+        // No policy or auto-approve - no approval steps needed
+        return;
+      }
+      
+      // Check if approval steps already exist
+      const existingSteps = await this.repo.listApprovalSteps(crNumber);
+      if (existingSteps.length > 0) {
+        // Steps already exist (manually added or from CR type defaults)
+        return;
+      }
+      
+      // Create approval steps based on policy
+      for (let i = 0; i < policy.approverGroups.length; i++) {
+        const groupName = policy.approverGroups[i];
+        // Get approvers from the group (using CRTypeApprover table or default)
+        const approvers = await this.getApproversForGroup(groupName);
+        
+        if (approvers.length > 0) {
+          await this.addApprovalStep(ctx, crNumber, {
+            name: groupName,
+            ordering: i + 1,
+            policy: policy.requiredApprovals > 1 ? `quorum:${Math.min(policy.requiredApprovals, approvers.length)}` as ApprovalPolicy : "any",
+            approvers: approvers.map(a => ({ email: a.email, group: groupName })),
+          });
+        }
+      }
+    } catch (err) {
+      // Log but don't fail the transition if policy application fails
+      console.error("Failed to apply approval policies:", err);
+    }
+  }
+  
+  /** Get approvers for a given group name */
+  private async getApproversForGroup(groupName: string): Promise<Array<{ email: string }>> {
+    // Try to find approvers from CRTypeApprover table with matching step name
+    const typeApprovers = await this.repo.getCRTypeApprovers?.("normal");
+    if (typeApprovers) {
+      const groupApprovers = typeApprovers.filter(a => 
+        a.stepName.toLowerCase() === groupName.toLowerCase() ||
+        a.approverGroup?.toLowerCase() === groupName.toLowerCase()
+      );
+      if (groupApprovers.length > 0) {
+        return groupApprovers.map(a => ({ email: a.approverEmail }));
+      }
+    }
+    
+    // Fallback: return empty (admin can manually add approvers)
+    return [];
   }
 
   /** Add a multi-person approval step. */
@@ -438,17 +519,22 @@ export class ChangeRequestService {
     });
 
     // Auto-transition CR state based on approval outcome
+    // Use a system context with admin role to ensure the transition succeeds
+    // regardless of the approver's role (the approval decision itself is the authorization)
+    const systemCtx: ServiceContext = { actor: ctx.actor, actorRole: "admin" };
     if (aggregate === "approved" && updatedCR.state === "awaiting_approval") {
       try {
-        updatedCR = await this.transition(ctx, crNumber, "approve");
-      } catch {
-        // Transition may fail if guards aren't met; that's okay
+        updatedCR = await this.transition(systemCtx, crNumber, "approve");
+      } catch (err) {
+        // Log the error for debugging but don't fail the approval
+        console.error(`Auto-transition to approved failed for ${crNumber}:`, err);
       }
     } else if (aggregate === "rejected" && updatedCR.state === "awaiting_approval") {
       try {
-        updatedCR = await this.transition(ctx, crNumber, "reject");
-      } catch {
-        // Transition may fail; that's okay
+        updatedCR = await this.transition(systemCtx, crNumber, "reject");
+      } catch (err) {
+        // Log the error for debugging but don't fail the approval
+        console.error(`Auto-transition to rejected failed for ${crNumber}:`, err);
       }
     }
 

@@ -37,9 +37,9 @@ export async function GET(
     const isOwner = cr.requestedBy === ctx.email;
     const isAssigned = cr.assignedTo === ctx.email;
     
-    // Draft CRs are only visible to the owner (requestedBy) and admins
+    // Draft CRs are only visible to the owner (requestedBy), assigned user, and admins
     const isDraft = cr.state === "draft";
-    if (isDraft && !ctx.perms.canViewAllData && !isOwner) {
+    if (isDraft && !ctx.perms.canViewAllData && !isOwner && !isAssigned) {
       return forbidden();
     }
     

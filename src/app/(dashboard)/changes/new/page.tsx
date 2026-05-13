@@ -173,6 +173,7 @@ export default function NewChangePage() {
   }, [copyFrom, existingCRs]);
 
   // Search users for Assigned To autocomplete
+  // Only show users with implementer or manager roles (who can implement changes)
   useEffect(() => {
     if (assignedToInput.length < 1) {
       setUserSuggestions([]);
@@ -180,7 +181,7 @@ export default function NewChangePage() {
     }
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/users/search?q=${encodeURIComponent(assignedToInput)}`);
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(assignedToInput)}&role=assignable`);
         if (res.ok) {
           const data = await res.json();
           setUserSuggestions(data.users || []);
