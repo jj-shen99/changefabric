@@ -431,24 +431,24 @@ describe("Changes Page Sorting", () => {
 
     test("clicking same column toggles direction: desc -> asc", () => {
       const sortKey: SortKey = "number";
-      let sortDir: SortDir = "desc";
+      let sortDir = "desc" as SortDir;
       
       // Simulate clicking same column
       const clickedKey: SortKey = "number";
       if (sortKey === clickedKey) {
-        sortDir = sortDir === "asc" ? "desc" : "asc";
+        sortDir = (sortDir as SortDir) === "asc" ? "desc" : "asc";
       }
       
       expect(sortDir).toBe("asc");
     });
 
     test("clicking different column sets new key and resets to asc", () => {
-      let sortKey: SortKey = "number";
-      let sortDir: SortDir = "desc";
+      let sortKey = "number" as SortKey;
+      let sortDir = "desc" as SortDir;
       
       // Simulate clicking different column
       const clickedKey: SortKey = "title";
-      if (sortKey !== clickedKey) {
+      if ((sortKey as SortKey) !== clickedKey) {
         sortKey = clickedKey;
         sortDir = "asc";
       }

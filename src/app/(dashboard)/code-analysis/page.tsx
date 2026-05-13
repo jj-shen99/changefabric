@@ -32,7 +32,7 @@ export default function CodeAnalysisPage() {
   const [gitData, setGitData] = useState<GitAnalysisData | null>(null);
   const [gitLoading, setGitLoading] = useState(false);
   const [gitError, setGitError] = useState<string | null>(null);
-  const [gitRepo, setGitRepo] = useState("https://github.com/jj-shen99/change_management");
+  const [gitRepo, setGitRepo] = useState("");
   const [gitDays, setGitDays] = useState(14);
   const [expandedCommit, setExpandedCommit] = useState<string | null>(null);
 
@@ -202,19 +202,9 @@ export default function CodeAnalysisPage() {
                   type="text"
                   value={gitRepo}
                   onChange={(e) => setGitRepo(e.target.value)}
-                  onFocus={(e) => {
-                    if (gitRepo === "https://github.com/jj-shen99/change_management") {
-                      e.target.select();
-                    }
-                  }}
-                  placeholder="https://code.devsnc.com/owner/repo"
-                  className={`w-full rounded-lg border border-purple-200 bg-white py-2 px-3 text-sm outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 dark:border-purple-800 dark:bg-gray-900 dark:text-gray-100 ${
-                    gitRepo === "https://github.com/jj-shen99/change_management" ? "text-gray-400 dark:text-gray-500 italic" : ""
-                  }`}
+                  placeholder="https://github.com/owner/repo or https://code.devsnc.com/owner/repo"
+                  className="w-full rounded-lg border border-purple-200 bg-white py-2 px-3 text-sm outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 dark:border-purple-800 dark:bg-gray-900 dark:text-gray-100"
                 />
-                {gitRepo === "https://github.com/jj-shen99/change_management" && (
-                  <p className="mt-1 text-xs text-gray-400 italic">Default example repository - replace with your own</p>
-                )}
               </div>
               <div className="w-32">
                 <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Days back</label>

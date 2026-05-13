@@ -101,6 +101,7 @@ export default function RolesPage() {
         <Card>
           <CardHeader>
             <CardTitle>System Roles</CardTitle>
+            <p className="text-sm text-gray-500 dark:text-gray-400">View and manage role permissions for the change management system</p>
           </CardHeader>
           {loading ? (
             <div className="flex items-center justify-center py-12">

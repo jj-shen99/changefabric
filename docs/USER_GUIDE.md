@@ -33,16 +33,18 @@ The system has 5 core user roles with different permission levels:
 | Approve CR | ✓ | ✓ | ✓ | ✗ | ✗ |
 | Implement CR | ✓ | ✓ | ✗ | ✓ | ✗ |
 | Manage Releases | ✓ | ✓ | ✗ | ✗ | ✗ |
-| Manage Users | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Manage Users | ✓ | ✓* | ✗ | ✗ | ✗ |
 | Manage Settings | ✓ | ✗ | ✗ | ✗ | ✗ |
 | View Metrics | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Delete CRs (draft/awaiting) | ✓ | ✗ | ✗ | ✗ | ✗ |
 
+*\* Manager can manage non-admin users only*
+
 **Role Descriptions:**
 - **Admin**: Full system access including user management, settings, and CR deletion
-- **Manager**: Create/edit CRs, approve changes, implement changes, manage releases (includes approver + implementer abilities)
+- **Manager**: Create/edit CRs, approve changes, implement changes, manage releases, manage non-admin users (cannot manage roles)
 - **Approver**: Review and approve CRs assigned to them, view activity logs
-- **Implementer**: Execute approved changes (DevOps, SREs, DBAs)
+- **Implementer**: Execute approved changes on any CR (DevOps, SREs, DBAs)
 - **Requester**: Create and manage their own CRs, view metrics for own CRs
 
 **Role Hierarchy:**

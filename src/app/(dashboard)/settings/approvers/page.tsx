@@ -32,9 +32,9 @@ interface GroupSuggestion {
 }
 
 const CR_TYPES = [
-  { value: "standard", label: "Standard", icon: FileText, color: "text-blue-600", bg: "bg-blue-50", description: "Pre-approved low-risk changes" },
-  { value: "normal", label: "Normal", icon: Shield, color: "text-amber-600", bg: "bg-amber-50", description: "Standard changes requiring approval" },
-  { value: "emergency", label: "Emergency", icon: Zap, color: "text-red-600", bg: "bg-red-50", description: "Urgent changes with expedited approval" },
+  { value: "standard", label: "Standard", icon: FileText, color: "text-blue-600", bg: "bg-blue-50", description: "Normal changes with risk-based approval tiers" },
+  { value: "emergency", label: "Emergency", icon: Zap, color: "text-orange-600", bg: "bg-orange-50", description: "Urgent changes with fast-track and retrospective approval" },
+  { value: "pre-approved", label: "Pre-approved", icon: Shield, color: "text-green-600", bg: "bg-green-50", description: "Low-risk templated changes with no approval required" },
 ];
 
 export default function ApproversPage() {
