@@ -332,15 +332,10 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
             <div className="flex flex-wrap gap-2">
               {transitions
                 .filter((t) => {
-                  // In draft state for standard workflow, only show submit button to owner
-                  // For emergency workflow, show implement button (emergency CRs skip submit)
+                  // In draft state, only show submit button to owner
                   if (cr.state === "draft") {
                     if (t.event === "submit") {
                       return userAccess?.isOwner;
-                    }
-                    // Emergency CRs: show implement button for owner, assigned implementers, managers, admins
-                    if (t.event === "implement" && cr.workflowKey === "emergency") {
-                      return userAccess?.isOwner || userAccess?.isAssigned || userAccess?.isAdmin;
                     }
                     // Show cancel button for managers/admins
                     if (t.event === "cancel") {
@@ -352,8 +347,8 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
                   if (t.event === "submit") {
                     return userAccess?.isOwner;
                   }
-                  // Hide 'approve' button - approval happens automatically when all approval steps are approved
-                  if (t.event === "approve") {
+                  // Hide 'approve' and 'approve_emergency' buttons - approval happens via approval steps UI
+                  if (t.event === "approve" || t.event === "approve_emergency") {
                     return false;
                   }
                   // Hide 'reject' workflow action for approver-only users - they use the reject button in approval steps

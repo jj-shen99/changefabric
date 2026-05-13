@@ -26,9 +26,11 @@ function createMockRuntime(): WorkflowRuntime<Record<string, unknown>> {
       allApprovalStepsApproved: () => true,
       hasBackoutPlan: () => true,
       hasImplementationPlan: () => true,
+      emergencyApprovalGranted: () => true,
     },
     effects: {
       startApprovalSteps: () => {},
+      startEmergencyApproval: () => {},
       setActualStart: () => {},
       setActualEnd: () => {},
       setClosed: () => {},
@@ -83,19 +85,19 @@ describe("In Progress State", () => {
       expect(EMERGENCY_WORKFLOW.states.in_progress.name).toBe("In Progress");
     });
 
-    it("implement transitions from draft to in_progress", async () => {
+    it("approve_emergency transitions from emergency_approval to in_progress", async () => {
       const runtime = createMockRuntime();
-      const ctx = { changeRequest: { number: "CHG001" }, actor: "impl@test.com", actorRole: "implementer" };
+      const ctx = { changeRequest: { number: "CHG001" }, actor: "mgr@test.com", actorRole: "manager" };
       
-      const result = await applyTransition(EMERGENCY_WORKFLOW, runtime, "draft", "implement", ctx);
+      const result = await applyTransition(EMERGENCY_WORKFLOW, runtime, "emergency_approval", "approve_emergency", ctx);
       expect(result.to).toBe("in_progress");
     });
 
-    it("complete transitions from in_progress to implemented", async () => {
+    it("implement transitions from in_progress to implemented", async () => {
       const runtime = createMockRuntime();
       const ctx = { changeRequest: { number: "CHG001" }, actor: "impl@test.com", actorRole: "implementer" };
       
-      const result = await applyTransition(EMERGENCY_WORKFLOW, runtime, "in_progress", "complete", ctx);
+      const result = await applyTransition(EMERGENCY_WORKFLOW, runtime, "in_progress", "implement", ctx);
       expect(result.to).toBe("implemented");
     });
   });
@@ -224,15 +226,25 @@ describe("Full Implementation Flow", () => {
     expect(result.to).toBe("rolled_back");
   });
 
-  it("emergency workflow: draft → implement → in_progress → complete → implemented", async () => {
+  it("emergency workflow: draft → submit → submitted → emergency_approval → in_progress → implement → implemented", async () => {
+    const reqCtx = { changeRequest: { number: "CHG001" }, actor: "req@test.com", actorRole: "requester" };
+    const mgrCtx = { changeRequest: { number: "CHG001" }, actor: "mgr@test.com", actorRole: "manager" };
     const implCtx = { changeRequest: { number: "CHG001" }, actor: "impl@test.com", actorRole: "implementer" };
 
-    // Start implementation directly from draft (emergency)
-    let result = await applyTransition(EMERGENCY_WORKFLOW, runtime, "draft", "implement", implCtx);
+    // Submit emergency CR
+    let result = await applyTransition(EMERGENCY_WORKFLOW, runtime, "draft", "submit", reqCtx);
+    expect(result.to).toBe("submitted");
+
+    // Request emergency approval
+    result = await applyTransition(EMERGENCY_WORKFLOW, runtime, "submitted", "request_emergency_approval", mgrCtx);
+    expect(result.to).toBe("emergency_approval");
+
+    // Approve emergency (goes to in_progress)
+    result = await applyTransition(EMERGENCY_WORKFLOW, runtime, "emergency_approval", "approve_emergency", mgrCtx);
     expect(result.to).toBe("in_progress");
 
-    // Complete implementation
-    result = await applyTransition(EMERGENCY_WORKFLOW, runtime, "in_progress", "complete", implCtx);
+    // Implement (complete implementation)
+    result = await applyTransition(EMERGENCY_WORKFLOW, runtime, "in_progress", "implement", implCtx);
     expect(result.to).toBe("implemented");
   });
 
@@ -277,17 +289,34 @@ describe("All Workflows Have in_progress State", () => {
       expect(workflow.states.in_progress.name).toBe("In Progress");
     });
 
-    it(`${workflow.key} workflow has implement → in_progress transition`, () => {
-      const implementTransition = workflow.transitions.find(t => t.event === "implement");
-      expect(implementTransition).toBeDefined();
-      expect(implementTransition?.to).toBe("in_progress");
-    });
+    if (workflow.key === "emergency") {
+      // Emergency workflow: approve_emergency → in_progress, implement → implemented
+      it(`${workflow.key} workflow has approve_emergency → in_progress transition`, () => {
+        const approveEmergencyTransition = workflow.transitions.find(t => t.event === "approve_emergency");
+        expect(approveEmergencyTransition).toBeDefined();
+        expect(approveEmergencyTransition?.to).toBe("in_progress");
+      });
 
-    it(`${workflow.key} workflow has complete → implemented transition`, () => {
-      const completeTransition = workflow.transitions.find(t => t.event === "complete");
-      expect(completeTransition).toBeDefined();
-      expect(completeTransition?.from).toBe("in_progress");
-      expect(completeTransition?.to).toBe("implemented");
-    });
+      it(`${workflow.key} workflow has implement → implemented transition`, () => {
+        const implementTransition = workflow.transitions.find(t => t.event === "implement");
+        expect(implementTransition).toBeDefined();
+        expect(implementTransition?.from).toBe("in_progress");
+        expect(implementTransition?.to).toBe("implemented");
+      });
+    } else {
+      // Standard and pre-approved workflows: implement → in_progress, complete → implemented
+      it(`${workflow.key} workflow has implement → in_progress transition`, () => {
+        const implementTransition = workflow.transitions.find(t => t.event === "implement");
+        expect(implementTransition).toBeDefined();
+        expect(implementTransition?.to).toBe("in_progress");
+      });
+
+      it(`${workflow.key} workflow has complete → implemented transition`, () => {
+        const completeTransition = workflow.transitions.find(t => t.event === "complete");
+        expect(completeTransition).toBeDefined();
+        expect(completeTransition?.from).toBe("in_progress");
+        expect(completeTransition?.to).toBe("implemented");
+      });
+    }
   });
 });

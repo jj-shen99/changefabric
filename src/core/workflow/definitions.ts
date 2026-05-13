@@ -48,11 +48,13 @@ export const EMERGENCY_WORKFLOW: WorkflowDefinition = {
   key: "emergency",
   name: "Emergency Change",
   description:
-    "Emergency: skip pre-approval, implement immediately, retrospective approval.",
-  version: 4,
+    "Emergency: submit → emergency approval → implement → retrospective approval → close",
+  version: 5,
   initial: "draft",
   states: {
     draft: { name: "Draft", tags: ["editable"] },
+    submitted: { name: "Submitted", tags: ["in-flight"] },
+    emergency_approval: { name: "Emergency Approval", tags: ["in-flight"] },
     in_progress: { name: "In Progress", tags: ["in-flight", "no-cancel"] },
     implemented: { name: "Implemented", tags: ["in-flight", "no-cancel"] },
     awaiting_approval: { name: "Retro Approval", tags: ["in-flight", "no-cancel"] },
@@ -62,13 +64,17 @@ export const EMERGENCY_WORKFLOW: WorkflowDefinition = {
     canceled: { name: "Canceled", terminal: true, tags: ["done"] },
   },
   transitions: [
-    { event: "implement", from: "draft", to: "in_progress", requiredRole: "implementer", effects: ["setActualStart"] },
-    { event: "complete", from: "in_progress", to: "implemented", requiredRole: "implementer", effects: ["setActualEnd"] },
+    { event: "submit", from: "draft", to: "submitted", requiredRole: "requester" },
+    { event: "request_emergency_approval", from: "submitted", to: "emergency_approval", requiredRole: "manager", effects: ["startEmergencyApproval"] },
+    { event: "approve_emergency", from: "emergency_approval", to: "in_progress", guards: ["emergencyApprovalGranted"], requiredRole: "manager", effects: ["setActualStart"] },
+    { event: "reject", from: ["submitted", "emergency_approval"], to: "rejected", requiredRole: "manager" },
+    { event: "implement", from: "in_progress", to: "implemented", requiredRole: "implementer", effects: ["setActualEnd"] },
     { event: "rollback", from: ["in_progress", "implemented"], to: "rolled_back", requiredRole: "manager", effects: ["setRolledBack"] },
     { event: "request_approval", from: "implemented", to: "awaiting_approval", requiredRole: "manager", effects: ["startApprovalSteps"] },
     { event: "approve", from: "awaiting_approval", to: "closed", guards: ["allApprovalStepsApproved"], requiredRole: "manager", effects: ["setClosed"] },
-    { event: "reject", from: "awaiting_approval", to: "rejected", requiredRole: "admin" },
-    { event: "cancel", from: "draft", to: "canceled", requiredRole: "manager", effects: ["setClosed"] },
+    { event: "reject_retro", from: "awaiting_approval", to: "rejected", requiredRole: "admin" },
+    { event: "cancel", from: ["draft", "submitted"], to: "canceled", requiredRole: "manager", effects: ["setClosed"] },
+    { event: "return_to_draft", from: "submitted", to: "draft", requiredRole: "manager" },
   ],
 };
 

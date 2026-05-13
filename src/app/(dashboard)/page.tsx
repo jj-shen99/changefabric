@@ -277,6 +277,155 @@ export default function OverviewPage() {
         </div>
       </Card>
 
+      {/* Change Types & Approval Logic */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-purple-500" />
+            Change Types & Approval Logic
+          </CardTitle>
+          <CardDescription>Different change types follow different approval workflows</CardDescription>
+        </CardHeader>
+        <div className="px-4 pb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Standard Change */}
+            <div className="rounded-lg border-2 border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="rounded-full bg-blue-100 dark:bg-blue-900 p-1.5">
+                  <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-blue-700 dark:text-blue-300">Standard Change</h4>
+                  <span className="text-[10px] text-blue-500">Normal workflow</span>
+                </div>
+                <span className="ml-auto rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-xs font-bold text-blue-600 dark:text-blue-400">
+                  {changeRequests.filter(c => c.type === 'normal' || c.type === 'standard').length}
+                </span>
+              </div>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3 w-3 text-blue-500" />
+                  <span className="text-gray-600 dark:text-gray-400">Full approval required</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-3 w-3 text-blue-500" />
+                  <span className="text-gray-600 dark:text-gray-400">Scheduled implementation</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Shield className="h-3 w-3 text-blue-500" />
+                  <span className="text-gray-600 dark:text-gray-400">Risk-based approval tiers</span>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800">
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                  <strong>Flow:</strong> Draft → Submit → Approval → Schedule → Implement → Close
+                </p>
+              </div>
+            </div>
+
+            {/* Emergency Change */}
+            <div className="rounded-lg border-2 border-orange-200 bg-orange-50/50 dark:border-orange-800 dark:bg-orange-950/30 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="rounded-full bg-orange-100 dark:bg-orange-900 p-1.5">
+                  <Zap className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-orange-700 dark:text-orange-300">Emergency Change</h4>
+                  <span className="text-[10px] text-orange-500">Fast-track workflow</span>
+                </div>
+                <span className="ml-auto rounded-full bg-orange-100 dark:bg-orange-900 px-2 py-0.5 text-xs font-bold text-orange-600 dark:text-orange-400">
+                  {changeRequests.filter(c => c.type === 'emergency').length}
+                </span>
+              </div>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-3 w-3 text-orange-500" />
+                  <span className="text-gray-600 dark:text-gray-400">Emergency approval (fast-track)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Activity className="h-3 w-3 text-orange-500" />
+                  <span className="text-gray-600 dark:text-gray-400">Immediate implementation</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ClipboardCheck className="h-3 w-3 text-orange-500" />
+                  <span className="text-gray-600 dark:text-gray-400">Retrospective approval required</span>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-800">
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                  <strong>Flow:</strong> Draft → Submit → Emergency Approval → Implement → Retro Approval → Close
+                </p>
+              </div>
+            </div>
+
+            {/* Pre-approved Change */}
+            <div className="rounded-lg border-2 border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/30 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="rounded-full bg-green-100 dark:bg-green-900 p-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-green-700 dark:text-green-300">Pre-approved Change</h4>
+                  <span className="text-[10px] text-green-500">Low-risk template</span>
+                </div>
+                <span className="ml-auto rounded-full bg-green-100 dark:bg-green-900 px-2 py-0.5 text-xs font-bold text-green-600 dark:text-green-400">
+                  {changeRequests.filter(c => c.workflowKey === 'standard_preapproved').length}
+                </span>
+              </div>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3 w-3 text-green-500" />
+                  <span className="text-gray-600 dark:text-gray-400">No approval gate needed</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3 w-3 text-green-500" />
+                  <span className="text-gray-600 dark:text-gray-400">Direct scheduling</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Shield className="h-3 w-3 text-green-500" />
+                  <span className="text-gray-600 dark:text-gray-400">Low-risk only (auto-approved)</span>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-800">
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                  <strong>Flow:</strong> Draft → Schedule → Implement → Close
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Approval Tiers */}
+          <div className="mt-6 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-indigo-500" />
+              Risk-Based Approval Tiers
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="rounded-lg bg-red-50 dark:bg-red-950/30 p-3 border border-red-200 dark:border-red-800">
+                <div className="text-xs font-bold text-red-600 dark:text-red-400">Critical (80-100)</div>
+                <div className="text-lg font-bold text-red-700 dark:text-red-300">3 Approvers</div>
+                <div className="text-[10px] text-red-500">Tech Lead, Security, CAB</div>
+              </div>
+              <div className="rounded-lg bg-orange-50 dark:bg-orange-950/30 p-3 border border-orange-200 dark:border-orange-800">
+                <div className="text-xs font-bold text-orange-600 dark:text-orange-400">High (60-79)</div>
+                <div className="text-lg font-bold text-orange-700 dark:text-orange-300">2 Approvers</div>
+                <div className="text-[10px] text-orange-500">Tech Lead, Manager</div>
+              </div>
+              <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-3 border border-amber-200 dark:border-amber-800">
+                <div className="text-xs font-bold text-amber-600 dark:text-amber-400">Medium (40-59)</div>
+                <div className="text-lg font-bold text-amber-700 dark:text-amber-300">1 Approver</div>
+                <div className="text-[10px] text-amber-500">Tech Lead</div>
+              </div>
+              <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-3 border border-green-200 dark:border-green-800">
+                <div className="text-xs font-bold text-green-600 dark:text-green-400">Low (0-39)</div>
+                <div className="text-lg font-bold text-green-700 dark:text-green-300">Auto-Approve</div>
+                <div className="text-[10px] text-green-500">No manual approval</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4">
         {kpiCards.map((kpi) => (

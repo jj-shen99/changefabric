@@ -2,13 +2,21 @@
 stateDiagram-v2
     [*] --> draft: Create CR
 
+    %% Standard Workflow
     draft --> submitted: submit
     draft --> canceled: cancel
 
     submitted --> awaiting_approval: request_approval
+    submitted --> emergency_approval: request_emergency_approval\n(emergency only)
     submitted --> draft: return_to_draft
     submitted --> canceled: cancel
+    submitted --> rejected: reject\n(emergency only)
 
+    %% Emergency Approval (emergency workflow)
+    emergency_approval --> in_progress: approve_emergency\n[emergencyApprovalGranted]
+    emergency_approval --> rejected: reject
+
+    %% Standard Approval
     awaiting_approval --> approved: approve\n[allApprovalStepsApproved]
     awaiting_approval --> rejected: reject
     awaiting_approval --> canceled: cancel
@@ -20,9 +28,10 @@ stateDiagram-v2
     scheduled --> in_progress: implement\n[setActualStart]
     scheduled --> canceled: cancel
 
-    in_progress --> implemented: complete\n[setActualEnd]
+    in_progress --> implemented: complete/implement\n[setActualEnd]
     in_progress --> rolled_back: rollback\n[setRolledBack]
 
+    implemented --> awaiting_approval: request_approval\n(retro approval)
     implemented --> closed: close\n[setClosed]
     implemented --> rolled_back: rollback\n[setRolledBack]
 
@@ -32,6 +41,7 @@ stateDiagram-v2
     canceled --> [*]
 
     note right of draft: Initial state\n(editable)
+    note right of emergency_approval: Emergency approval\n(fast-track)
     note right of awaiting_approval: Approval steps\nmust complete
     note right of approved: Ready for\nscheduling or\nimplementation
     note right of scheduled: Planned window set

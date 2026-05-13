@@ -89,22 +89,40 @@ describe("Workflow Transition Validation", () => {
   describe("Emergency Workflow Transitions", () => {
     const workflow = EMERGENCY_WORKFLOW;
 
-    it("can implement directly from draft to in_progress", () => {
+    it("has submit transition from draft to submitted", () => {
+      const submitTransition = workflow.transitions.find(
+        (t) => t.event === "submit"
+      );
+      expect(submitTransition).toBeDefined();
+      expect(submitTransition?.from).toBe("draft");
+      expect(submitTransition?.to).toBe("submitted");
+    });
+
+    it("has request_emergency_approval transition from submitted to emergency_approval", () => {
+      const requestEmergencyApprovalTransition = workflow.transitions.find(
+        (t) => t.event === "request_emergency_approval"
+      );
+      expect(requestEmergencyApprovalTransition).toBeDefined();
+      expect(requestEmergencyApprovalTransition?.from).toBe("submitted");
+      expect(requestEmergencyApprovalTransition?.to).toBe("emergency_approval");
+    });
+
+    it("has approve_emergency transition from emergency_approval to in_progress", () => {
+      const approveEmergencyTransition = workflow.transitions.find(
+        (t) => t.event === "approve_emergency"
+      );
+      expect(approveEmergencyTransition).toBeDefined();
+      expect(approveEmergencyTransition?.from).toBe("emergency_approval");
+      expect(approveEmergencyTransition?.to).toBe("in_progress");
+    });
+
+    it("implement goes from in_progress to implemented", () => {
       const implementTransition = workflow.transitions.find(
         (t) => t.event === "implement"
       );
       expect(implementTransition).toBeDefined();
-      expect(implementTransition?.from).toBe("draft");
-      expect(implementTransition?.to).toBe("in_progress");
-    });
-
-    it("complete goes from in_progress to implemented", () => {
-      const completeTransition = workflow.transitions.find(
-        (t) => t.event === "complete"
-      );
-      expect(completeTransition).toBeDefined();
-      expect(completeTransition?.from).toBe("in_progress");
-      expect(completeTransition?.to).toBe("implemented");
+      expect(implementTransition?.from).toBe("in_progress");
+      expect(implementTransition?.to).toBe("implemented");
     });
 
     it("has retrospective approval after implementation", () => {
@@ -128,6 +146,16 @@ describe("Workflow Transition Validation", () => {
     it("has in_progress state", () => {
       const stateKeys = Object.keys(workflow.states);
       expect(stateKeys).toContain("in_progress");
+    });
+
+    it("has emergency_approval state", () => {
+      const stateKeys = Object.keys(workflow.states);
+      expect(stateKeys).toContain("emergency_approval");
+    });
+
+    it("has submitted state", () => {
+      const stateKeys = Object.keys(workflow.states);
+      expect(stateKeys).toContain("submitted");
     });
   });
 
@@ -277,18 +305,28 @@ describe("Workflow Transition Validation", () => {
       expect(implementT?.from).toContain("approved");
     });
 
-    it("emergency workflow: draft -> in_progress -> implemented -> awaiting_approval -> closed", () => {
+    it("emergency workflow: draft -> submitted -> emergency_approval -> in_progress -> implemented -> awaiting_approval -> closed", () => {
       const workflow = EMERGENCY_WORKFLOW;
       
-      // draft -> in_progress
-      const implementT = workflow.transitions.find(t => t.event === "implement");
-      expect(implementT?.from).toBe("draft");
-      expect(implementT?.to).toBe("in_progress");
+      // draft -> submitted
+      const submitT = workflow.transitions.find(t => t.event === "submit");
+      expect(submitT?.from).toBe("draft");
+      expect(submitT?.to).toBe("submitted");
+      
+      // submitted -> emergency_approval
+      const requestEmergencyT = workflow.transitions.find(t => t.event === "request_emergency_approval");
+      expect(requestEmergencyT?.from).toBe("submitted");
+      expect(requestEmergencyT?.to).toBe("emergency_approval");
+      
+      // emergency_approval -> in_progress
+      const approveEmergencyT = workflow.transitions.find(t => t.event === "approve_emergency");
+      expect(approveEmergencyT?.from).toBe("emergency_approval");
+      expect(approveEmergencyT?.to).toBe("in_progress");
       
       // in_progress -> implemented
-      const completeT = workflow.transitions.find(t => t.event === "complete");
-      expect(completeT?.from).toBe("in_progress");
-      expect(completeT?.to).toBe("implemented");
+      const implementT = workflow.transitions.find(t => t.event === "implement");
+      expect(implementT?.from).toBe("in_progress");
+      expect(implementT?.to).toBe("implemented");
       
       // implemented -> awaiting_approval (retrospective)
       const requestApprovalT = workflow.transitions.find(t => t.event === "request_approval");

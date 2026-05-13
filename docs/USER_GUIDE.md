@@ -264,16 +264,22 @@ draft → submitted → awaiting_approval → approved → scheduled → in_prog
 - `close`: implemented → closed (manager)
 - `rollback`: in_progress/implemented → rolled_back (manager)
 
-### Emergency Workflow (v4)
+### Emergency Workflow (v5)
 ```
-draft → in_progress → implemented → awaiting_approval → closed
+draft → submitted → emergency_approval → in_progress → implemented → awaiting_approval → closed
 ```
 
 **Key transitions:**
-- `implement`: draft → in_progress (implementer, immediate implementation)
-- `complete`: in_progress → implemented (implementer)
+- `submit`: draft → submitted (requester)
+- `request_emergency_approval`: submitted → emergency_approval (manager, starts emergency approval)
+- `approve_emergency`: emergency_approval → in_progress (manager, after emergency approval granted)
+- `implement`: in_progress → implemented (implementer)
 - `request_approval`: implemented → awaiting_approval (retrospective approval)
 - `approve`: awaiting_approval → closed (manager)
+- `rollback`: in_progress/implemented → rolled_back (manager)
+
+**Emergency Approval:**
+Emergency changes require manager approval before implementation begins. This is a streamlined approval process designed for urgent situations, but still ensures proper authorization before changes are made to production systems.
 
 ### Pre-approved Workflow (v4)
 ```
