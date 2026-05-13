@@ -65,7 +65,9 @@ export async function GET(
     // Determine user's access level
     // - "full": can edit, transition, manage approvals (owner, assigned, or admin)
     // - "approver": can only view and make approval decisions
-    const canEdit = ctx.perms.canViewAllData || isOwner || isAssigned;
+    // - "implementer": can implement changes (by role, even if not assigned)
+    const isImplementer = ctx.roles?.includes("implementer") ?? false;
+    const canEdit = ctx.perms.canViewAllData || isOwner || isAssigned || isImplementer;
     const isApproverOnly = isApprover && !canEdit;
     
     // Get all valid transitions for current state and role
@@ -79,14 +81,16 @@ export async function GET(
       // Owner actions: submit, cancel, return_to_draft, request_approval
       const ownerActions = ["submit", "cancel", "return_to_draft", "request_approval"];
       // Assigned person (implementer) actions: implementation-related actions
-      const assignedActions = [
+      const implementerActions = [
         "assess", "schedule", "implement", "complete", "start_implementation", "complete_implementation",
         "begin_review", "close", "approve", "reject", "cancel", "rollback"
       ];
       
       transitions = transitions.filter(t => {
         if (isOwner && ownerActions.includes(t.event)) return true;
-        if (isAssigned && assignedActions.includes(t.event)) return true;
+        if (isAssigned && implementerActions.includes(t.event)) return true;
+        // Implementers by role can also perform implementation actions
+        if (isImplementer && implementerActions.includes(t.event)) return true;
         // If user is both owner and assigned, show both sets
         return false;
       });
@@ -115,6 +119,7 @@ export async function GET(
         isOwner,
         isAssigned,
         isApprover,
+        isImplementer,
         isPreApproved,
         isAdmin,
         isImported,

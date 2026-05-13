@@ -80,6 +80,7 @@ interface UserAccess {
   isOwner: boolean;
   isAssigned: boolean;
   isApprover: boolean;
+  isImplementer: boolean;
   isPreApproved: boolean;
   isAdmin: boolean;
   isImported: boolean;
@@ -324,9 +325,9 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
             </button>
           </div>
         </div>
-        {/* Workflow transitions - only show for CR owner, assigned user, or admin - not for approver-only users */}
+        {/* Workflow transitions - only show for CR owner, assigned user, implementer, or admin - not for approver-only users */}
         {/* In draft state, only show submit button to owner */}
-        {transitions.length > 0 && (userAccess?.isOwner || userAccess?.isAssigned || userAccess?.isAdmin) && !userAccess?.isApproverOnly && (
+        {transitions.length > 0 && (userAccess?.isOwner || userAccess?.isAssigned || userAccess?.isImplementer || userAccess?.isAdmin) && !userAccess?.isApproverOnly && (
           <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-800">
             <div className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">Workflow actions</div>
             <div className="flex flex-wrap gap-2">
