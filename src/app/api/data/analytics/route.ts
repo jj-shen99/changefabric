@@ -105,22 +105,26 @@ export async function GET(request: Request) {
 
   const closed = crs.filter((c) => c.state === "closed");
   const rejected = crs.filter((c) => c.state === "rejected" || c.state === "canceled");
+  const rolledBack = crs.filter((c) => c.state === "rolled_back");
+  const inProgress = crs.filter((c) => c.state === "in_progress");
+  const implemented = crs.filter((c) => c.state === "implemented");
 
-  const teamStats: Record<string, { total: number; deployed: number; failed: number; risk: number }> = {};
+  const teamStats: Record<string, { total: number; deployed: number; failed: number; rolledBack: number; risk: number }> = {};
   for (const c of crs) {
     const team = c.assignmentGroup || "Unassigned";
-    if (!teamStats[team]) teamStats[team] = { total: 0, deployed: 0, failed: 0, risk: 0 };
+    if (!teamStats[team]) teamStats[team] = { total: 0, deployed: 0, failed: 0, rolledBack: 0, risk: 0 };
     teamStats[team].total++;
     teamStats[team].risk += c.computedRiskScore;
     if (c.state === "closed") teamStats[team].deployed++;
     if (c.state === "rejected" || c.state === "canceled") teamStats[team].failed++;
+    if (c.state === "rolled_back") teamStats[team].rolledBack++;
   }
   const failureByTeam = Object.entries(teamStats).map(([team, s]) => ({
     team,
     total: s.total,
     deployed: s.deployed,
     failed: s.failed,
-    rolledBack: 0,
+    rolledBack: s.rolledBack,
     avgRisk: s.total ? Math.round(s.risk / s.total) : 0,
     failureRate: s.total ? Math.round((s.failed / s.total) * 100) : 0,
   }));
@@ -137,6 +141,45 @@ export async function GET(request: Request) {
     count: b.count,
   }));
 
+  // Approval efficiency - compute lead time from creation to close for deployed changes
+  const approvalEfficiency = closed.slice(0, 20).map((c) => {
+    const createdAt = new Date(c.createdAt);
+    const closedAt = c.actualEnd ? new Date(c.actualEnd) : new Date();
+    const leadTimeHours = Math.round((closedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60));
+    return {
+      id: c.number,
+      title: c.title,
+      team: c.assignmentGroup || "Unassigned",
+      approverCount: 1, // Simplified - would need to count actual approvals
+      leadTimeHours: Math.max(1, leadTimeHours),
+      category: c.category,
+    };
+  });
+
+  // Rollback intelligence - real data from rolled_back CRs
+  const rollbackServiceMap: Record<string, number> = {};
+  const rollbackData = rolledBack.map((c) => {
+    c.affectedServices.forEach((svc) => {
+      rollbackServiceMap[svc] = (rollbackServiceMap[svc] || 0) + 1;
+    });
+    return {
+      id: c.number,
+      title: c.title,
+      team: c.assignmentGroup || "Unassigned",
+      category: c.category,
+      risk: c.computedRiskScore,
+      rollbackComplexity: c.computedRiskScore >= 60 ? "high" : c.computedRiskScore >= 30 ? "medium" : "low",
+      services: c.affectedServices,
+    };
+  });
+  const rollbackByService = Object.entries(rollbackServiceMap)
+    .map(([service, count]) => ({ service, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Calculate rollback rate
+  const totalOutcomes = closed.length + rejected.length + rolledBack.length;
+  const rollbackRate = totalOutcomes > 0 ? Math.round((rolledBack.length / totalOutcomes) * 100) : 0;
+
   return NextResponse.json({
     releaseRiskRadar,
     blastRadius,
@@ -145,7 +188,9 @@ export async function GET(request: Request) {
       totalChanges: crs.length,
       deployed: closed.length,
       failed: rejected.length,
-      rolledBack: 0,
+      rolledBack: rolledBack.length,
+      inProgress: inProgress.length,
+      implemented: implemented.length,
       changeFailureRate:
         crs.length > 0 ? Math.round((rejected.length / crs.length) * 100) : 0,
       failureByTeam,
@@ -158,28 +203,13 @@ export async function GET(request: Request) {
     velocity: {
       teamVelocity,
       categoryBreakdown,
-      approvalEfficiency: [] as {
-        id: string;
-        title: string;
-        team: string;
-        approverCount: number;
-        leadTimeHours: number;
-        category: string;
-      }[],
+      approvalEfficiency,
     },
     rollbackIntelligence: {
-      rollbackCount: 0,
-      rollbackRate: 0,
-      rollbackData: [] as {
-        id: string;
-        title: string;
-        team: string;
-        category: string;
-        risk: number;
-        rollbackComplexity: string;
-        services: string[];
-      }[],
-      rollbackByService: [] as { service: string; count: number }[],
+      rollbackCount: rolledBack.length,
+      rollbackRate,
+      rollbackData,
+      rollbackByService,
     },
   });
 }

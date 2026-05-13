@@ -217,6 +217,15 @@ export default function OverviewPage() {
               </div>
               <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
               
+              {/* In Progress */}
+              <div className="flex flex-col items-center">
+                <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-950 border-2 border-purple-300 dark:border-purple-700">
+                  <span className="text-xs font-semibold text-purple-600 dark:text-purple-300 text-center leading-tight">In<br/>Progress</span>
+                </div>
+                <span className="mt-1 text-[10px] text-gray-400">{changeRequests.filter(c => c.state === 'in_progress').length}</span>
+              </div>
+              <ArrowRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
+              
               {/* Implemented */}
               <div className="flex flex-col items-center">
                 <div className="flex h-12 w-24 items-center justify-center rounded-lg bg-cyan-50 dark:bg-cyan-950 border-2 border-cyan-300 dark:border-cyan-700">
