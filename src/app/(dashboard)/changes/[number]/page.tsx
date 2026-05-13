@@ -332,9 +332,21 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
             <div className="flex flex-wrap gap-2">
               {transitions
                 .filter((t) => {
-                  // In draft state, only show submit button to owner
+                  // In draft state for standard workflow, only show submit button to owner
+                  // For emergency workflow, show implement button (emergency CRs skip submit)
                   if (cr.state === "draft") {
-                    return t.event === "submit" && userAccess?.isOwner;
+                    if (t.event === "submit") {
+                      return userAccess?.isOwner;
+                    }
+                    // Emergency CRs: show implement button for owner, assigned implementers, managers, admins
+                    if (t.event === "implement" && cr.workflowKey === "emergency") {
+                      return userAccess?.isOwner || userAccess?.isAssigned || userAccess?.isAdmin;
+                    }
+                    // Show cancel button for managers/admins
+                    if (t.event === "cancel") {
+                      return userAccess?.isAdmin;
+                    }
+                    return false;
                   }
                   // Submit button should only be visible to CR requester (owner)
                   if (t.event === "submit") {
