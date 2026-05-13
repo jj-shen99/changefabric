@@ -81,8 +81,8 @@ export const APP_CONFIG = {
 
 export const CR_TYPES = [
   { value: "standard", label: "Standard" },
-  { value: "normal", label: "Normal" },
   { value: "emergency", label: "Emergency" },
+  { value: "pre-approved", label: "Pre-approved" },
 ] as const;
 
 // Default approvers by CR type - these users will be automatically added as approvers
@@ -91,12 +91,10 @@ export const DEFAULT_APPROVERS_BY_TYPE: Record<string, { stepName: string; polic
   standard: [
     { stepName: "Manager Review", policy: "any", approverEmails: [] }, // Will be filled by assignedTo or assignmentGroup lead
   ],
-  normal: [
-    { stepName: "Technical Review", policy: "any", approverEmails: [] },
-  ],
   emergency: [
     { stepName: "Emergency CAB", policy: "any", approverEmails: [] },
   ],
+  "pre-approved": [], // No approval steps needed for pre-approved changes
 };
 
 export const CR_CATEGORIES = [

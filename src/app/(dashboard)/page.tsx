@@ -299,7 +299,7 @@ export default function OverviewPage() {
                   <span className="text-[10px] text-blue-500">Normal workflow</span>
                 </div>
                 <span className="ml-auto rounded-full bg-blue-100 dark:bg-blue-900 px-2 py-0.5 text-xs font-bold text-blue-600 dark:text-blue-400">
-                  {changeRequests.filter(c => c.type === 'normal' || c.type === 'standard').length}
+                  {changeRequests.filter(c => c.type === 'standard' || c.type === 'normal').length}
                 </span>
               </div>
               <div className="space-y-2 text-xs">
@@ -369,7 +369,7 @@ export default function OverviewPage() {
                   <span className="text-[10px] text-green-500">Low-risk template</span>
                 </div>
                 <span className="ml-auto rounded-full bg-green-100 dark:bg-green-900 px-2 py-0.5 text-xs font-bold text-green-600 dark:text-green-400">
-                  {changeRequests.filter(c => c.workflowKey === 'standard_preapproved').length}
+                  {changeRequests.filter(c => c.type === 'pre-approved' || c.workflowKey === 'standard_preapproved').length}
                 </span>
               </div>
               <div className="space-y-2 text-xs">

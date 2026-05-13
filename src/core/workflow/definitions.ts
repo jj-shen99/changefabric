@@ -117,8 +117,10 @@ export const DEFAULT_WORKFLOW_KEY = "standard";
  */
 export const TYPE_TO_WORKFLOW: Record<string, string> = {
   standard: "standard",
-  normal: "standard",
   emergency: "emergency",
+  "pre-approved": "standard_preapproved",
+  // Legacy mappings for backward compatibility
+  normal: "standard",
 };
 
 /**
