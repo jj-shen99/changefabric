@@ -153,9 +153,11 @@ Detailed view with tabs for different aspects of the CR.
 
 **Tabs:**
 - **Overview** - CR details, plans, schedule, ownership
-- **Approvals** - Approval steps and decisions
+- **Approvals** - Approval steps and decisions (hidden for pre-approved CRs)
 - **Comments** - Discussion thread
 - **Analysis** - Impact and ML risk analysis
+
+> **Note**: The Approvals tab is hidden for pre-approved change types since they don't require approval steps.
 
 ### 4. Create New Change (`/changes/new`)
 
@@ -185,7 +187,39 @@ Create a new change request using templates or by copying an existing CR.
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 5. Impact Analysis (`/impact`)
+### 5. Knowledge Base (`/knowledge`)
+
+Documentation hub for workflows, change types, and role permissions.
+
+**Sections:**
+
+#### Change Request Workflow
+Visual diagram showing the standard workflow state transitions:
+- Draft → Submitted → Awaiting Approval → Approved → Scheduled → In Progress → Implemented → Closed
+- Terminal states: Rejected, Canceled, Rolled Back
+
+#### Change Types & Approval Logic
+Three change types with different approval requirements:
+
+| Type | Workflow | Approval | Description |
+|------|----------|----------|-------------|
+| **Standard** | Full approval | Required | Normal changes with risk-based approval tiers |
+| **Emergency** | Fast-track | Emergency + Retro | Urgent changes with post-implementation review |
+| **Pre-approved** | No approval | None | Low-risk templated changes |
+
+**Risk-Based Approval Tiers:**
+- Critical (80-100): 3 approvers (Tech Lead, Security, CAB)
+- High (60-79): 2 approvers (Tech Lead, Manager)
+- Medium (40-59): 1 approver (Tech Lead)
+- Low (0-39): Auto-approve
+
+#### Role Permissions
+Complete permissions matrix showing what each role can do:
+- Administrator, Manager, Approver, Implementer, Requester
+- Visual cards with permission details
+- Full permissions matrix table
+
+### 6. Impact Analysis (`/impact`)
 
 Analyze plan quality and ML risk scores for change requests.
 

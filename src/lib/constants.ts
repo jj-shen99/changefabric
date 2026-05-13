@@ -194,6 +194,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/code-analysis", label: "Code Analysis", segment: "code-analysis" },
       { href: "/reports", label: "Reports", segment: "reports" },
       { href: "/analytics", label: "CHG Analytics", segment: "analytics" },
+      { href: "/knowledge", label: "Knowledge", segment: "knowledge" },
     ],
   },
 ];

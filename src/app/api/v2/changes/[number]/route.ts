@@ -92,8 +92,8 @@ export async function GET(
       });
     }
     
-    // Check if this is a pre-approved workflow (no approval steps needed)
-    const isPreApproved = cr.workflowKey === "standard_preapproved";
+    // Check if this is a pre-approved workflow/type (no approval steps needed)
+    const isPreApproved = cr.workflowKey === "standard_preapproved" || cr.type === "pre-approved";
     
     // Check if user is admin (can delete CRs)
     const isAdmin = ctx.roles?.includes("admin") ?? false;
