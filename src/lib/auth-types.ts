@@ -168,8 +168,8 @@ export const ROLE_PERMISSIONS = {
     canViewAllData: true,
   },
   manager: {
-    canManageUsers: false,
-    canManageRoles: true,
+    canManageUsers: true,  // Can manage non-admin users
+    canManageRoles: false, // Cannot manage roles
     canManageChanges: true,
     canApproveChanges: true,
     canImplementChanges: true,

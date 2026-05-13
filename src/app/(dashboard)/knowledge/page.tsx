@@ -352,7 +352,7 @@ export default function KnowledgePage() {
                 <div className="space-y-1.5 text-xs">
                   <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
                     <CheckCircle2 className="h-3 w-3" />
-                    <span>Manage roles</span>
+                    <span>Manage users (non-admin)</span>
                   </div>
                   <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
                     <CheckCircle2 className="h-3 w-3" />
@@ -368,7 +368,7 @@ export default function KnowledgePage() {
                   </div>
                   <div className="flex items-center gap-2 text-red-500 dark:text-red-400">
                     <Lock className="h-3 w-3" />
-                    <span>Cannot manage users</span>
+                    <span>Cannot manage roles</span>
                   </div>
                 </div>
               </div>
@@ -500,7 +500,7 @@ export default function KnowledgePage() {
                     <tr>
                       <td className="px-3 py-2 text-gray-700 dark:text-gray-300">Manage Users</td>
                       <td className="px-3 py-2 text-center"><CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" /></td>
-                      <td className="px-3 py-2 text-center"><Lock className="h-4 w-4 text-gray-300 dark:text-gray-600 mx-auto" /></td>
+                      <td className="px-3 py-2 text-center" title="Non-admin users only"><CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" /></td>
                       <td className="px-3 py-2 text-center"><Lock className="h-4 w-4 text-gray-300 dark:text-gray-600 mx-auto" /></td>
                       <td className="px-3 py-2 text-center"><Lock className="h-4 w-4 text-gray-300 dark:text-gray-600 mx-auto" /></td>
                       <td className="px-3 py-2 text-center"><Lock className="h-4 w-4 text-gray-300 dark:text-gray-600 mx-auto" /></td>
@@ -508,7 +508,7 @@ export default function KnowledgePage() {
                     <tr>
                       <td className="px-3 py-2 text-gray-700 dark:text-gray-300">Manage Roles</td>
                       <td className="px-3 py-2 text-center"><CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" /></td>
-                      <td className="px-3 py-2 text-center"><CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" /></td>
+                      <td className="px-3 py-2 text-center"><Lock className="h-4 w-4 text-gray-300 dark:text-gray-600 mx-auto" /></td>
                       <td className="px-3 py-2 text-center"><Lock className="h-4 w-4 text-gray-300 dark:text-gray-600 mx-auto" /></td>
                       <td className="px-3 py-2 text-center"><Lock className="h-4 w-4 text-gray-300 dark:text-gray-600 mx-auto" /></td>
                       <td className="px-3 py-2 text-center"><Lock className="h-4 w-4 text-gray-300 dark:text-gray-600 mx-auto" /></td>

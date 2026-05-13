@@ -355,6 +355,10 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
                   if (t.event === "reject" && userAccess?.isApproverOnly) {
                     return false;
                   }
+                  // Hide 'request_approval' for pre-approved CRs - they don't need approval
+                  if (t.event === "request_approval" && userAccess?.isPreApproved) {
+                    return false;
+                  }
                   return true;
                 })
                 .map((t) => (

@@ -120,6 +120,11 @@ describe("Knowledge Page", () => {
     it("describes Requester role correctly", () => {
       expect(screen.getByText("Basic role for creating and managing own change requests.")).toBeInTheDocument();
     });
+
+    it("shows Manager can manage users but not roles", () => {
+      expect(screen.getByText("Manage users (non-admin)")).toBeInTheDocument();
+      expect(screen.getByText("Cannot manage roles")).toBeInTheDocument();
+    });
   });
 });
 
