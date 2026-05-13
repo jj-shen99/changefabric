@@ -78,10 +78,10 @@ export async function GET(
     if (!ctx.perms.canViewAllData && transitions.length > 0) {
       // Owner actions: submit, cancel, return_to_draft, request_approval
       const ownerActions = ["submit", "cancel", "return_to_draft", "request_approval"];
-      // Assigned person actions: implementation-related actions
+      // Assigned person (implementer) actions: implementation-related actions
       const assignedActions = [
-        "assess", "schedule", "start_implementation", "complete_implementation",
-        "begin_review", "close", "approve", "reject", "cancel"
+        "assess", "schedule", "implement", "complete", "start_implementation", "complete_implementation",
+        "begin_review", "close", "approve", "reject", "cancel", "rollback"
       ];
       
       transitions = transitions.filter(t => {

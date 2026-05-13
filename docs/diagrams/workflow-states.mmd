@@ -14,11 +14,14 @@ stateDiagram-v2
     awaiting_approval --> canceled: cancel
 
     approved --> scheduled: schedule\n[hasPlannedWindow]
-    approved --> implemented: implement\n[setActualStart, setActualEnd]
+    approved --> in_progress: implement\n[setActualStart]
     approved --> canceled: cancel
 
-    scheduled --> implemented: implement\n[setActualStart, setActualEnd]
+    scheduled --> in_progress: implement\n[setActualStart]
     scheduled --> canceled: cancel
+
+    in_progress --> implemented: complete\n[setActualEnd]
+    in_progress --> rolled_back: rollback\n[setRolledBack]
 
     implemented --> closed: close\n[setClosed]
     implemented --> rolled_back: rollback\n[setRolledBack]
@@ -32,6 +35,7 @@ stateDiagram-v2
     note right of awaiting_approval: Approval steps\nmust complete
     note right of approved: Ready for\nscheduling or\nimplementation
     note right of scheduled: Planned window set
+    note right of in_progress: Implementation\nin progress\n(no cancel)
     note right of implemented: Change deployed\n(no cancel)
     note left of closed: Terminal state\n(success)
     note left of rejected: Terminal state\n(denied)

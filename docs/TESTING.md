@@ -123,6 +123,14 @@ npm test -- --watch
 │  ├── Node coverage verification (all states reachable)                       │
 │  └── Path length analysis                                                    │
 │                                                                              │
+│  workflow-in-progress.test.ts                                                │
+│  ├── In Progress state definition (all workflows)                            │
+│  ├── Implementer role hierarchy                                              │
+│  ├── Implement and complete actions                                          │
+│  ├── Full implementation flow (scheduled → in_progress → implemented)        │
+│  ├── Rollback from in_progress state                                         │
+│  └── Effects (setActualStart, setActualEnd)                                  │
+│                                                                              │
 │  approval-auto-transition.test.ts                                            │
 │  ├── Overall approval state computation                                      │
 │  ├── Step evaluation with all/any/quorum policies                            │

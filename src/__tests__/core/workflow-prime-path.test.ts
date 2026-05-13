@@ -71,7 +71,7 @@ describe("Prime Path Coverage - Standard Workflow", () => {
   const runtime = createMockRuntime();
 
   /**
-   * Standard Workflow Graph:
+   * Standard Workflow Graph (v4 with in_progress state):
    * 
    *   draft ──submit──> submitted ──request_approval──> awaiting_approval
    *     │                  │                                │
@@ -80,7 +80,12 @@ describe("Prime Path Coverage - Standard Workflow", () => {
    *     │                  v                                │            implement              implement
    *     │                draft                              │                │                      │
    *     │                                                   │                v                      v
-   *     └──cancel──> canceled <──cancel───────────────────┴────────────> implemented
+   *     └──cancel──> canceled <──cancel───────────────────┴────────────> in_progress
+   *                                                                           │
+   *                                                                       complete
+   *                                                                           │
+   *                                                                           v
+   *                                                                      implemented
    *                                                                           │
    *                                                        ┌──close──> closed │
    *                                                        │                  │
@@ -90,13 +95,14 @@ describe("Prime Path Coverage - Standard Workflow", () => {
    */
 
   describe("Happy Path (Main Success Scenario)", () => {
-    it("draft → submitted → awaiting_approval → approved → scheduled → implemented → closed", async () => {
+    it("draft → submitted → awaiting_approval → approved → scheduled → in_progress → implemented → closed", async () => {
       const path = [
         { from: "draft", event: "submit", to: "submitted" },
         { from: "submitted", event: "request_approval", to: "awaiting_approval" },
         { from: "awaiting_approval", event: "approve", to: "approved" },
         { from: "approved", event: "schedule", to: "scheduled" },
-        { from: "scheduled", event: "implement", to: "implemented" },
+        { from: "scheduled", event: "implement", to: "in_progress" },
+        { from: "in_progress", event: "complete", to: "implemented" },
         { from: "implemented", event: "close", to: "closed" },
       ];
       const result = await executePath(STANDARD_WORKFLOW, runtime, path);
@@ -117,13 +123,27 @@ describe("Prime Path Coverage - Standard Workflow", () => {
       expect(result.finalState).toBe("rejected");
     });
 
-    it("draft → submitted → awaiting_approval → approved → implemented → rolled_back (rollback path)", async () => {
+    it("draft → submitted → awaiting_approval → approved → in_progress → implemented → rolled_back (rollback path)", async () => {
       const path = [
         { from: "draft", event: "submit", to: "submitted" },
         { from: "submitted", event: "request_approval", to: "awaiting_approval" },
         { from: "awaiting_approval", event: "approve", to: "approved" },
-        { from: "approved", event: "implement", to: "implemented" },
+        { from: "approved", event: "implement", to: "in_progress" },
+        { from: "in_progress", event: "complete", to: "implemented" },
         { from: "implemented", event: "rollback", to: "rolled_back" },
+      ];
+      const result = await executePath(STANDARD_WORKFLOW, runtime, path);
+      expect(result.success).toBe(true);
+      expect(result.finalState).toBe("rolled_back");
+    });
+
+    it("draft → submitted → awaiting_approval → approved → in_progress → rolled_back (rollback during implementation)", async () => {
+      const path = [
+        { from: "draft", event: "submit", to: "submitted" },
+        { from: "submitted", event: "request_approval", to: "awaiting_approval" },
+        { from: "awaiting_approval", event: "approve", to: "approved" },
+        { from: "approved", event: "implement", to: "in_progress" },
+        { from: "in_progress", event: "rollback", to: "rolled_back" },
       ];
       const result = await executePath(STANDARD_WORKFLOW, runtime, path);
       expect(result.success).toBe(true);
@@ -211,12 +231,13 @@ describe("Prime Path Coverage - Standard Workflow", () => {
   });
 
   describe("Skip Schedule Path (Direct Implementation)", () => {
-    it("draft → submitted → awaiting_approval → approved → implemented → closed (skip schedule)", async () => {
+    it("draft → submitted → awaiting_approval → approved → in_progress → implemented → closed (skip schedule)", async () => {
       const path = [
         { from: "draft", event: "submit", to: "submitted" },
         { from: "submitted", event: "request_approval", to: "awaiting_approval" },
         { from: "awaiting_approval", event: "approve", to: "approved" },
-        { from: "approved", event: "implement", to: "implemented" },
+        { from: "approved", event: "implement", to: "in_progress" },
+        { from: "in_progress", event: "complete", to: "implemented" },
         { from: "implemented", event: "close", to: "closed" },
       ];
       const result = await executePath(STANDARD_WORKFLOW, runtime, path);
@@ -230,22 +251,23 @@ describe("Prime Path Coverage - Emergency Workflow", () => {
   const runtime = createMockRuntime();
 
   /**
-   * Emergency Workflow Graph:
+   * Emergency Workflow Graph (v4 with in_progress state):
    * 
-   *   draft ──implement──> implemented ──request_approval──> awaiting_approval
-   *     │                      │                                   │
-   *     │                   rollback                           approve──> closed
-   *     │                      │                                   │
-   *     │                      v                               reject──> rejected
-   *     │                 rolled_back
+   *   draft ──implement──> in_progress ──complete──> implemented ──request_approval──> awaiting_approval
+   *     │                      │                        │                                   │
+   *     │                   rollback                 rollback                           approve──> closed
+   *     │                      │                        │                                   │
+   *     │                      v                        v                               reject──> rejected
+   *     │                 rolled_back <─────────────────┘
    *     │
    *     └──cancel──> canceled
    */
 
   describe("Happy Path (Emergency Implementation)", () => {
-    it("draft → implemented → awaiting_approval → closed (emergency with retro approval)", async () => {
+    it("draft → in_progress → implemented → awaiting_approval → closed (emergency with retro approval)", async () => {
       const path = [
-        { from: "draft", event: "implement", to: "implemented" },
+        { from: "draft", event: "implement", to: "in_progress" },
+        { from: "in_progress", event: "complete", to: "implemented" },
         { from: "implemented", event: "request_approval", to: "awaiting_approval" },
         { from: "awaiting_approval", event: "approve", to: "closed" },
       ];
@@ -256,9 +278,10 @@ describe("Prime Path Coverage - Emergency Workflow", () => {
   });
 
   describe("Alternative Paths", () => {
-    it("draft → implemented → rolled_back (emergency rollback)", async () => {
+    it("draft → in_progress → implemented → rolled_back (emergency rollback after complete)", async () => {
       const path = [
-        { from: "draft", event: "implement", to: "implemented" },
+        { from: "draft", event: "implement", to: "in_progress" },
+        { from: "in_progress", event: "complete", to: "implemented" },
         { from: "implemented", event: "rollback", to: "rolled_back" },
       ];
       const result = await executePath(EMERGENCY_WORKFLOW, runtime, path);
@@ -266,9 +289,20 @@ describe("Prime Path Coverage - Emergency Workflow", () => {
       expect(result.finalState).toBe("rolled_back");
     });
 
-    it("draft → implemented → awaiting_approval → rejected (emergency rejected)", async () => {
+    it("draft → in_progress → rolled_back (emergency rollback during implementation)", async () => {
       const path = [
-        { from: "draft", event: "implement", to: "implemented" },
+        { from: "draft", event: "implement", to: "in_progress" },
+        { from: "in_progress", event: "rollback", to: "rolled_back" },
+      ];
+      const result = await executePath(EMERGENCY_WORKFLOW, runtime, path);
+      expect(result.success).toBe(true);
+      expect(result.finalState).toBe("rolled_back");
+    });
+
+    it("draft → in_progress → implemented → awaiting_approval → rejected (emergency rejected)", async () => {
+      const path = [
+        { from: "draft", event: "implement", to: "in_progress" },
+        { from: "in_progress", event: "complete", to: "implemented" },
         { from: "implemented", event: "request_approval", to: "awaiting_approval" },
         { from: "awaiting_approval", event: "reject", to: "rejected" },
       ];
@@ -292,23 +326,24 @@ describe("Prime Path Coverage - Pre-Approved Workflow", () => {
   const runtime = createMockRuntime();
 
   /**
-   * Pre-Approved Workflow Graph:
+   * Pre-Approved Workflow Graph (v4 with in_progress state):
    * 
-   *   draft ──schedule──> scheduled ──implement──> implemented
-   *     │                     │                        │
-   *     │                  cancel                   close──> closed
-   *     │                     │                        │
-   *     │                     v                   rollback──> rolled_back
-   *     │                 canceled
+   *   draft ──schedule──> scheduled ──implement──> in_progress ──complete──> implemented
+   *     │                     │                        │                        │
+   *     │                  cancel                   rollback                close──> closed
+   *     │                     │                        │                        │
+   *     │                     v                        v                   rollback──> rolled_back
+   *     │                 canceled                rolled_back
    *     │
    *     └──cancel──> canceled
    */
 
   describe("Happy Path (Pre-Approved)", () => {
-    it("draft → scheduled → implemented → closed (pre-approved success)", async () => {
+    it("draft → scheduled → in_progress → implemented → closed (pre-approved success)", async () => {
       const path = [
         { from: "draft", event: "schedule", to: "scheduled" },
-        { from: "scheduled", event: "implement", to: "implemented" },
+        { from: "scheduled", event: "implement", to: "in_progress" },
+        { from: "in_progress", event: "complete", to: "implemented" },
         { from: "implemented", event: "close", to: "closed" },
       ];
       const result = await executePath(STANDARD_PREAPPROVED_WORKFLOW, runtime, path);
@@ -318,11 +353,23 @@ describe("Prime Path Coverage - Pre-Approved Workflow", () => {
   });
 
   describe("Alternative Paths", () => {
-    it("draft → scheduled → implemented → rolled_back (pre-approved rollback)", async () => {
+    it("draft → scheduled → in_progress → implemented → rolled_back (pre-approved rollback)", async () => {
       const path = [
         { from: "draft", event: "schedule", to: "scheduled" },
-        { from: "scheduled", event: "implement", to: "implemented" },
+        { from: "scheduled", event: "implement", to: "in_progress" },
+        { from: "in_progress", event: "complete", to: "implemented" },
         { from: "implemented", event: "rollback", to: "rolled_back" },
+      ];
+      const result = await executePath(STANDARD_PREAPPROVED_WORKFLOW, runtime, path);
+      expect(result.success).toBe(true);
+      expect(result.finalState).toBe("rolled_back");
+    });
+
+    it("draft → scheduled → in_progress → rolled_back (pre-approved rollback during implementation)", async () => {
+      const path = [
+        { from: "draft", event: "schedule", to: "scheduled" },
+        { from: "scheduled", event: "implement", to: "in_progress" },
+        { from: "in_progress", event: "rollback", to: "rolled_back" },
       ];
       const result = await executePath(STANDARD_PREAPPROVED_WORKFLOW, runtime, path);
       expect(result.success).toBe(true);
@@ -367,10 +414,12 @@ describe("Edge Coverage Verification", () => {
       { from: "awaiting_approval", event: "reject", to: "rejected" },
       { from: "awaiting_approval", event: "cancel", to: "canceled" },
       { from: "approved", event: "schedule", to: "scheduled" },
-      { from: "approved", event: "implement", to: "implemented" },
+      { from: "approved", event: "implement", to: "in_progress" },
       { from: "approved", event: "cancel", to: "canceled" },
-      { from: "scheduled", event: "implement", to: "implemented" },
+      { from: "scheduled", event: "implement", to: "in_progress" },
       { from: "scheduled", event: "cancel", to: "canceled" },
+      { from: "in_progress", event: "complete", to: "implemented" },
+      { from: "in_progress", event: "rollback", to: "rolled_back" },
       { from: "implemented", event: "close", to: "closed" },
       { from: "implemented", event: "rollback", to: "rolled_back" },
     ];
@@ -388,8 +437,10 @@ describe("Edge Coverage Verification", () => {
     const ctx = { changeRequest: { number: "CHG001" }, actor: "test@test.com", actorRole: "admin" };
 
     const allEdges = [
-      { from: "draft", event: "implement", to: "implemented" },
+      { from: "draft", event: "implement", to: "in_progress" },
       { from: "draft", event: "cancel", to: "canceled" },
+      { from: "in_progress", event: "complete", to: "implemented" },
+      { from: "in_progress", event: "rollback", to: "rolled_back" },
       { from: "implemented", event: "rollback", to: "rolled_back" },
       { from: "implemented", event: "request_approval", to: "awaiting_approval" },
       { from: "awaiting_approval", event: "approve", to: "closed" },
@@ -411,8 +462,10 @@ describe("Edge Coverage Verification", () => {
     const allEdges = [
       { from: "draft", event: "schedule", to: "scheduled" },
       { from: "draft", event: "cancel", to: "canceled" },
-      { from: "scheduled", event: "implement", to: "implemented" },
+      { from: "scheduled", event: "implement", to: "in_progress" },
       { from: "scheduled", event: "cancel", to: "canceled" },
+      { from: "in_progress", event: "complete", to: "implemented" },
+      { from: "in_progress", event: "rollback", to: "rolled_back" },
       { from: "implemented", event: "close", to: "closed" },
       { from: "implemented", event: "rollback", to: "rolled_back" },
     ];
@@ -439,11 +492,12 @@ describe("Node Coverage Verification", () => {
       { node: "awaiting_approval", path: [{ from: "draft", event: "submit" }, { from: "submitted", event: "request_approval" }] },
       { node: "approved", path: [{ from: "draft", event: "submit" }, { from: "submitted", event: "request_approval" }, { from: "awaiting_approval", event: "approve" }] },
       { node: "scheduled", path: [{ from: "draft", event: "submit" }, { from: "submitted", event: "request_approval" }, { from: "awaiting_approval", event: "approve" }, { from: "approved", event: "schedule" }] },
-      { node: "implemented", path: [{ from: "draft", event: "submit" }, { from: "submitted", event: "request_approval" }, { from: "awaiting_approval", event: "approve" }, { from: "approved", event: "implement" }] },
-      { node: "closed", path: [{ from: "draft", event: "submit" }, { from: "submitted", event: "request_approval" }, { from: "awaiting_approval", event: "approve" }, { from: "approved", event: "implement" }, { from: "implemented", event: "close" }] },
+      { node: "in_progress", path: [{ from: "draft", event: "submit" }, { from: "submitted", event: "request_approval" }, { from: "awaiting_approval", event: "approve" }, { from: "approved", event: "implement" }] },
+      { node: "implemented", path: [{ from: "draft", event: "submit" }, { from: "submitted", event: "request_approval" }, { from: "awaiting_approval", event: "approve" }, { from: "approved", event: "implement" }, { from: "in_progress", event: "complete" }] },
+      { node: "closed", path: [{ from: "draft", event: "submit" }, { from: "submitted", event: "request_approval" }, { from: "awaiting_approval", event: "approve" }, { from: "approved", event: "implement" }, { from: "in_progress", event: "complete" }, { from: "implemented", event: "close" }] },
       { node: "rejected", path: [{ from: "draft", event: "submit" }, { from: "submitted", event: "request_approval" }, { from: "awaiting_approval", event: "reject" }] },
       { node: "canceled", path: [{ from: "draft", event: "cancel" }] },
-      { node: "rolled_back", path: [{ from: "draft", event: "submit" }, { from: "submitted", event: "request_approval" }, { from: "awaiting_approval", event: "approve" }, { from: "approved", event: "implement" }, { from: "implemented", event: "rollback" }] },
+      { node: "rolled_back", path: [{ from: "draft", event: "submit" }, { from: "submitted", event: "request_approval" }, { from: "awaiting_approval", event: "approve" }, { from: "approved", event: "implement" }, { from: "in_progress", event: "complete" }, { from: "implemented", event: "rollback" }] },
     ];
 
     nodeReachability.forEach(({ node, path }) => {
@@ -460,22 +514,22 @@ describe("Node Coverage Verification", () => {
 });
 
 describe("Path Length Analysis", () => {
-  it("shortest path to closed is 6 transitions (standard workflow)", () => {
-    // draft → submit → request_approval → approve → implement → close
-    const shortestPath = 5; // 5 transitions to reach closed
-    expect(shortestPath).toBe(5);
+  it("shortest path to closed is 7 transitions (standard workflow)", () => {
+    // draft → submit → request_approval → approve → implement → complete → close
+    const shortestPath = 6; // 6 transitions to reach closed
+    expect(shortestPath).toBe(6);
   });
 
-  it("shortest path to closed is 3 transitions (emergency workflow)", () => {
-    // draft → implement → request_approval → approve
-    const shortestPath = 3;
-    expect(shortestPath).toBe(3);
+  it("shortest path to closed is 4 transitions (emergency workflow)", () => {
+    // draft → implement → complete → request_approval → approve
+    const shortestPath = 4;
+    expect(shortestPath).toBe(4);
   });
 
-  it("shortest path to closed is 3 transitions (pre-approved workflow)", () => {
-    // draft → schedule → implement → close
-    const shortestPath = 3;
-    expect(shortestPath).toBe(3);
+  it("shortest path to closed is 4 transitions (pre-approved workflow)", () => {
+    // draft → schedule → implement → complete → close
+    const shortestPath = 4;
+    expect(shortestPath).toBe(4);
   });
 
   it("longest non-cyclic path in standard workflow", async () => {

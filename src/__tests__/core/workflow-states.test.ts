@@ -14,6 +14,7 @@ describe("Workflow State Definitions", () => {
       expect(stateKeys).toContain("awaiting_approval");
       expect(stateKeys).toContain("approved");
       expect(stateKeys).toContain("scheduled");
+      expect(stateKeys).toContain("in_progress");
       expect(stateKeys).toContain("implemented");
       expect(stateKeys).toContain("rolled_back");
       expect(stateKeys).toContain("closed");
@@ -21,11 +22,15 @@ describe("Workflow State Definitions", () => {
       expect(stateKeys).toContain("canceled");
     });
 
-    it("does NOT have assessing, reviewing, or in_progress states", () => {
+    it("does NOT have assessing or reviewing states", () => {
       const stateKeys = Object.keys(workflow.states);
       expect(stateKeys).not.toContain("assessing");
       expect(stateKeys).not.toContain("reviewing");
-      expect(stateKeys).not.toContain("in_progress");
+    });
+
+    it("has in_progress state with no-cancel tag", () => {
+      expect(workflow.states.in_progress).toBeDefined();
+      expect(workflow.states.in_progress.tags).toContain("no-cancel");
     });
 
     it("has rolled_back as terminal state", () => {
@@ -36,10 +41,11 @@ describe("Workflow State Definitions", () => {
       expect(workflow.states.implemented.tags).toContain("no-cancel");
     });
 
-    it("has rollback transition from implemented", () => {
+    it("has rollback transition from in_progress and implemented", () => {
       const rollbackTransition = workflow.transitions.find(t => t.event === "rollback");
       expect(rollbackTransition).toBeDefined();
-      expect(rollbackTransition?.from).toBe("implemented");
+      expect(rollbackTransition?.from).toContain("in_progress");
+      expect(rollbackTransition?.from).toContain("implemented");
       expect(rollbackTransition?.to).toBe("rolled_back");
     });
 

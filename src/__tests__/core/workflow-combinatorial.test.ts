@@ -66,7 +66,7 @@ describe("Workflow Combinatorial Testing", () => {
   });
 
   describe("Pairwise Coverage: State × Event", () => {
-    // Standard workflow state-event pairs
+    // Standard workflow state-event pairs (v4 with in_progress state)
     const standardStateEventPairs = [
       { state: "draft", event: "submit", expectedTo: "submitted", shouldSucceed: true },
       { state: "draft", event: "cancel", expectedTo: "canceled", shouldSucceed: true },
@@ -77,16 +77,19 @@ describe("Workflow Combinatorial Testing", () => {
       { state: "awaiting_approval", event: "reject", expectedTo: "rejected", shouldSucceed: true },
       { state: "awaiting_approval", event: "cancel", expectedTo: "canceled", shouldSucceed: true },
       { state: "approved", event: "schedule", expectedTo: "scheduled", shouldSucceed: true },
-      { state: "approved", event: "implement", expectedTo: "implemented", shouldSucceed: true },
+      { state: "approved", event: "implement", expectedTo: "in_progress", shouldSucceed: true },
       { state: "approved", event: "cancel", expectedTo: "canceled", shouldSucceed: true },
-      { state: "scheduled", event: "implement", expectedTo: "implemented", shouldSucceed: true },
+      { state: "scheduled", event: "implement", expectedTo: "in_progress", shouldSucceed: true },
       { state: "scheduled", event: "cancel", expectedTo: "canceled", shouldSucceed: true },
+      { state: "in_progress", event: "complete", expectedTo: "implemented", shouldSucceed: true },
+      { state: "in_progress", event: "rollback", expectedTo: "rolled_back", shouldSucceed: true },
       { state: "implemented", event: "close", expectedTo: "closed", shouldSucceed: true },
       { state: "implemented", event: "rollback", expectedTo: "rolled_back", shouldSucceed: true },
       // Invalid transitions
       { state: "draft", event: "approve", expectedTo: null, shouldSucceed: false },
       { state: "closed", event: "submit", expectedTo: null, shouldSucceed: false },
       { state: "rejected", event: "approve", expectedTo: null, shouldSucceed: false },
+      { state: "in_progress", event: "cancel", expectedTo: null, shouldSucceed: false },
     ];
 
     standardStateEventPairs.forEach(({ state, event, expectedTo, shouldSucceed }) => {

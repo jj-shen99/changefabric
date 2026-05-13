@@ -34,23 +34,32 @@ describe("Workflow Transition Validation", () => {
       expect(events).not.toContain("complete_implementation");
     });
 
-    it("implement transition goes directly to implemented", () => {
+    it("implement transition goes to in_progress", () => {
       const implementTransition = workflow.transitions.find(
         (t) => t.event === "implement"
       );
       expect(implementTransition).toBeDefined();
-      expect(implementTransition?.to).toBe("implemented");
+      expect(implementTransition?.to).toBe("in_progress");
       // Can implement from scheduled or approved
       expect(implementTransition?.from).toContain("scheduled");
       expect(implementTransition?.from).toContain("approved");
     });
 
-    it("implement transition has both setActualStart and setActualEnd effects", () => {
+    it("implement transition has setActualStart effect", () => {
       const implementTransition = workflow.transitions.find(
         (t) => t.event === "implement"
       );
       expect(implementTransition?.effects).toContain("setActualStart");
-      expect(implementTransition?.effects).toContain("setActualEnd");
+    });
+
+    it("complete transition goes from in_progress to implemented with setActualEnd effect", () => {
+      const completeTransition = workflow.transitions.find(
+        (t) => t.event === "complete"
+      );
+      expect(completeTransition).toBeDefined();
+      expect(completeTransition?.from).toBe("in_progress");
+      expect(completeTransition?.to).toBe("implemented");
+      expect(completeTransition?.effects).toContain("setActualEnd");
     });
 
     it("cancel is not allowed from implemented state", () => {
@@ -66,12 +75,13 @@ describe("Workflow Transition Validation", () => {
       expect(fromStates).not.toContain("closed");
     });
 
-    it("rollback is only allowed from implemented state", () => {
+    it("rollback is allowed from in_progress and implemented states", () => {
       const rollbackTransition = workflow.transitions.find(
         (t) => t.event === "rollback"
       );
       expect(rollbackTransition).toBeDefined();
-      expect(rollbackTransition?.from).toBe("implemented");
+      expect(rollbackTransition?.from).toContain("in_progress");
+      expect(rollbackTransition?.from).toContain("implemented");
       expect(rollbackTransition?.to).toBe("rolled_back");
     });
   });
@@ -79,13 +89,22 @@ describe("Workflow Transition Validation", () => {
   describe("Emergency Workflow Transitions", () => {
     const workflow = EMERGENCY_WORKFLOW;
 
-    it("can implement directly from draft", () => {
+    it("can implement directly from draft to in_progress", () => {
       const implementTransition = workflow.transitions.find(
         (t) => t.event === "implement"
       );
       expect(implementTransition).toBeDefined();
       expect(implementTransition?.from).toBe("draft");
-      expect(implementTransition?.to).toBe("implemented");
+      expect(implementTransition?.to).toBe("in_progress");
+    });
+
+    it("complete goes from in_progress to implemented", () => {
+      const completeTransition = workflow.transitions.find(
+        (t) => t.event === "complete"
+      );
+      expect(completeTransition).toBeDefined();
+      expect(completeTransition?.from).toBe("in_progress");
+      expect(completeTransition?.to).toBe("implemented");
     });
 
     it("has retrospective approval after implementation", () => {
@@ -106,9 +125,9 @@ describe("Workflow Transition Validation", () => {
       expect(approveTransition?.to).toBe("closed");
     });
 
-    it("does NOT have in_progress state", () => {
+    it("has in_progress state", () => {
       const stateKeys = Object.keys(workflow.states);
-      expect(stateKeys).not.toContain("in_progress");
+      expect(stateKeys).toContain("in_progress");
     });
   });
 
@@ -131,18 +150,27 @@ describe("Workflow Transition Validation", () => {
       expect(stateKeys).not.toContain("rejected");
     });
 
-    it("does NOT have in_progress state", () => {
+    it("has in_progress state", () => {
       const stateKeys = Object.keys(workflow.states);
-      expect(stateKeys).not.toContain("in_progress");
+      expect(stateKeys).toContain("in_progress");
     });
 
-    it("implement goes from scheduled to implemented", () => {
+    it("implement goes from scheduled to in_progress", () => {
       const implementTransition = workflow.transitions.find(
         (t) => t.event === "implement"
       );
       expect(implementTransition).toBeDefined();
       expect(implementTransition?.from).toBe("scheduled");
-      expect(implementTransition?.to).toBe("implemented");
+      expect(implementTransition?.to).toBe("in_progress");
+    });
+
+    it("complete goes from in_progress to implemented", () => {
+      const completeTransition = workflow.transitions.find(
+        (t) => t.event === "complete"
+      );
+      expect(completeTransition).toBeDefined();
+      expect(completeTransition?.from).toBe("in_progress");
+      expect(completeTransition?.to).toBe("implemented");
     });
   });
 
@@ -155,9 +183,9 @@ describe("Workflow Transition Validation", () => {
 
     workflows.forEach((workflow) => {
       describe(`${workflow.name}`, () => {
-        it("has no in_progress state", () => {
+        it("has in_progress state", () => {
           const stateKeys = Object.keys(workflow.states);
-          expect(stateKeys).not.toContain("in_progress");
+          expect(stateKeys).toContain("in_progress");
         });
 
         it("has implemented state", () => {
@@ -199,15 +227,15 @@ describe("Workflow Transition Validation", () => {
           });
         });
 
-        it("has version 3 or higher", () => {
-          expect(workflow.version).toBeGreaterThanOrEqual(3);
+        it("has version 4 or higher", () => {
+          expect(workflow.version).toBeGreaterThanOrEqual(4);
         });
       });
     });
   });
 
   describe("State Transition Paths", () => {
-    it("standard workflow: draft -> submitted -> awaiting_approval -> approved -> scheduled -> implemented -> closed", () => {
+    it("standard workflow: draft -> submitted -> awaiting_approval -> approved -> scheduled -> in_progress -> implemented -> closed", () => {
       const workflow = STANDARD_WORKFLOW;
       
       // draft -> submitted
@@ -227,10 +255,15 @@ describe("Workflow Transition Validation", () => {
       expect(scheduleT?.from).toBe("approved");
       expect(scheduleT?.to).toBe("scheduled");
       
-      // scheduled -> implemented (via implement)
+      // scheduled -> in_progress (via implement)
       const implementT = workflow.transitions.find(t => t.event === "implement");
       expect(implementT?.from).toContain("scheduled");
-      expect(implementT?.to).toBe("implemented");
+      expect(implementT?.to).toBe("in_progress");
+      
+      // in_progress -> implemented (via complete)
+      const completeT = workflow.transitions.find(t => t.event === "complete");
+      expect(completeT?.from).toBe("in_progress");
+      expect(completeT?.to).toBe("implemented");
       
       // implemented -> closed
       const closeT = workflow.transitions.find(t => t.event === "close");
@@ -238,19 +271,24 @@ describe("Workflow Transition Validation", () => {
       expect(closeT?.to).toBe("closed");
     });
 
-    it("standard workflow: approved can go directly to implemented (skip scheduling)", () => {
+    it("standard workflow: approved can go directly to in_progress (skip scheduling)", () => {
       const workflow = STANDARD_WORKFLOW;
       const implementT = workflow.transitions.find(t => t.event === "implement");
       expect(implementT?.from).toContain("approved");
     });
 
-    it("emergency workflow: draft -> implemented -> awaiting_approval -> closed", () => {
+    it("emergency workflow: draft -> in_progress -> implemented -> awaiting_approval -> closed", () => {
       const workflow = EMERGENCY_WORKFLOW;
       
-      // draft -> implemented
+      // draft -> in_progress
       const implementT = workflow.transitions.find(t => t.event === "implement");
       expect(implementT?.from).toBe("draft");
-      expect(implementT?.to).toBe("implemented");
+      expect(implementT?.to).toBe("in_progress");
+      
+      // in_progress -> implemented
+      const completeT = workflow.transitions.find(t => t.event === "complete");
+      expect(completeT?.from).toBe("in_progress");
+      expect(completeT?.to).toBe("implemented");
       
       // implemented -> awaiting_approval (retrospective)
       const requestApprovalT = workflow.transitions.find(t => t.event === "request_approval");
@@ -263,7 +301,7 @@ describe("Workflow Transition Validation", () => {
       expect(approveT?.to).toBe("closed");
     });
 
-    it("pre-approved workflow: draft -> scheduled -> implemented -> closed", () => {
+    it("pre-approved workflow: draft -> scheduled -> in_progress -> implemented -> closed", () => {
       const workflow = STANDARD_PREAPPROVED_WORKFLOW;
       
       // draft -> scheduled
@@ -271,10 +309,15 @@ describe("Workflow Transition Validation", () => {
       expect(scheduleT?.from).toBe("draft");
       expect(scheduleT?.to).toBe("scheduled");
       
-      // scheduled -> implemented
+      // scheduled -> in_progress
       const implementT = workflow.transitions.find(t => t.event === "implement");
       expect(implementT?.from).toBe("scheduled");
-      expect(implementT?.to).toBe("implemented");
+      expect(implementT?.to).toBe("in_progress");
+      
+      // in_progress -> implemented
+      const completeT = workflow.transitions.find(t => t.event === "complete");
+      expect(completeT?.from).toBe("in_progress");
+      expect(completeT?.to).toBe("implemented");
       
       // implemented -> closed
       const closeT = workflow.transitions.find(t => t.event === "close");

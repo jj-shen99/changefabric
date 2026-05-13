@@ -248,21 +248,53 @@ Click any sortable column header to sort. Click again to toggle direction.
 
 Change requests follow a defined workflow based on their type:
 
-### Standard Workflow
+### Standard Workflow (v4)
 ```
-draft → submitted → assessing → awaiting_approval → approved → 
-scheduled → in_progress → implemented → reviewing → closed
-```
-
-### Emergency Workflow
-```
-draft → in_progress → implemented → reviewing → closed
+draft → submitted → awaiting_approval → approved → scheduled → in_progress → implemented → closed
+                                      ↘ (skip schedule) ↗
 ```
 
-### Pre-approved Workflow
+**Key transitions:**
+- `submit`: draft → submitted (requester)
+- `request_approval`: submitted → awaiting_approval (manager)
+- `approve`: awaiting_approval → approved (manager, after all approval steps complete)
+- `schedule`: approved → scheduled (manager, requires planned window)
+- `implement`: approved/scheduled → in_progress (implementer, sets actual start time)
+- `complete`: in_progress → implemented (implementer, sets actual end time)
+- `close`: implemented → closed (manager)
+- `rollback`: in_progress/implemented → rolled_back (manager)
+
+### Emergency Workflow (v4)
 ```
-draft → scheduled → in_progress → implemented → reviewing → closed
+draft → in_progress → implemented → awaiting_approval → closed
 ```
+
+**Key transitions:**
+- `implement`: draft → in_progress (implementer, immediate implementation)
+- `complete`: in_progress → implemented (implementer)
+- `request_approval`: implemented → awaiting_approval (retrospective approval)
+- `approve`: awaiting_approval → closed (manager)
+
+### Pre-approved Workflow (v4)
+```
+draft → scheduled → in_progress → implemented → closed
+```
+
+**Key transitions:**
+- `schedule`: draft → scheduled (manager, no approval needed)
+- `implement`: scheduled → in_progress (implementer)
+- `complete`: in_progress → implemented (implementer)
+- `close`: implemented → closed (manager)
+
+### Implementer Role
+
+The **implementer** role is specifically designed for users who execute changes (DevOps engineers, SREs, DBAs). Implementers can:
+- See the "Implement" button when a CR is in `approved` or `scheduled` state
+- Click "Implement" to start implementation (transitions to `in_progress`)
+- See the "Complete" button when a CR is in `in_progress` state
+- Click "Complete" to finish implementation (transitions to `implemented`)
+
+The role hierarchy is: `requester` < `implementer` < `manager` < `admin`
 
 ## Keyboard Shortcuts
 

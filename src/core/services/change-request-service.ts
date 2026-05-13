@@ -114,7 +114,7 @@ export interface ChangeRequestRepository {
 
 export interface ServiceContext {
   actor: string;
-  actorRole?: "admin" | "manager" | "requester";
+  actorRole?: "admin" | "manager" | "implementer" | "requester";
 }
 
 export class ChangeRequestService {

@@ -14,7 +14,7 @@ export const STANDARD_WORKFLOW: WorkflowDefinition = {
   name: "Standard Change",
   description:
     "Normal change request: draft → submit → approve → schedule → implement → close (or rollback)",
-  version: 3,
+  version: 4,
   initial: "draft",
   states: {
     draft: { name: "Draft", tags: ["editable"] },
@@ -22,6 +22,7 @@ export const STANDARD_WORKFLOW: WorkflowDefinition = {
     awaiting_approval: { name: "Awaiting Approval", tags: ["in-flight"] },
     approved: { name: "Approved", tags: ["in-flight"] },
     scheduled: { name: "Scheduled", tags: ["in-flight"] },
+    in_progress: { name: "In Progress", tags: ["in-flight", "no-cancel"] },
     implemented: { name: "Implemented", tags: ["in-flight", "no-cancel"] },
     rolled_back: { name: "Rolled Back", terminal: true, tags: ["done"] },
     closed: { name: "Closed", terminal: true, tags: ["done"] },
@@ -34,8 +35,9 @@ export const STANDARD_WORKFLOW: WorkflowDefinition = {
     { event: "approve", from: "awaiting_approval", to: "approved", guards: ["allApprovalStepsApproved"], requiredRole: "manager" },
     { event: "reject", from: "awaiting_approval", to: "rejected", requiredRole: "manager" },
     { event: "schedule", from: "approved", to: "scheduled", guards: ["hasPlannedWindow"], requiredRole: "manager" },
-    { event: "implement", from: ["scheduled", "approved"], to: "implemented", requiredRole: "manager", effects: ["setActualStart", "setActualEnd"] },
-    { event: "rollback", from: "implemented", to: "rolled_back", requiredRole: "manager", effects: ["setRolledBack"] },
+    { event: "implement", from: ["scheduled", "approved"], to: "in_progress", requiredRole: "implementer", effects: ["setActualStart"] },
+    { event: "complete", from: "in_progress", to: "implemented", requiredRole: "implementer", effects: ["setActualEnd"] },
+    { event: "rollback", from: ["in_progress", "implemented"], to: "rolled_back", requiredRole: "manager", effects: ["setRolledBack"] },
     { event: "close", from: "implemented", to: "closed", requiredRole: "manager", effects: ["setClosed"] },
     { event: "cancel", from: ["draft", "submitted", "awaiting_approval", "approved", "scheduled"], to: "canceled", requiredRole: "manager", effects: ["setClosed"] },
     { event: "return_to_draft", from: "submitted", to: "draft", requiredRole: "manager" },
@@ -47,10 +49,11 @@ export const EMERGENCY_WORKFLOW: WorkflowDefinition = {
   name: "Emergency Change",
   description:
     "Emergency: skip pre-approval, implement immediately, retrospective approval.",
-  version: 3,
+  version: 4,
   initial: "draft",
   states: {
     draft: { name: "Draft", tags: ["editable"] },
+    in_progress: { name: "In Progress", tags: ["in-flight", "no-cancel"] },
     implemented: { name: "Implemented", tags: ["in-flight", "no-cancel"] },
     awaiting_approval: { name: "Retro Approval", tags: ["in-flight", "no-cancel"] },
     rolled_back: { name: "Rolled Back", terminal: true, tags: ["done"] },
@@ -59,8 +62,9 @@ export const EMERGENCY_WORKFLOW: WorkflowDefinition = {
     canceled: { name: "Canceled", terminal: true, tags: ["done"] },
   },
   transitions: [
-    { event: "implement", from: "draft", to: "implemented", requiredRole: "manager", effects: ["setActualStart", "setActualEnd"] },
-    { event: "rollback", from: "implemented", to: "rolled_back", requiredRole: "manager", effects: ["setRolledBack"] },
+    { event: "implement", from: "draft", to: "in_progress", requiredRole: "implementer", effects: ["setActualStart"] },
+    { event: "complete", from: "in_progress", to: "implemented", requiredRole: "implementer", effects: ["setActualEnd"] },
+    { event: "rollback", from: ["in_progress", "implemented"], to: "rolled_back", requiredRole: "manager", effects: ["setRolledBack"] },
     { event: "request_approval", from: "implemented", to: "awaiting_approval", requiredRole: "manager", effects: ["startApprovalSteps"] },
     { event: "approve", from: "awaiting_approval", to: "closed", guards: ["allApprovalStepsApproved"], requiredRole: "manager", effects: ["setClosed"] },
     { event: "reject", from: "awaiting_approval", to: "rejected", requiredRole: "admin" },
@@ -72,11 +76,12 @@ export const STANDARD_PREAPPROVED_WORKFLOW: WorkflowDefinition = {
   key: "standard_preapproved",
   name: "Pre-Approved Standard Change",
   description: "Low-risk pre-approved template; no human approval gate.",
-  version: 3,
+  version: 4,
   initial: "draft",
   states: {
     draft: { name: "Draft", tags: ["editable"] },
     scheduled: { name: "Scheduled", tags: ["in-flight"] },
+    in_progress: { name: "In Progress", tags: ["in-flight", "no-cancel"] },
     implemented: { name: "Implemented", tags: ["in-flight", "no-cancel"] },
     rolled_back: { name: "Rolled Back", terminal: true, tags: ["done"] },
     closed: { name: "Closed", terminal: true, tags: ["done"] },
@@ -84,8 +89,9 @@ export const STANDARD_PREAPPROVED_WORKFLOW: WorkflowDefinition = {
   },
   transitions: [
     { event: "schedule", from: "draft", to: "scheduled", guards: ["hasPlannedWindow"], requiredRole: "manager" },
-    { event: "implement", from: "scheduled", to: "implemented", requiredRole: "manager", effects: ["setActualStart", "setActualEnd"] },
-    { event: "rollback", from: "implemented", to: "rolled_back", requiredRole: "manager", effects: ["setRolledBack"] },
+    { event: "implement", from: "scheduled", to: "in_progress", requiredRole: "implementer", effects: ["setActualStart"] },
+    { event: "complete", from: "in_progress", to: "implemented", requiredRole: "implementer", effects: ["setActualEnd"] },
+    { event: "rollback", from: ["in_progress", "implemented"], to: "rolled_back", requiredRole: "manager", effects: ["setRolledBack"] },
     { event: "close", from: "implemented", to: "closed", requiredRole: "manager", effects: ["setClosed"] },
     { event: "cancel", from: ["draft", "scheduled"], to: "canceled", requiredRole: "manager", effects: ["setClosed"] },
   ],
@@ -149,7 +155,7 @@ export function getAvailableTransitionsForType(
     
     // Check role requirement
     if (t.requiredRole && role) {
-      const roleOrder = ["requester", "manager", "admin"];
+      const roleOrder = ["requester", "implementer", "manager", "admin"];
       if (roleOrder.indexOf(role) < roleOrder.indexOf(t.requiredRole)) continue;
     }
     
