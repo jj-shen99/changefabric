@@ -24,7 +24,7 @@ const mockCR = {
   state: "awaiting_approval",
   approvalState: "pending",
   workflowKey: "standard",
-  type: "normal",
+  type: "standard",
   category: "infrastructure",
   priority: "1",
   riskLevel: "high",

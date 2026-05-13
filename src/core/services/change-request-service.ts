@@ -131,7 +131,7 @@ export class ChangeRequestService {
     input: CreateChangeInput
   ): Promise<ChangeRequest> {
     // Determine workflow based on type if not explicitly provided
-    const crType = input.type ?? "normal";
+    const crType = input.type ?? "standard";
     const wfKey = input.workflowKey ?? this.getDefaultWorkflowForType(crType);
     const wf = this.requireWorkflow(wfKey);
     const number = await this.repo.nextNumber();
@@ -265,7 +265,7 @@ export class ChangeRequestService {
       case "emergency":
         return "emergency";
       case "standard":
-      case "normal":
+      case "standard":
       default:
         return "standard";
     }
@@ -420,7 +420,7 @@ export class ChangeRequestService {
   /** Get approvers for a given group name */
   private async getApproversForGroup(groupName: string): Promise<Array<{ email: string }>> {
     // Try to find approvers from CRTypeApprover table with matching step name
-    const typeApprovers = await this.repo.getCRTypeApprovers?.("normal");
+    const typeApprovers = await this.repo.getCRTypeApprovers?.("standard");
     if (typeApprovers) {
       const groupApprovers = typeApprovers.filter(a => 
         a.stepName.toLowerCase() === groupName.toLowerCase() ||

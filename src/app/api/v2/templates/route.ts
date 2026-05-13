@@ -41,7 +41,7 @@ export async function POST(req: Request) {
         name: body.name,
         description: body.description || "",
         category: body.category || "other",
-        type: body.type || "normal",
+        type: body.type || "standard",
         workflowKey: body.workflowKey || "standard",
         priority: body.priority || "3",
         riskLevel: body.riskLevel || "moderate",

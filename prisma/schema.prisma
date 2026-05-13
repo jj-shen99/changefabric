@@ -91,7 +91,7 @@ model ChangeRequest {
   // Core descriptive fields (generic — superset of typical ITSM CR)
   title           String
   description     String   @default("")
-  type            String   @default("normal")        // standard | normal | emergency
+  type            String   @default("standard")      // standard | emergency | pre-approved
   category        String   @default("other")
   priority        String   @default("3")             // 1..4
   riskLevel       String   @default("moderate")      // low | moderate | high | very_high
@@ -394,7 +394,7 @@ model ChangeRequestTemplate {
   category        String   @default("other")      // infrastructure | feature | hotfix | database | config | security | other
   
   // Pre-filled values
-  type            String   @default("normal")     // standard | normal | emergency
+  type            String   @default("standard")   // standard | emergency | pre-approved
   workflowKey     String   @default("standard")   // standard | emergency | standard_preapproved
   priority        String   @default("3")          // 1 | 2 | 3 | 4
   riskLevel       String   @default("moderate")   // low | moderate | high | very_high
@@ -446,7 +446,7 @@ model Group {
 
 model CRTypeApprover {
   id              String   @id @default(uuid())
-  crType          String                          // "standard" | "normal" | "emergency"
+  crType          String                          // "standard" | "emergency" | "pre-approved"
   approverEmail   String                          // User email of the approver
   approverGroup   String?                         // Optional group name (e.g., "CAB", "Security")
   stepName        String   @default("Default")    // Approval step name (e.g., "Tech Review", "CAB")

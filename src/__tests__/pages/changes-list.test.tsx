@@ -22,7 +22,7 @@ const mockChangeRequests = [
     number: "CHG0000001",
     title: "Payment Gateway Migration",
     state: "awaiting_approval",
-    type: "normal",
+    type: "standard",
     category: "infrastructure",
     priority: "1",
     riskLevel: "high",

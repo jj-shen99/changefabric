@@ -188,7 +188,7 @@ export async function syncChangeRequests(
         workflowKey: "standard",
         title: row.short_description || `Imported from ServiceNow (${num})`,
         description: row.description || "",
-        type: (row.type || "normal").toLowerCase(),
+        type: (row.type || "standard").toLowerCase(),
         category: row.category || "other",
         priority: (row.priority || "3").toString(),
         riskLevel,

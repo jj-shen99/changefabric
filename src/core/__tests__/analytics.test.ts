@@ -6,7 +6,7 @@ import { predictRisk } from "../ml/risk";
 function cr(partial: Partial<ChangeRequest>): ChangeRequest {
   return {
     number: "CHG1", externalId: null, externalSource: null, workflowKey: "standard",
-    title: "t", description: "", type: "normal", category: "infra",
+    title: "t", description: "", type: "standard", category: "infra",
     priority: "3", riskLevel: "moderate", impactLevel: "3", urgency: "3",
     state: "draft", approvalState: "not_requested",
     justification: "", implementationPlan: "", backoutPlan: "", testPlan: "",

@@ -48,10 +48,10 @@ describe("CR Type Approvers Page", () => {
     });
 
     it("should render CR type sections for admin users", async () => {
-      const crTypes = ["standard", "normal", "emergency"];
+      const crTypes = ["standard", "standard", "emergency"];
       
       expect(crTypes).toContain("standard");
-      expect(crTypes).toContain("normal");
+      expect(crTypes).toContain("standard");
       expect(crTypes).toContain("emergency");
     });
   });
@@ -70,8 +70,8 @@ describe("CR Type Approvers Page", () => {
     });
 
     it("should validate CR type selection", () => {
-      const validTypes = ["standard", "normal", "emergency"];
-      const selectedType = "normal";
+      const validTypes = ["standard", "standard", "emergency"];
+      const selectedType = "standard";
       
       expect(validTypes.includes(selectedType)).toBe(true);
     });
@@ -85,13 +85,13 @@ describe("CR Type Approvers Page", () => {
 
     it("should submit form with correct data", async () => {
       const formData = {
-        crType: "normal",
+        crType: "standard",
         approverEmail: "lisa@example.com",
         stepName: "Tech Review",
         ordering: 1,
       };
 
-      expect(formData.crType).toBe("normal");
+      expect(formData.crType).toBe("standard");
       expect(formData.approverEmail).toBe("lisa@example.com");
     });
   });
@@ -113,8 +113,8 @@ describe("CR Type Approvers Page", () => {
   describe("Approver list display", () => {
     it("should group approvers by CR type", () => {
       const approvers = [
-        { id: "1", crType: "normal", approverEmail: "lisa@example.com" },
-        { id: "2", crType: "normal", approverEmail: "raj@example.com" },
+        { id: "1", crType: "standard", approverEmail: "lisa@example.com" },
+        { id: "2", crType: "standard", approverEmail: "raj@example.com" },
         { id: "3", crType: "emergency", approverEmail: "oncall@example.com" },
       ];
 
@@ -124,7 +124,7 @@ describe("CR Type Approvers Page", () => {
         grouped[a.crType].push(a);
       }
 
-      expect(grouped.normal).toHaveLength(2);
+      expect(grouped.standard).toHaveLength(2);
       expect(grouped.emergency).toHaveLength(1);
     });
 
@@ -166,13 +166,13 @@ describe("CR Type Approvers Navigation", () => {
 describe("CR Type Icons and Labels", () => {
   const crTypes = [
     { value: "standard", label: "Standard", description: "Pre-approved low-risk changes" },
-    { value: "normal", label: "Normal", description: "Standard changes requiring approval" },
+    { value: "standard", label: "Normal", description: "Standard changes requiring approval" },
     { value: "emergency", label: "Emergency", description: "Urgent changes with expedited approval" },
   ];
 
   it("should have correct labels for each type", () => {
     expect(crTypes.find(t => t.value === "standard")?.label).toBe("Standard");
-    expect(crTypes.find(t => t.value === "normal")?.label).toBe("Normal");
+    expect(crTypes.find(t => t.value === "standard")?.label).toBe("Normal");
     expect(crTypes.find(t => t.value === "emergency")?.label).toBe("Emergency");
   });
 

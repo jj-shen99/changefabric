@@ -8,7 +8,7 @@
  * Inspired by the ServiceNow change_request table but vendor-neutral.
  */
 
-export type ChangeType = "standard" | "normal" | "emergency" | "pre-approved";
+export type ChangeType = "standard" | "emergency" | "pre-approved";
 
 export type RiskLevel = "low" | "moderate" | "high" | "very_high";
 

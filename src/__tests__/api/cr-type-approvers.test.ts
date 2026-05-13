@@ -39,8 +39,8 @@ describe("CR Type Approvers API", () => {
   describe("GET /api/admin/cr-type-approvers", () => {
     it("should return all approvers grouped by CR type", async () => {
       const mockApprovers = [
-        { id: "1", crType: "normal", approverEmail: "lisa@example.com", stepName: "Tech Review", ordering: 1 },
-        { id: "2", crType: "normal", approverEmail: "raj@example.com", stepName: "Tech Review", ordering: 1 },
+        { id: "1", crType: "standard", approverEmail: "lisa@example.com", stepName: "Tech Review", ordering: 1 },
+        { id: "2", crType: "standard", approverEmail: "raj@example.com", stepName: "Tech Review", ordering: 1 },
         { id: "3", crType: "emergency", approverEmail: "oncall@example.com", stepName: "Emergency", ordering: 1 },
       ];
 
@@ -59,15 +59,15 @@ describe("CR Type Approvers API", () => {
 
     it("should filter by crType when provided", async () => {
       const mockApprovers = [
-        { id: "1", crType: "normal", approverEmail: "lisa@example.com", stepName: "Tech Review", ordering: 1 },
+        { id: "1", crType: "standard", approverEmail: "lisa@example.com", stepName: "Tech Review", ordering: 1 },
       ];
 
       mockPrisma.$queryRaw.mockResolvedValue(mockApprovers);
 
       // Simulating filter by crType
-      const filtered = mockApprovers.filter(a => a.crType === "normal");
+      const filtered = mockApprovers.filter(a => a.crType === "standard");
       expect(filtered).toHaveLength(1);
-      expect(filtered[0].crType).toBe("normal");
+      expect(filtered[0].crType).toBe("standard");
     });
   });
 
@@ -79,9 +79,9 @@ describe("CR Type Approvers API", () => {
     });
 
     it("should validate CR type values", () => {
-      const validTypes = ["standard", "normal", "emergency"];
+      const validTypes = ["standard", "standard", "emergency"];
       
-      expect(validTypes.includes("normal")).toBe(true);
+      expect(validTypes.includes("standard")).toBe(true);
       expect(validTypes.includes("invalid")).toBe(false);
     });
 
@@ -136,10 +136,10 @@ describe("CR Type Approvers API", () => {
 
 describe("CR Type Approver Data Validation", () => {
   it("should validate crType enum values", () => {
-    const validTypes = ["standard", "normal", "emergency"];
+    const validTypes = ["standard", "standard", "emergency"];
     
     expect(validTypes).toContain("standard");
-    expect(validTypes).toContain("normal");
+    expect(validTypes).toContain("standard");
     expect(validTypes).toContain("emergency");
     expect(validTypes).not.toContain("custom");
   });

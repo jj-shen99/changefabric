@@ -15,7 +15,7 @@ describe("Workflow Runtime", () => {
     number: "CHG0000001",
     title: "Test CR",
     description: "Test description",
-    type: "normal",
+    type: "standard",
     category: "infrastructure",
     priority: "2",
     riskLevel: "moderate",

@@ -5,7 +5,7 @@ import { requireSession, isResponse, forbidden, badRequest, serverError } from "
 /**
  * GET /api/admin/cr-type-approvers
  * List all CR type approver assignments (admin only)
- * Query params: ?crType=standard|normal|emergency
+ * Query params: ?crType=standard|emergency|pre-approved
  */
 export async function GET(request: Request) {
   const ctx = await requireSession();
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     return badRequest("crType and approverEmail are required");
   }
 
-  const validTypes = ["standard", "normal", "emergency"];
+  const validTypes = ["standard", "standard", "emergency"];
   if (!validTypes.includes(crType)) {
     return badRequest(`crType must be one of: ${validTypes.join(", ")}`);
   }

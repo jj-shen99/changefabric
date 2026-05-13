@@ -46,7 +46,7 @@ export default function ApproversPage() {
 
   // Form state
   const [showForm, setShowForm] = useState(false);
-  const [formType, setFormType] = useState("normal");
+  const [formType, setFormType] = useState("standard");
   const [formEmail, setFormEmail] = useState("");
   const [formGroup, setFormGroup] = useState("");
   const [formStep, setFormStep] = useState("Default");

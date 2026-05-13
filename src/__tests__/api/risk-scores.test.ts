@@ -14,7 +14,7 @@ describe("Risk Score Calculations", () => {
     const mockCR = {
       computedRiskScore: 50,
       computedImpactScore: 40,
-      type: "normal",
+      type: "standard",
       category: "software",
       riskLevel: "moderate",
       affectedServices: ["service-a", "service-b"],
@@ -48,7 +48,7 @@ describe("Risk Score Calculations", () => {
     });
 
     it("performance risk is higher for emergency changes", () => {
-      const normalChange = calculateImpactScores({ ...mockCR, type: "normal" });
+      const normalChange = calculateImpactScores({ ...mockCR, type: "standard" });
       const emergencyChange = calculateImpactScores({ ...mockCR, type: "emergency" });
       
       expect(emergencyChange.performanceRisk).toBeGreaterThan(normalChange.performanceRisk);
@@ -86,7 +86,7 @@ describe("Risk Score Calculations", () => {
       const mockCR = {
         computedRiskScore: 10,
         computedImpactScore: 10,
-        type: "normal",
+        type: "standard",
         category: "other",
         riskLevel: "low",
         affectedServices: [],

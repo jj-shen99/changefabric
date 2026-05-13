@@ -72,7 +72,7 @@ describe("Changes API", () => {
           number: "CHG0000001",
           title: "Test CR",
           state: "draft",
-          type: "normal",
+          type: "standard",
           createdAt: new Date(),
         },
       ];
@@ -140,7 +140,7 @@ describe("Changes API", () => {
         number: "CHG0000099",
         title: "New Test CR",
         state: "draft",
-        type: "normal",
+        type: "standard",
         category: "infrastructure",
         priority: "3",
         riskLevel: "moderate",
@@ -159,7 +159,7 @@ describe("Changes API", () => {
         method: "POST",
         body: JSON.stringify({
           title: "New Test CR",
-          type: "normal",
+          type: "standard",
           category: "infrastructure",
         }),
       });

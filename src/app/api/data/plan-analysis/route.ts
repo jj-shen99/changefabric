@@ -118,7 +118,7 @@ function classifyAppProfile(cr: {
   let criticality: AppProfile["criticality"] = "unknown";
   if (/mission.?critical|tier.?1|critical.*system|core.*platform/i.test(all)) criticality = "mission-critical";
   else if (/business.?critical|tier.?2|important|essential/i.test(all)) criticality = "business-critical";
-  else if (/standard|routine|tier.?3|normal/i.test(all)) criticality = "standard";
+  else if (/standard|routine|tier.?3/i.test(all)) criticality = "standard";
 
   return { applicationName, serviceCategory, environmentTags, criticality, technologyStack };
 }

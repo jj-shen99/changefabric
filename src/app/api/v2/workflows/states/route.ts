@@ -11,7 +11,7 @@ import {
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const crType = searchParams.get("type") || "normal";
+  const crType = searchParams.get("type") || "standard";
   const currentState = searchParams.get("currentState");
   const role = searchParams.get("role") || "manager";
 

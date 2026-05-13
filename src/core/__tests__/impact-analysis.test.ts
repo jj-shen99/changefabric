@@ -9,7 +9,7 @@ describe("Impact Analysis", () => {
     number: "CHG0000001",
     title: "Test CR",
     description: "Test description",
-    type: "normal",
+    type: "standard",
     category: "infrastructure",
     priority: "2",
     riskLevel: "moderate",
@@ -66,7 +66,7 @@ describe("Impact Analysis", () => {
     it("considers emergency type as higher risk", () => {
       const normalCR = {
         ...baseCR,
-        type: "normal",
+        type: "standard",
       } as ChangeRequest;
 
       const emergencyCR = {
@@ -129,7 +129,7 @@ describe("Impact Analysis", () => {
       const minimalCR = {
         number: "CHG0000001",
         title: "Minimal CR",
-        type: "normal",
+        type: "standard",
         category: "other",
         priority: "3",
         riskLevel: "moderate",

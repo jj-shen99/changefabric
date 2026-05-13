@@ -120,7 +120,7 @@ export const TYPE_TO_WORKFLOW: Record<string, string> = {
   emergency: "emergency",
   "pre-approved": "standard_preapproved",
   // Legacy mappings for backward compatibility
-  normal: "standard",
+  // "normal" was legacy alias for "standard" - removed
 };
 
 /**

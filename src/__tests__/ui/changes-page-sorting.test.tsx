@@ -29,7 +29,7 @@ const mockCRs = [
     number: "CHG0000001",
     title: "Database Migration",
     state: "draft",
-    type: "normal",
+    type: "standard",
     category: "infrastructure",
     priority: "2",
     riskLevel: "moderate",

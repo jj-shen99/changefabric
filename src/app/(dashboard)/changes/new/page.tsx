@@ -67,7 +67,7 @@ type ExistingCR = {
 const defaultForm = {
   title: "",
   description: "",
-  type: "normal",
+  type: "standard",
   category: "other",
   priority: "3",
   riskLevel: "moderate",
