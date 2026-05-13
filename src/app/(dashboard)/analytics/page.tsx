@@ -84,11 +84,17 @@ export default function AnalyticsPage() {
         const total = (d.successful || 0) + (d.failed || 0) + (d.rolledBack || 0);
         const successRate = total > 0 ? Math.round((d.successful || 0) / total * 100) : 100;
         const riskVal = riskTrendData && riskTrendData[i] ? riskTrendData[i].avgRisk || 0 : 0;
+        // Estimate MTTR based on risk and failure rate - higher risk/failures = longer recovery
+        const failedCount = (d.failed || 0) + (d.rolledBack || 0);
+        const baseMttr = 15; // Base MTTR in minutes
+        const riskFactor = riskVal > 50 ? 1.5 : riskVal > 30 ? 1.2 : 1;
+        const failureFactor = failedCount > 0 ? 1 + (failedCount * 0.3) : 1;
+        const mttr = Math.round(baseMttr * riskFactor * failureFactor);
         return {
           week: d.date || `W${i + 1}`,
           success: successRate,
           avgRisk: riskVal,
-          mttr: Math.round(15 + Math.random() * 20), // Estimated MTTR
+          mttr,
           changes: total,
         };
       })
@@ -657,12 +663,21 @@ export default function AnalyticsPage() {
           {/* DORA Metrics */}
           <div>
             <h2 className="text-sm font-semibold uppercase text-gray-400 mb-3">DORA Metrics</h2>
+            {(() => {
+              // Calculate deployment frequency from actual data
+              const deployFreq = days > 0 && totalDeployed > 0 ? Math.round((totalDeployed / days) * 10) / 10 : 0;
+              const deployFreqStatus = deployFreq >= 4 ? "good" : "needs_improvement";
+              const leadTimeStatus = avgLeadTime <= 72 ? "good" : "needs_improvement";
+              const mttrValue = weeklyDeployHealth.length > 0 ? Math.round(weeklyDeployHealth.reduce((s, w) => s + w.mttr, 0) / weeklyDeployHealth.length) : 0;
+              const mttrStatus = mttrValue <= 30 ? "good" : "needs_improvement";
+              const failureStatus = changeFailureRate <= 5 ? "good" : "needs_improvement";
+              return (
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               {[
-                { label: "Deployment Frequency", value: "3.2/day", target: "4/day", icon: GitPullRequest, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950", status: "good", tooltip: "How often code is deployed to production. Elite: multiple per day" },
-                { label: "Lead Time for Changes", value: dashboardMetrics?.changeLeadTime || "N/A", target: "< 3 days", icon: Timer, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950", status: "needs_improvement", tooltip: "Time from code commit to production deployment. Elite: < 1 day" },
-                { label: "Mean Time to Recovery", value: dashboardMetrics?.mttr || "N/A", target: "< 30 min", icon: RotateCcw, color: "text-green-600", bg: "bg-green-50 dark:bg-green-950", status: "good", tooltip: "Time to restore service after an incident. Elite: < 1 hour" },
-                { label: "Change Failure Rate", value: `${dashboardMetrics?.rollbackRate || 0}%`, target: "< 5%", icon: Target, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950", status: "good", tooltip: "Percentage of deployments causing failures. Elite: < 5%" },
+                { label: "Deployment Frequency", value: `${deployFreq}/day`, target: "4/day", icon: GitPullRequest, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950", status: deployFreqStatus, tooltip: "How often code is deployed to production. Elite: multiple per day" },
+                { label: "Lead Time for Changes", value: dashboardMetrics?.changeLeadTime || `${avgLeadTime}h`, target: "< 3 days", icon: Timer, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950", status: leadTimeStatus, tooltip: "Time from code commit to production deployment. Elite: < 1 day" },
+                { label: "Mean Time to Recovery", value: mttrValue > 0 ? `${mttrValue}m` : "N/A", target: "< 30 min", icon: RotateCcw, color: "text-green-600", bg: "bg-green-50 dark:bg-green-950", status: mttrStatus, tooltip: "Time to restore service after an incident. Elite: < 1 hour" },
+                { label: "Change Failure Rate", value: `${changeFailureRate}%`, target: "< 5%", icon: Target, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950", status: failureStatus, tooltip: "Percentage of deployments causing failures. Elite: < 5%" },
               ].map((metric) => (
                 <Card key={metric.label} className="p-4 group relative">
                   <div className="flex items-start justify-between">
@@ -688,6 +703,8 @@ export default function AnalyticsPage() {
                 </Card>
               ))}
             </div>
+              );
+            })()}
           </div>
 
           {/* Risk & Validation Trends */}

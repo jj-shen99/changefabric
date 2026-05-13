@@ -34,6 +34,7 @@ export interface TimeBucket {
   avgRisk: number;
   closed: number;
   failed: number;
+  rolledBack: number;
 }
 
 const PENDING_STATES = new Set(["draft", "submitted", "awaiting_approval"]);
@@ -155,11 +156,13 @@ export function weeklyTrend(crs: ChangeRequest[], take = 8): TimeBucket[] {
         avgRisk: 0,
         closed: 0,
         failed: 0,
+        rolledBack: 0,
       };
     existing.count++;
     existing.avgRisk += c.computedRiskScore || 0;
     if (c.state === "closed") existing.closed++;
     if (c.state === "rejected" || c.state === "canceled") existing.failed++;
+    if (c.state === "rolled_back") existing.rolledBack++;
     buckets.set(key, existing);
   }
   const sorted = [...buckets.entries()].sort((a, b) => a[0].localeCompare(b[0]));

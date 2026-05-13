@@ -153,7 +153,7 @@ export async function GET(request: Request) {
       date: t.date,
       successful: t.closed,
       failed: t.failed,
-      rolledBack: 0,
+      rolledBack: t.rolledBack,
     })),
     impactByCategory: impactByCategory(filtered),
   });
