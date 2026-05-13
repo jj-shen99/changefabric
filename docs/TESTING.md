@@ -2,7 +2,9 @@
 
 ## Overview
 
-The application includes 450+ unit tests covering core modules, API routes, components, and pages.
+The application includes 575+ unit tests covering core modules, API routes, components, and pages.
+This includes advanced testing techniques such as **combinatorial testing** and **prime path coverage**
+for comprehensive workflow validation.
 
 ## Test Structure
 
@@ -103,6 +105,29 @@ npm test -- --watch
 │  ├── Category aggregation                                                    │
 │  ├── Weekly trend calculation                                                │
 │  └── Risk distribution                                                       │
+│                                                                              │
+│  workflow-combinatorial.test.ts                                              │
+│  ├── Pairwise coverage: Workflow × Role                                      │
+│  ├── Pairwise coverage: State × Event                                        │
+│  ├── Pairwise coverage: Role × Guard Condition                               │
+│  ├── Pairwise coverage: Workflow × Terminal State                            │
+│  ├── 3-way combinatorial: Workflow × State × Role                            │
+│  └── Boundary value analysis                                                 │
+│                                                                              │
+│  workflow-prime-path.test.ts                                                 │
+│  ├── Happy path (main success scenario)                                      │
+│  ├── Alternative paths to terminal states                                    │
+│  ├── Cycle paths (return to draft)                                           │
+│  ├── Skip schedule path (direct implementation)                              │
+│  ├── Edge coverage verification (all transitions)                            │
+│  ├── Node coverage verification (all states reachable)                       │
+│  └── Path length analysis                                                    │
+│                                                                              │
+│  approval-auto-transition.test.ts                                            │
+│  ├── Overall approval state computation                                      │
+│  ├── Step evaluation with all/any/quorum policies                            │
+│  ├── System context for auto-transition                                      │
+│  └── Draft CR visibility rules                                               │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -284,4 +309,95 @@ jest.mock("next-auth/react", () => ({
     status: "authenticated",
   }),
 }));
+```
+
+## Advanced Testing Techniques
+
+### Combinatorial Testing (Pairwise Coverage)
+
+Combinatorial testing ensures all pairs of input parameters are tested together at least once.
+This provides good coverage with fewer test cases than exhaustive testing.
+
+**Parameters tested for workflows:**
+- Workflow type: `standard`, `emergency`, `standard_preapproved`
+- User role: `requester`, `manager`, `admin`
+- Current state: all states in each workflow
+- Target event: all events in each workflow
+- Guard conditions: met, not met
+
+```bash
+# Run combinatorial tests
+npm test -- --testPathPatterns="workflow-combinatorial"
+```
+
+**Coverage levels:**
+- 2-way (pairwise): All pairs of parameters tested
+- 3-way: Critical three-parameter combinations tested
+- Boundary values: Edge cases and empty/undefined inputs
+
+### Prime Path Coverage
+
+Prime path coverage is a graph-based testing technique that ensures all prime paths
+(maximal simple paths that are not subpaths of other simple paths) are tested.
+
+**For workflow state machines:**
+- **Nodes** = States (draft, submitted, approved, etc.)
+- **Edges** = Transitions (submit, approve, implement, etc.)
+- **Prime paths** = Maximal simple paths through the state graph
+
+```bash
+# Run prime path tests
+npm test -- --testPathPatterns="workflow-prime-path"
+```
+
+**Coverage includes:**
+- Happy path (main success scenario)
+- Alternative paths to all terminal states
+- Cycle paths (e.g., return to draft)
+- Edge coverage (all transitions tested)
+- Node coverage (all states reachable)
+
+### Workflow State Graph (Standard)
+
+```
+                                    ┌─────────────┐
+                                    │   rejected  │ (terminal)
+                                    └──────▲──────┘
+                                           │ reject
+┌───────┐  submit   ┌───────────┐  request  ┌─────────────────┐  approve  ┌──────────┐
+│ draft │─────────▶│ submitted │─────────▶│awaiting_approval│──────────▶│ approved │
+└───┬───┘          └─────┬─────┘           └────────┬────────┘           └────┬─────┘
+    │                    │                          │                         │
+    │ cancel             │ return_to_draft          │ cancel                  │ schedule
+    │                    │                          │                         ▼
+    │                    ▼                          │                   ┌───────────┐
+    │              ┌───────┐                        │                   │ scheduled │
+    │              │ draft │                        │                   └─────┬─────┘
+    │              └───────┘                        │                         │
+    │                                               │                    implement
+    │                                               │                         │
+    ▼                                               ▼                         ▼
+┌──────────┐◀────────────────────────────────────────────────────────┌─────────────┐
+│ canceled │ (terminal)                                               │ implemented │
+└──────────┘                                                          └──────┬──────┘
+                                                                             │
+                                                              ┌──────────────┼──────────────┐
+                                                              │              │              │
+                                                           close         rollback          │
+                                                              │              │              │
+                                                              ▼              ▼              │
+                                                        ┌────────┐   ┌─────────────┐       │
+                                                        │ closed │   │ rolled_back │       │
+                                                        └────────┘   └─────────────┘       │
+                                                        (terminal)     (terminal)          │
+```
+
+### Running All Workflow Tests
+
+```bash
+# Run all workflow-related tests
+npm test -- --testPathPatterns="workflow|approval"
+
+# Run with coverage
+npm test -- --testPathPatterns="workflow|approval" --coverage
 ```
