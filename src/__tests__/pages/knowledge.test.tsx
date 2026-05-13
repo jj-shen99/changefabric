@@ -74,16 +74,21 @@ describe("Knowledge Page", () => {
       expect(screen.getByText("No approval gate needed")).toBeInTheDocument();
     });
 
-    it("renders approval tiers", () => {
+    it("renders approval tiers for Standard CRs only", () => {
       expect(screen.getByText("Risk-Based Approval Tiers")).toBeInTheDocument();
+      expect(screen.getByText("Standard CRs Only")).toBeInTheDocument();
       expect(screen.getByText("Critical (80-100)")).toBeInTheDocument();
       expect(screen.getByText("High (60-79)")).toBeInTheDocument();
-      expect(screen.getByText("Medium (40-59)")).toBeInTheDocument();
-      expect(screen.getByText("Low (0-39)")).toBeInTheDocument();
+      expect(screen.getByText("Medium (0-59)")).toBeInTheDocument();
       expect(screen.getByText("3 Approvers")).toBeInTheDocument();
       expect(screen.getByText("2 Approvers")).toBeInTheDocument();
       expect(screen.getByText("1 Approver")).toBeInTheDocument();
-      expect(screen.getByText("Auto-Approve")).toBeInTheDocument();
+      // No Auto-Approve tier - all Standard CRs require at least one approval
+      expect(screen.queryByText("Auto-Approve")).not.toBeInTheDocument();
+    });
+
+    it("explains that risk-based tiers apply only to Standard CRs", () => {
+      expect(screen.getByText(/only to Standard change requests/)).toBeInTheDocument();
     });
   });
 
@@ -143,5 +148,37 @@ describe("Knowledge Page - Workflow Flows", () => {
 
   it("shows Pre-approved workflow flow", () => {
     expect(screen.getByText(/Draft → Schedule → Implement → Close/)).toBeInTheDocument();
+  });
+});
+
+describe("Knowledge Page - Quick Reference", () => {
+  beforeEach(() => {
+    render(<KnowledgePage />);
+  });
+
+  it("renders Quick Reference section", () => {
+    expect(screen.getByText("Quick Reference")).toBeInTheDocument();
+  });
+
+  it("renders Common Actions", () => {
+    expect(screen.getByText("Common Actions")).toBeInTheDocument();
+    expect(screen.getByText("Create CR")).toBeInTheDocument();
+    expect(screen.getByText("Submit")).toBeInTheDocument();
+    expect(screen.getByText("Request Approval")).toBeInTheDocument();
+    expect(screen.getByText("Schedule")).toBeInTheDocument();
+    expect(screen.getByText("Rollback")).toBeInTheDocument();
+  });
+
+  it("renders CR Type Comparison table", () => {
+    expect(screen.getByText("CR Type Comparison")).toBeInTheDocument();
+    expect(screen.getByText("Approval Required")).toBeInTheDocument();
+    expect(screen.getByText("Yes (risk-based)")).toBeInTheDocument();
+    expect(screen.getByText("Emergency + Retro")).toBeInTheDocument();
+  });
+
+  it("renders helpful tips", () => {
+    expect(screen.getByText(/Plan quality matters/)).toBeInTheDocument();
+    // "Use templates" appears multiple times, use getAllByText
+    expect(screen.getAllByText(/Use templates/).length).toBeGreaterThanOrEqual(1);
   });
 });

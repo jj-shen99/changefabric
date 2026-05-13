@@ -259,13 +259,21 @@ export default function KnowledgePage() {
               </div>
             </div>
 
-            {/* Approval Tiers */}
-            <div className="mt-6 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                <Shield className="h-4 w-4 text-indigo-500" />
-                Risk-Based Approval Tiers
-              </h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Approval Tiers - Standard CRs Only */}
+            <div className="mt-6 rounded-lg border border-blue-200 dark:border-blue-700 p-4 bg-blue-50/30 dark:bg-blue-950/20">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-indigo-500" />
+                  Risk-Based Approval Tiers
+                </h4>
+                <span className="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+                  Standard CRs Only
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                Risk-based approval tiers apply <strong>only to Standard change requests</strong>. Emergency CRs use a separate fast-track approval process, and Pre-approved CRs skip approval entirely.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="rounded-lg bg-red-50 dark:bg-red-950/30 p-3 border border-red-200 dark:border-red-800">
                   <div className="text-xs font-bold text-red-600 dark:text-red-400">Critical (80-100)</div>
                   <div className="text-lg font-bold text-red-700 dark:text-red-300">3 Approvers</div>
@@ -277,16 +285,14 @@ export default function KnowledgePage() {
                   <div className="text-[10px] text-orange-500">Tech Lead, Manager</div>
                 </div>
                 <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-3 border border-amber-200 dark:border-amber-800">
-                  <div className="text-xs font-bold text-amber-600 dark:text-amber-400">Medium (40-59)</div>
+                  <div className="text-xs font-bold text-amber-600 dark:text-amber-400">Medium (0-59)</div>
                   <div className="text-lg font-bold text-amber-700 dark:text-amber-300">1 Approver</div>
                   <div className="text-[10px] text-amber-500">Tech Lead</div>
                 </div>
-                <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-3 border border-green-200 dark:border-green-800">
-                  <div className="text-xs font-bold text-green-600 dark:text-green-400">Low (0-39)</div>
-                  <div className="text-lg font-bold text-green-700 dark:text-green-300">Auto-Approve</div>
-                  <div className="text-[10px] text-green-500">No manual approval</div>
-                </div>
               </div>
+              <p className="mt-3 text-[10px] text-gray-400 dark:text-gray-500 italic">
+                Note: All Standard CRs require at least one approval regardless of risk score. Approval tiers are configurable in Settings.
+              </p>
             </div>
           </div>
         </Card>
@@ -564,6 +570,102 @@ export default function KnowledgePage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        </Card>
+
+        {/* Quick Reference */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-indigo-500" />
+              Quick Reference
+            </CardTitle>
+            <CardDescription>Common workflows and key information at a glance</CardDescription>
+          </CardHeader>
+          <div className="px-4 pb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Common Actions */}
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Common Actions</h4>
+                <div className="space-y-3 text-xs">
+                  <div className="flex items-start gap-2">
+                    <span className="font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-indigo-600 dark:text-indigo-400">Create CR</span>
+                    <span className="text-gray-600 dark:text-gray-400">Use templates or copy existing CR from /changes/new</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-indigo-600 dark:text-indigo-400">Submit</span>
+                    <span className="text-gray-600 dark:text-gray-400">Move from Draft to Submitted for review</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-indigo-600 dark:text-indigo-400">Request Approval</span>
+                    <span className="text-gray-600 dark:text-gray-400">Standard CRs only - triggers risk-based approval steps</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-indigo-600 dark:text-indigo-400">Schedule</span>
+                    <span className="text-gray-600 dark:text-gray-400">Set planned start/end dates for implementation</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="font-mono bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-indigo-600 dark:text-indigo-400">Rollback</span>
+                    <span className="text-gray-600 dark:text-gray-400">Revert changes from In Progress or Implemented states</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Key Differences */}
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">CR Type Comparison</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="py-2 text-left font-medium text-gray-500">Feature</th>
+                        <th className="py-2 text-center font-medium text-blue-600">Standard</th>
+                        <th className="py-2 text-center font-medium text-orange-600">Emergency</th>
+                        <th className="py-2 text-center font-medium text-green-600">Pre-approved</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                      <tr>
+                        <td className="py-2 text-gray-600 dark:text-gray-400">Approval Required</td>
+                        <td className="py-2 text-center">Yes (risk-based)</td>
+                        <td className="py-2 text-center">Emergency + Retro</td>
+                        <td className="py-2 text-center">No</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 text-gray-600 dark:text-gray-400">Scheduling</td>
+                        <td className="py-2 text-center">After approval</td>
+                        <td className="py-2 text-center">Immediate</td>
+                        <td className="py-2 text-center">Direct</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 text-gray-600 dark:text-gray-400">Risk Assessment</td>
+                        <td className="py-2 text-center">Full</td>
+                        <td className="py-2 text-center">Post-hoc</td>
+                        <td className="py-2 text-center">Pre-assessed</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 text-gray-600 dark:text-gray-400">Use Case</td>
+                        <td className="py-2 text-center">Normal changes</td>
+                        <td className="py-2 text-center">Critical fixes</td>
+                        <td className="py-2 text-center">Routine tasks</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Helpful Tips */}
+            <div className="mt-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 p-4">
+              <h4 className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 mb-2">💡 Tips</h4>
+              <ul className="text-xs text-indigo-600 dark:text-indigo-400 space-y-1.5">
+                <li>• <strong>Plan quality matters</strong> — Higher plan scores lead to faster approvals and fewer rejections</li>
+                <li>• <strong>Use templates</strong> — Pre-built templates include best practices and reduce errors</li>
+                <li>• <strong>Check Impact Analysis</strong> — Review ML risk scores before requesting approval</li>
+                <li>• <strong>Set realistic windows</strong> — Planned dates must be in the future with start before end</li>
+                <li>• <strong>Include backout plans</strong> — Required for scheduling; helps with rollback if needed</li>
+              </ul>
             </div>
           </div>
         </Card>

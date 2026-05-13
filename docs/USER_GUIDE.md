@@ -207,11 +207,17 @@ Three change types with different approval requirements:
 | **Emergency** | Fast-track | Emergency + Retro | Urgent changes with post-implementation review |
 | **Pre-approved** | No approval | None | Low-risk templated changes |
 
-**Risk-Based Approval Tiers:**
-- Critical (80-100): 3 approvers (Tech Lead, Security, CAB)
-- High (60-79): 2 approvers (Tech Lead, Manager)
-- Medium (40-59): 1 approver (Tech Lead)
-- Low (0-39): Auto-approve
+**Risk-Based Approval Tiers (Standard CRs Only):**
+
+Risk-based approval tiers apply **only to Standard change requests**. Emergency CRs use a separate fast-track approval process, and Pre-approved CRs skip approval entirely.
+
+| Risk Level | Score Range | Approvers |
+|------------|-------------|-----------|
+| Critical | 80-100 | 3 (Tech Lead, Security, CAB) |
+| High | 60-79 | 2 (Tech Lead, Manager) |
+| Medium | 0-59 | 1 (Tech Lead) |
+
+> **Note**: All Standard CRs require at least one approval regardless of risk score. Approval tiers are configurable in Settings.
 
 #### Role Permissions
 Complete permissions matrix showing what each role can do:

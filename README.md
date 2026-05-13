@@ -109,6 +109,15 @@ A full-stack **software change validation and release impact analysis dashboard*
 - **Planned date validation**: Start must be before end, both must be in the future
 - **Helpful error messages** when guards fail (e.g., "Please set Planned Start and Planned End dates before scheduling")
 
+### Change Types & Approval
+- **Standard CRs**: Full approval workflow with risk-based approval tiers
+  - Critical (80-100): 3 approvers (Tech Lead, Security, CAB)
+  - High (60-79): 2 approvers (Tech Lead, Manager)
+  - Medium (0-59): 1 approver (Tech Lead)
+  - All Standard CRs require at least one approval regardless of risk score
+- **Emergency CRs**: Fast-track emergency approval, then retrospective approval after implementation
+- **Pre-approved CRs**: No approval required, direct scheduling for low-risk templated changes
+
 ### Change Request Templates
 - **19 pre-built templates** covering various workflows and categories
 - Templates include: Database Migration, API Deployment, Security Patch, Feature Flag, Infrastructure, and more

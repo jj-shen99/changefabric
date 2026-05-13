@@ -41,11 +41,12 @@ interface ApprovalPolicy {
   autoApprove: boolean;
 }
 
+// Risk-Based Approval Tiers - applies to Standard CRs only
+// All Standard CRs require at least one approval regardless of risk score
 const defaultApprovalPolicies: ApprovalPolicy[] = [
   { id: "critical", riskLevel: "critical", minScore: 80, maxScore: 100, requiredApprovals: 3, approverGroups: ["Tech Lead", "Security Lead", "CAB"], autoApprove: false },
   { id: "high", riskLevel: "high", minScore: 60, maxScore: 79, requiredApprovals: 2, approverGroups: ["Tech Lead", "Manager"], autoApprove: false },
-  { id: "medium", riskLevel: "medium", minScore: 40, maxScore: 59, requiredApprovals: 1, approverGroups: ["Tech Lead"], autoApprove: false },
-  { id: "low", riskLevel: "low", minScore: 0, maxScore: 39, requiredApprovals: 0, approverGroups: [], autoApprove: true },
+  { id: "medium", riskLevel: "medium", minScore: 0, maxScore: 59, requiredApprovals: 1, approverGroups: ["Tech Lead"], autoApprove: false },
 ];
 
 const defaultSettings: SettingSection[] = [
