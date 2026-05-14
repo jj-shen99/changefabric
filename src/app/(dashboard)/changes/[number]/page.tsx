@@ -519,9 +519,8 @@ export default function ChangeDetailPage({ params }: { params: { number: string 
                         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
                       >
                         <option value="low">Low</option>
-                        <option value="moderate">Moderate</option>
+                        <option value="medium">Medium</option>
                         <option value="high">High</option>
-                        <option value="very_high">Very High</option>
                       </select>
                     </div>
                     <div>
