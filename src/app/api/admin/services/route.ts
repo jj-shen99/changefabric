@@ -2,6 +2,20 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, isResponse, forbidden, badRequest, serverError } from "../../v2/_helpers";
 
+interface ServiceRow {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  category: string;
+  owner: string | null;
+  criticality: string;
+  isActive: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /**
  * GET /api/admin/services
  * List all services (admin only)
@@ -12,10 +26,15 @@ export async function GET() {
   if (!ctx.perms.canViewAllData && !ctx.perms.canEditSettings && !ctx.perms.canManageUsers) return forbidden();
 
   try {
-    const services = await prisma.service.findMany({
-      orderBy: { name: "asc" },
-    });
-    return NextResponse.json(services);
+    // Use raw SQL to avoid Prisma client model issues
+    const services = await prisma.$queryRaw<ServiceRow[]>`
+      SELECT id, name, displayName, description, category, owner, criticality, isActive, createdBy, createdAt, updatedAt
+      FROM Service
+      ORDER BY name ASC
+    `;
+    // Convert isActive from number to boolean for frontend
+    const result = services.map(s => ({ ...s, isActive: s.isActive === 1 }));
+    return NextResponse.json(result);
   } catch (e) {
     return serverError(e);
   }
@@ -38,25 +57,24 @@ export async function POST(request: Request) {
       return badRequest("name and displayName are required");
     }
 
-    // Check for duplicate
-    const existing = await prisma.service.findUnique({ where: { name } });
-    if (existing) {
+    const normalizedName = name.toLowerCase().replace(/\s+/g, "-");
+
+    // Check for duplicate using raw SQL
+    const existing = await prisma.$queryRaw<{ id: string }[]>`
+      SELECT id FROM Service WHERE name = ${normalizedName} LIMIT 1
+    `;
+    if (existing.length > 0) {
       return badRequest(`Service with name "${name}" already exists`);
     }
 
-    const service = await prisma.service.create({
-      data: {
-        name: name.toLowerCase().replace(/\s+/g, "-"),
-        displayName,
-        description: description || "",
-        category: category || "other",
-        owner: owner || null,
-        criticality: criticality || "standard",
-        createdBy: ctx.email,
-      },
-    });
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await prisma.$executeRaw`
+      INSERT INTO Service (id, name, displayName, description, category, owner, criticality, isActive, createdBy, createdAt, updatedAt)
+      VALUES (${id}, ${normalizedName}, ${displayName}, ${description || ""}, ${category || "other"}, ${owner || null}, ${criticality || "standard"}, 1, ${ctx.email}, ${now}, ${now})
+    `;
 
-    return NextResponse.json(service, { status: 201 });
+    return NextResponse.json({ id, name: normalizedName, displayName, description: description || "", category: category || "other", owner: owner || null, criticality: criticality || "standard", isActive: true, createdBy: ctx.email, createdAt: now, updatedAt: now }, { status: 201 });
   } catch (e) {
     return serverError(e);
   }
@@ -79,20 +97,33 @@ export async function PUT(request: Request) {
       return badRequest("id is required");
     }
 
-    const service = await prisma.service.update({
-      where: { id },
-      data: {
-        ...(name && { name: name.toLowerCase().replace(/\s+/g, "-") }),
-        ...(displayName && { displayName }),
-        ...(description !== undefined && { description }),
-        ...(category && { category }),
-        ...(owner !== undefined && { owner }),
-        ...(criticality && { criticality }),
-        ...(isActive !== undefined && { isActive }),
-      },
-    });
+    const now = new Date().toISOString();
+    const normalizedName = name ? name.toLowerCase().replace(/\s+/g, "-") : null;
+    const isActiveNum = isActive !== undefined ? (isActive ? 1 : 0) : null;
 
-    return NextResponse.json(service);
+    // Build dynamic update using raw SQL
+    await prisma.$executeRaw`
+      UPDATE Service SET
+        name = COALESCE(${normalizedName}, name),
+        displayName = COALESCE(${displayName || null}, displayName),
+        description = COALESCE(${description !== undefined ? description : null}, description),
+        category = COALESCE(${category || null}, category),
+        owner = COALESCE(${owner !== undefined ? owner : null}, owner),
+        criticality = COALESCE(${criticality || null}, criticality),
+        isActive = COALESCE(${isActiveNum}, isActive),
+        updatedAt = ${now}
+      WHERE id = ${id}
+    `;
+
+    // Fetch updated record
+    const updated = await prisma.$queryRaw<ServiceRow[]>`
+      SELECT id, name, displayName, description, category, owner, criticality, isActive, createdBy, createdAt, updatedAt
+      FROM Service WHERE id = ${id}
+    `;
+    if (updated.length === 0) {
+      return badRequest("Service not found");
+    }
+    return NextResponse.json({ ...updated[0], isActive: updated[0].isActive === 1 });
   } catch (e) {
     return serverError(e);
   }
@@ -115,7 +146,7 @@ export async function DELETE(request: Request) {
       return badRequest("id is required");
     }
 
-    await prisma.service.delete({ where: { id } });
+    await prisma.$executeRaw`DELETE FROM Service WHERE id = ${id}`;
 
     return NextResponse.json({ success: true });
   } catch (e) {
