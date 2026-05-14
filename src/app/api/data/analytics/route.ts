@@ -24,12 +24,16 @@ export async function GET(request: Request) {
   const repo = new PrismaChangeRequestRepository(prisma);
   const since = days > 0 ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
 
-  const [allCRs, releases, assignmentGroups] = await Promise.all([
+  // Fetch services for Service Risk Ranking
+  interface ServiceRow { name: string; displayName: string; category: string; criticality: string; }
+  const [allCRs, releases, assignmentGroups, servicesData] = await Promise.all([
     repo.list(!canViewAll ? { requestedBy: userEmail } : undefined),
     prisma.release.findMany({ orderBy: { scheduledDate: "desc" } }),
     prisma.group.findMany({ where: { type: { in: ["assignment", "both"] }, isActive: true }, select: { name: true } }),
+    prisma.$queryRaw<ServiceRow[]>`SELECT name, displayName, category, criticality FROM Service WHERE isActive = 1`,
   ]);
   const validGroupNames = new Set(assignmentGroups.map(g => g.name));
+  const servicesMap = new Map(servicesData.map(s => [s.name, s]));
   const crs = since ? allCRs.filter((c) => new Date(c.createdAt) >= since) : allCRs;
 
   // Per-release rollups using the new releaseId link
@@ -61,25 +65,33 @@ export async function GET(request: Request) {
     };
   });
 
-  // Blast radius by service
-  const serviceMap: Record<string, { changeCount: number; changes: string[]; risk: number }> = {};
+  // Blast radius by service - use services table data
+  const serviceStatsMap: Record<string, { changeCount: number; changes: string[]; risk: number }> = {};
   for (const c of crs) {
     for (const svc of c.affectedServices) {
-      if (!serviceMap[svc]) serviceMap[svc] = { changeCount: 0, changes: [], risk: 0 };
-      serviceMap[svc].changeCount++;
-      serviceMap[svc].changes.push(c.number);
-      serviceMap[svc].risk += c.computedRiskScore;
+      if (!serviceStatsMap[svc]) serviceStatsMap[svc] = { changeCount: 0, changes: [], risk: 0 };
+      serviceStatsMap[svc].changeCount++;
+      serviceStatsMap[svc].changes.push(c.number);
+      serviceStatsMap[svc].risk += c.computedRiskScore;
     }
   }
-  const blastRadius = Object.entries(serviceMap)
-    .map(([service, d]) => ({
-      service,
-      changeCount: d.changeCount,
-      avgRisk: d.changeCount ? Math.round(d.risk / d.changeCount) : 0,
-      changes: d.changes,
-      releases: [] as string[],
-    }))
-    .sort((a, b) => b.changeCount - a.changeCount);
+  
+  // Build blast radius using services table for display names and metadata
+  const blastRadius = Object.entries(serviceStatsMap)
+    .map(([serviceName, d]) => {
+      const serviceInfo = servicesMap.get(serviceName);
+      return {
+        service: serviceInfo?.displayName || serviceName,
+        serviceName, // Keep original name for reference
+        category: serviceInfo?.category || "unknown",
+        criticality: serviceInfo?.criticality || "standard",
+        changeCount: d.changeCount,
+        avgRisk: d.changeCount ? Math.round(d.risk / d.changeCount) : 0,
+        changes: d.changes,
+        releases: [] as string[],
+      };
+    })
+    .sort((a, b) => b.avgRisk - a.avgRisk); // Sort by risk instead of count
 
   const confidenceScores = releases.map((rel) => ({
     releaseId: rel.id,

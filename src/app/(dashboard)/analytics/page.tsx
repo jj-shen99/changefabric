@@ -21,7 +21,7 @@ function riskColor(score: number) {
   return "#22c55e";
 }
 
-type AnalyticsTab = "risk" | "velocity" | "health";
+type AnalyticsTab = "overview" | "risk" | "performance" | "insights";
 
 /* ─── Tab Button ─── */
 function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: React.ElementType; label: string }) {
@@ -51,7 +51,7 @@ export default function AnalyticsPage() {
   const [days, setDays] = useState(7);
   const { failureAnalysis, rollbackIntelligence, velocity, loading: aLoading, error: aError } = useAnalytics(days);
   const { riskTrendData, deploymentFrequencyData, loading: dLoading, error: dError } = useData(days);
-  const [activeTab, setActiveTab] = useState<AnalyticsTab>("risk");
+  const [activeTab, setActiveTab] = useState<AnalyticsTab>("overview");
 
   const loading = aLoading || dLoading;
   const error = aError || dError;
@@ -104,9 +104,10 @@ export default function AnalyticsPage() {
       {/* Tabs + Date Range */}
       <div className="flex items-center justify-between border-b border-gray-200 pb-0.5 dark:border-gray-800">
         <div className="flex gap-1">
-          <TabButton active={activeTab === "risk"} onClick={() => setActiveTab("risk")} icon={AlertTriangle} label="Risk & Failures" />
-          <TabButton active={activeTab === "velocity"} onClick={() => setActiveTab("velocity")} icon={Zap} label="Velocity & DORA" />
-          <TabButton active={activeTab === "health"} onClick={() => setActiveTab("health")} icon={Shield} label="Health & Insights" />
+          <TabButton active={activeTab === "overview"} onClick={() => setActiveTab("overview")} icon={BarChart3} label="Overview" />
+          <TabButton active={activeTab === "risk"} onClick={() => setActiveTab("risk")} icon={AlertTriangle} label="Risk Analysis" />
+          <TabButton active={activeTab === "performance"} onClick={() => setActiveTab("performance")} icon={Zap} label="Performance" />
+          <TabButton active={activeTab === "insights"} onClick={() => setActiveTab("insights")} icon={Shield} label="Insights" />
         </div>
         <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 dark:border-gray-700 dark:bg-gray-800">
           <Calendar className="h-3.5 w-3.5 text-gray-400" />
@@ -119,7 +120,159 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* ═══ TAB: RISK & FAILURES ═══ */}
+      {/* ═══ TAB: OVERVIEW ═══ */}
+      {activeTab === "overview" && (
+        <div className="space-y-6">
+          {/* Summary KPIs */}
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+            {[
+              { label: "Total Changes", value: totalChanges, icon: GitPullRequest, color: "#3b82f6", tooltip: "Total change requests in selected period" },
+              { label: "Deployed", value: deployed, icon: CheckCircle2, color: "#22c55e", tooltip: "Successfully deployed changes" },
+              { label: "Failed", value: failed, icon: XCircle, color: "#ef4444", tooltip: "Failed or rejected changes" },
+              { label: "Failure Rate", value: `${changeFailureRate}%`, icon: TrendingDown, color: changeFailureRate > 15 ? "#ef4444" : changeFailureRate > 5 ? "#eab308" : "#22c55e", tooltip: "Percentage of failed changes" },
+              { label: "Avg Lead Time", value: `${avgLeadTime}h`, icon: Clock, color: "#8b5cf6", tooltip: "Average time from creation to deployment" },
+            ].map((kpi) => (
+              <Card key={kpi.label} className="p-4 group relative">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <kpi.icon className="h-4 w-4" style={{ color: kpi.color }} />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{kpi.label}</span>
+                  </div>
+                  <div className="relative">
+                    <Info className="h-3.5 w-3.5 text-gray-300 hover:text-gray-500 cursor-help dark:text-gray-600 dark:hover:text-gray-400" />
+                    <div className="absolute right-0 top-5 z-50 hidden w-48 rounded-lg bg-gray-900 p-2 text-xs text-white shadow-lg group-hover:block dark:bg-gray-700">
+                      {kpi.tooltip}
+                      <div className="absolute -top-1 right-2 h-2 w-2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{kpi.value}</p>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Deployment Outcomes Pie */}
+            <Card>
+              <CardHeader><CardTitle>Deployment Outcomes</CardTitle></CardHeader>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={pieData} dataKey="value" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}>
+                      {pieData.map((entry, idx) => <Cell key={idx} fill={entry.fill} />)}
+                    </Pie>
+                    <Tooltip /><Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Deployment Frequency Chart */}
+            <Card>
+              <CardHeader><CardTitle>Deployment Frequency</CardTitle></CardHeader>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={deploymentFrequencyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                    <Bar dataKey="successful" stackId="a" fill="#22c55e" name="Successful" />
+                    <Bar dataKey="failed" stackId="a" fill="#ef4444" name="Failed" />
+                    <Bar dataKey="rolledBack" stackId="a" fill="#f97316" name="Rolled Back" radius={[4, 4, 0, 0]} />
+                    <Legend />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* Group Velocity */}
+            <Card>
+              <CardHeader><CardTitle>Group Velocity</CardTitle></CardHeader>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={teamVelocity}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="team" tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                    <Bar dataKey="totalChanges" fill="#3b82f6" name="Total" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="deployed" fill="#22c55e" name="Deployed" radius={[4, 4, 0, 0]} />
+                    <Legend />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Category Breakdown */}
+            <Card>
+              <CardHeader><CardTitle>Change Category Breakdown</CardTitle></CardHeader>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={categoryBreakdown} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                    <YAxis dataKey="category" type="category" tick={{ fontSize: 11 }} stroke="#94a3b8" width={100} />
+                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                    <Bar dataKey="count" fill="#8b5cf6" name="Changes" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+
+          {/* Top Services by Risk */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-500" /> Top Services by Risk</CardTitle>
+              <CardDescription>Services with highest average risk exposure from changes</CardDescription>
+            </CardHeader>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-800">
+                    <th className="pb-3 pl-4 font-medium text-gray-500 dark:text-gray-400">Service</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Category</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Criticality</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Avg Risk</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Changes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {serviceRiskRanking.slice(0, 5).map((svc) => (
+                    <tr key={svc.service} className="border-b border-gray-50 dark:border-gray-800">
+                      <td className="py-3 pl-4 font-medium text-gray-900 dark:text-gray-100">{svc.service}</td>
+                      <td className="py-3 text-gray-600 dark:text-gray-400 capitalize">{(svc as { category?: string }).category || "—"}</td>
+                      <td className="py-3">
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          (svc as { criticality?: string }).criticality === "mission-critical" ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" :
+                          (svc as { criticality?: string }).criticality === "business-critical" ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300" :
+                          "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                        }`}>
+                          {(svc as { criticality?: string }).criticality || "standard"}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-16 rounded-full bg-gray-100 dark:bg-gray-800">
+                            <div className="h-2 rounded-full" style={{ width: `${svc.avgRiskExposure}%`, backgroundColor: riskColor(svc.avgRiskExposure) }} />
+                          </div>
+                          <span className="text-xs font-medium">{svc.avgRiskExposure}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-gray-600 dark:text-gray-400">{svc.changeCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* ═══ TAB: RISK ANALYSIS ═══ */}
       {activeTab === "risk" && (
         <div className="space-y-6">
           {/* KPI Row */}
@@ -375,8 +528,8 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* ═══ TAB: VELOCITY ═══ */}
-      {activeTab === "velocity" && (
+      {/* ═══ TAB: PERFORMANCE ═══ */}
+      {activeTab === "performance" && (
         <div className="space-y-6">
           {/* KPI Row */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -700,8 +853,8 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* ═══ TAB: HEALTH & INSIGHTS ═══ */}
-      {activeTab === "health" && (() => {
+      {/* ═══ TAB: INSIGHTS ═══ */}
+      {activeTab === "insights" && (() => {
         // Group health radar data
         const radarData = teamVelocity.slice(0, 6).map(tv => ({
           team: tv.team.length > 12 ? tv.team.slice(0, 10) + "…" : tv.team,

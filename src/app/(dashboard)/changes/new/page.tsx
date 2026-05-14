@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, FileText, ChevronDown, Copy, Search, UserPlus, X } from "lucide-react";
+import { ArrowLeft, Save, FileText, ChevronDown, Copy, Search, UserPlus, X, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 import {
@@ -18,7 +18,6 @@ import {
   CR_RISK_LEVELS,
   CR_IMPACT_LEVELS,
   CR_URGENCY_LEVELS,
-  ASSIGNMENT_GROUPS,
 } from "@/lib/constants";
 
 interface UserSuggestion {
@@ -120,6 +119,12 @@ export default function NewChangePage() {
   const [showServiceSuggestions, setShowServiceSuggestions] = useState(false);
   const serviceInputRef = useRef<HTMLInputElement>(null);
 
+  // Assignment Group autocomplete
+  interface GroupSuggestion { id: string; name: string; description: string; }
+  const [groupInput, setGroupInput] = useState("");
+  const [groupSuggestions, setGroupSuggestions] = useState<GroupSuggestion[]>([]);
+  const [showGroupSuggestions, setShowGroupSuggestions] = useState(false);
+  const groupInputRef = useRef<HTMLInputElement>(null);
 
   // Load templates
   useEffect(() => {
@@ -257,6 +262,38 @@ export default function NewChangePage() {
       .filter(Boolean)
       .filter((s) => s !== serviceName);
     setForm((f) => ({ ...f, affectedServices: currentServices.join(", ") }));
+  }
+
+  // Assignment Group search
+  useEffect(() => {
+    if (groupInput.length < 1) {
+      setGroupSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/v2/groups?search=${encodeURIComponent(groupInput)}&type=assignment`);
+        if (res.ok) {
+          const data = await res.json();
+          setGroupSuggestions(data || []);
+          setShowGroupSuggestions((data || []).length > 0);
+        }
+      } catch {
+        // Ignore search errors
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [groupInput]);
+
+  function selectGroup(group: GroupSuggestion) {
+    setForm((f) => ({ ...f, assignmentGroup: group.name }));
+    setGroupInput("");
+    setGroupSuggestions([]);
+    setShowGroupSuggestions(false);
+  }
+
+  function clearGroup() {
+    setForm((f) => ({ ...f, assignmentGroup: "" }));
   }
 
   function applyTemplate(t: Template) {
@@ -524,14 +561,62 @@ export default function NewChangePage() {
                 className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
               />
             </Field>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
               <Select label="Type" value={form.type} onChange={(v) => update("type", v)} options={CR_TYPES.map((o) => [o.value, o.label])} />
               <Select label="Category" value={form.category} onChange={(v) => update("category", v)} options={CR_CATEGORIES.map((o) => [o.value, o.label])} />
               <Select label="Priority" value={form.priority} onChange={(v) => update("priority", v)} options={CR_PRIORITIES.map((o) => [o.value, o.label])} />
               <Select label="Risk" value={form.riskLevel} onChange={(v) => update("riskLevel", v)} options={CR_RISK_LEVELS.map((o) => [o.value, o.label])} />
               <Select label="Impact" value={form.impactLevel} onChange={(v) => update("impactLevel", v)} options={CR_IMPACT_LEVELS.map((o) => [o.value, o.label])} />
               <Select label="Urgency" value={form.urgency} onChange={(v) => update("urgency", v)} options={CR_URGENCY_LEVELS.map((o) => [o.value, o.label])} />
-              <Select label="Assignment Group" value={form.assignmentGroup} onChange={(v) => update("assignmentGroup", v)} options={[["", "-- Select --"] as [string, string], ...ASSIGNMENT_GROUPS.map((o) => [o.value, o.label] as [string, string])]} />
+            </div>
+
+            {/* Assignment Group with autocomplete */}
+            <div className="relative">
+              <Field label="Assignment Group">
+                {form.assignmentGroup ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1.5 text-sm text-green-700 dark:bg-green-900 dark:text-green-300">
+                      <Users className="h-3.5 w-3.5" />
+                      {form.assignmentGroup}
+                      <button
+                        type="button"
+                        onClick={clearGroup}
+                        className="ml-1 rounded-full p-0.5 hover:bg-green-200 dark:hover:bg-green-800"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      ref={groupInputRef}
+                      type="text"
+                      value={groupInput}
+                      onChange={(e) => setGroupInput(e.target.value)}
+                      onFocus={() => groupSuggestions.length > 0 && setShowGroupSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowGroupSuggestions(false), 200)}
+                      placeholder="Type to search assignment groups..."
+                      className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm dark:border-gray-700 dark:bg-gray-900"
+                    />
+                    {showGroupSuggestions && groupSuggestions.length > 0 && (
+                      <ul className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-auto">
+                        {groupSuggestions.map((group) => (
+                          <li
+                            key={group.id}
+                            className="cursor-pointer px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            onMouseDown={() => selectGroup(group)}
+                          >
+                            <div className="font-medium text-sm">{group.name}</div>
+                            {group.description && <div className="text-xs text-gray-500">{group.description}</div>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+              </Field>
             </div>
 
             {/* Assigned To with user autocomplete */}
