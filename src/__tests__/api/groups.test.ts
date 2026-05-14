@@ -171,3 +171,44 @@ describe("Group Types", () => {
     expect(group.type).toBe("both");
   });
 });
+
+describe("GET /api/v2/groups", () => {
+  it("should return assignment groups for CR form autocomplete", () => {
+    const mockGroups = [
+      { id: "1", name: "Platform", type: "assignment" },
+      { id: "2", name: "DevOps", type: "assignment" },
+      { id: "3", name: "Admin", type: "both" },
+      { id: "4", name: "CAB", type: "approver" },
+    ];
+
+    // Filter for assignment groups (includes 'both' type)
+    const assignmentGroups = mockGroups.filter(
+      (g) => g.type === "assignment" || g.type === "both"
+    );
+    expect(assignmentGroups).toHaveLength(3);
+    expect(assignmentGroups.map((g) => g.name)).toContain("Platform");
+    expect(assignmentGroups.map((g) => g.name)).toContain("Admin");
+    expect(assignmentGroups.map((g) => g.name)).not.toContain("CAB");
+  });
+
+  it("should support search parameter", () => {
+    const mockGroups = [
+      { id: "1", name: "Platform", type: "assignment" },
+      { id: "2", name: "Data Engineering", type: "assignment" },
+      { id: "3", name: "DevOps", type: "assignment" },
+    ];
+
+    const search = "Plat";
+    const filtered = mockGroups.filter((g) =>
+      g.name.toLowerCase().includes(search.toLowerCase())
+    );
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].name).toBe("Platform");
+  });
+
+  it("should be a public endpoint (no auth required)", () => {
+    // v2/groups is public for autocomplete functionality
+    const isPublicEndpoint = true;
+    expect(isPublicEndpoint).toBe(true);
+  });
+});

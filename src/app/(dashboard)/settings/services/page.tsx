@@ -46,6 +46,7 @@ export default function ServicesPage() {
     category: "other",
     owner: "",
     criticality: "standard",
+    isActive: true,
   });
 
   const fetchServices = async () => {
@@ -110,6 +111,7 @@ export default function ServicesPage() {
       category: service.category,
       owner: service.owner || "",
       criticality: service.criticality,
+      isActive: service.isActive,
     });
     setShowForm(true);
   };
@@ -124,6 +126,7 @@ export default function ServicesPage() {
       category: "other",
       owner: "",
       criticality: "standard",
+      isActive: true,
     });
   };
 
@@ -259,7 +262,30 @@ export default function ServicesPage() {
                     className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800"
                   />
                 </div>
-                <div className="md:col-span-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Status
+                  </label>
+                  <div className="mt-2 flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        formData.isActive ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          formData.isActive ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                    <span className={`text-sm font-medium ${formData.isActive ? "text-green-600" : "text-gray-500"}`}>
+                      {formData.isActive ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                     Description
                   </label>
