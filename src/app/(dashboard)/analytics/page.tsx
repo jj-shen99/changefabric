@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   AlertTriangle, TrendingDown, RotateCcw, XCircle, Target, Zap, Clock, Users,
-  GitPullRequest, TrendingUp, Timer, BarChart3, Calendar, Shield, CheckCircle2, FileText, Info,
+  GitPullRequest, TrendingUp, BarChart3, Calendar, Shield, CheckCircle2, FileText, Info,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
@@ -21,7 +21,7 @@ function riskColor(score: number) {
   return "#22c55e";
 }
 
-type AnalyticsTab = "failures" | "velocity" | "metrics" | "health";
+type AnalyticsTab = "risk" | "velocity" | "health";
 
 /* ─── Tab Button ─── */
 function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: React.ElementType; label: string }) {
@@ -40,17 +40,6 @@ function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; on
   );
 }
 
-/* ─── Fallback static data (used when no real data available) ─── */
-const FALLBACK_LEAD_TIME = [
-  { stage: "Code Review", avgHours: 8.5 },
-  { stage: "Automated Tests", avgHours: 1.2 },
-  { stage: "Security Scan", avgHours: 0.8 },
-  { stage: "UAT/Approval", avgHours: 24 },
-  { stage: "Staging Deploy", avgHours: 0.5 },
-  { stage: "Canary/Rollout", avgHours: 4 },
-  { stage: "Full Deploy", avgHours: 0.3 },
-];
-
 const FALLBACK_WEEKLY_HEALTH = [
   { week: "W1", success: 96, avgRisk: 22, mttr: 18, changes: 12 },
   { week: "W2", success: 92, avgRisk: 30, mttr: 25, changes: 15 },
@@ -61,8 +50,8 @@ const FALLBACK_WEEKLY_HEALTH = [
 export default function AnalyticsPage() {
   const [days, setDays] = useState(7);
   const { failureAnalysis, rollbackIntelligence, velocity, loading: aLoading, error: aError } = useAnalytics(days);
-  const { dashboardMetrics, riskTrendData, validationTrendData, deploymentFrequencyData, loading: dLoading, error: dError } = useData(days);
-  const [activeTab, setActiveTab] = useState<AnalyticsTab>("failures");
+  const { riskTrendData, deploymentFrequencyData, loading: dLoading, error: dError } = useData(days);
+  const [activeTab, setActiveTab] = useState<AnalyticsTab>("risk");
 
   const loading = aLoading || dLoading;
   const error = aError || dError;
@@ -100,19 +89,6 @@ export default function AnalyticsPage() {
       })
     : FALLBACK_WEEKLY_HEALTH;
 
-  // Compute leadTimeBreakdown from approval efficiency or use fallback
-  const leadTimeBreakdown = approvalEfficiency.length > 0
-    ? [
-        { stage: "Code Review", avgHours: Math.round(avgLeadTime * 0.2 * 10) / 10 },
-        { stage: "Automated Tests", avgHours: Math.round(avgLeadTime * 0.03 * 10) / 10 },
-        { stage: "Security Scan", avgHours: Math.round(avgLeadTime * 0.02 * 10) / 10 },
-        { stage: "UAT/Approval", avgHours: Math.round(avgLeadTime * 0.6 * 10) / 10 },
-        { stage: "Staging Deploy", avgHours: Math.round(avgLeadTime * 0.01 * 10) / 10 },
-        { stage: "Canary/Rollout", avgHours: Math.round(avgLeadTime * 0.1 * 10) / 10 },
-        { stage: "Full Deploy", avgHours: Math.round(avgLeadTime * 0.04 * 10) / 10 },
-      ]
-    : FALLBACK_LEAD_TIME;
-
   const pieData = [
     { name: "Deployed", value: deployed, fill: "#22c55e" },
     { name: "Failed", value: failed, fill: "#ef4444" },
@@ -128,10 +104,9 @@ export default function AnalyticsPage() {
       {/* Tabs + Date Range */}
       <div className="flex items-center justify-between border-b border-gray-200 pb-0.5 dark:border-gray-800">
         <div className="flex gap-1">
-          <TabButton active={activeTab === "failures"} onClick={() => setActiveTab("failures")} icon={AlertTriangle} label="Failure Analysis" />
-          <TabButton active={activeTab === "velocity"} onClick={() => setActiveTab("velocity")} icon={Zap} label="Velocity" />
-          <TabButton active={activeTab === "metrics"} onClick={() => setActiveTab("metrics")} icon={BarChart3} label="Metrics & Trends" />
-          <TabButton active={activeTab === "health"} onClick={() => setActiveTab("health")} icon={Shield} label="Change Health" />
+          <TabButton active={activeTab === "risk"} onClick={() => setActiveTab("risk")} icon={AlertTriangle} label="Risk & Failures" />
+          <TabButton active={activeTab === "velocity"} onClick={() => setActiveTab("velocity")} icon={Zap} label="Velocity & DORA" />
+          <TabButton active={activeTab === "health"} onClick={() => setActiveTab("health")} icon={Shield} label="Health & Insights" />
         </div>
         <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 dark:border-gray-700 dark:bg-gray-800">
           <Calendar className="h-3.5 w-3.5 text-gray-400" />
@@ -144,8 +119,8 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* ═══ TAB: FAILURE ANALYSIS ═══ */}
-      {activeTab === "failures" && (
+      {/* ═══ TAB: RISK & FAILURES ═══ */}
+      {activeTab === "risk" && (
         <div className="space-y-6">
           {/* KPI Row */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
@@ -637,282 +612,58 @@ export default function AnalyticsPage() {
             </div>
           </Card>
 
-          {/* ── Velocity Intelligence ── */}
-          <Card className="border-blue-100 bg-blue-50/20 dark:border-blue-900 dark:bg-blue-950/10">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm"><Zap className="h-4 w-4 text-blue-500" /> Velocity Intelligence</CardTitle>
-            </CardHeader>
-            <div className="px-4 pb-4 grid grid-cols-1 gap-2 md:grid-cols-2">
-              {(() => {
-                const insights: { text: string; severity: string }[] = [];
-                const sortedByRate = [...teamVelocity].sort((a, b) => b.deployRate - a.deployRate);
-                const topTeam = sortedByRate[0];
-                const bottomTeam = sortedByRate[sortedByRate.length - 1];
-                if (topTeam && bottomTeam && topTeam.team !== bottomTeam.team) {
-                  insights.push({ text: `Top performer: ${topTeam.team} (${topTeam.deployRate}% deploy rate) vs ${bottomTeam.team} (${bottomTeam.deployRate}%) — ${topTeam.deployRate - bottomTeam.deployRate}% gap`, severity: "info" });
-                }
-                if (avgLeadTime > 48) insights.push({ text: `Average lead time (${avgLeadTime}h) exceeds 48h target — review approval bottlenecks`, severity: "high" });
-                else if (avgLeadTime > 24) insights.push({ text: `Average lead time (${avgLeadTime}h) is moderate — consider parallel approvals to reduce wait time`, severity: "medium" });
-                else insights.push({ text: `Excellent lead time (${avgLeadTime}h) — changes move quickly through the pipeline`, severity: "info" });
-                if (totalDeployed > 0 && totalChangesVel > 0) insights.push({ text: `Overall deployment rate: ${Math.round(totalDeployed / totalChangesVel * 100)}% — ${totalDeployed / totalChangesVel >= 0.9 ? "strong execution" : totalDeployed / totalChangesVel >= 0.7 ? "moderate throughput" : "low throughput — investigate blockers"}`, severity: totalDeployed / totalChangesVel >= 0.8 ? "info" : "medium" });
-                if (categoryBreakdown.length > 0) {
-                  const topCat = [...categoryBreakdown].sort((a, b) => b.count - a.count)[0];
-                  insights.push({ text: `Most active category: ${topCat.category} (${topCat.count} changes) — ensure adequate team capacity`, severity: "info" });
-                }
-                const slowApprovals = approvalEfficiency.filter(ae => ae.leadTimeHours > 72);
-                if (slowApprovals.length > 0) insights.push({ text: `${slowApprovals.length} change(s) with lead time >72h — these are pipeline bottlenecks`, severity: "high" });
-                const sevColor = (s: string) => s === "high" ? "border-orange-300 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30" : s === "medium" ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30" : "border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30";
-                return insights.map((ins, i) => (
-                  <div key={i} className={`rounded-lg border p-3 ${sevColor(ins.severity)}`}>
-                    <p className="text-xs text-gray-700 dark:text-gray-300">{ins.text}</p>
-                  </div>
-                ));
-              })()}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* ═══ TAB: METRICS & TRENDS ═══ */}
-      {activeTab === "metrics" && (
-        <div className="space-y-6">
-          {/* DORA Metrics */}
-          <div>
-            <h2 className="text-sm font-semibold uppercase text-gray-400 mb-3">DORA Metrics</h2>
+          {/* DORA Metrics + SLA */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* DORA Metrics */}
             {(() => {
-              // Calculate deployment frequency from actual data
               const deployFreq = days > 0 && totalDeployed > 0 ? Math.round((totalDeployed / days) * 10) / 10 : 0;
-              const deployFreqStatus = deployFreq >= 4 ? "good" : "needs_improvement";
-              const leadTimeStatus = avgLeadTime <= 72 ? "good" : "needs_improvement";
               const mttrValue = weeklyDeployHealth.length > 0 ? Math.round(weeklyDeployHealth.reduce((s, w) => s + w.mttr, 0) / weeklyDeployHealth.length) : 0;
-              const mttrStatus = mttrValue <= 30 ? "good" : "needs_improvement";
-              const failureStatus = changeFailureRate <= 5 ? "good" : "needs_improvement";
               return (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              {[
-                { label: "Deployment Frequency", value: `${deployFreq}/day`, target: "4/day", icon: GitPullRequest, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-950", status: deployFreqStatus, tooltip: "How often code is deployed to production. Elite: multiple per day" },
-                { label: "Lead Time for Changes", value: dashboardMetrics?.changeLeadTime || `${avgLeadTime}h`, target: "< 3 days", icon: Timer, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-950", status: leadTimeStatus, tooltip: "Time from code commit to production deployment. Elite: < 1 day" },
-                { label: "Mean Time to Recovery", value: mttrValue > 0 ? `${mttrValue}m` : "N/A", target: "< 30 min", icon: RotateCcw, color: "text-green-600", bg: "bg-green-50 dark:bg-green-950", status: mttrStatus, tooltip: "Time to restore service after an incident. Elite: < 1 hour" },
-                { label: "Change Failure Rate", value: `${changeFailureRate}%`, target: "< 5%", icon: Target, color: "text-amber-600", bg: "bg-amber-50 dark:bg-amber-950", status: failureStatus, tooltip: "Percentage of deployments causing failures. Elite: < 5%" },
-              ].map((metric) => (
-                <Card key={metric.label} className="p-4 group relative">
-                  <div className="flex items-start justify-between">
-                    <div className={`rounded-lg p-2 ${metric.bg}`}><metric.icon className={`h-4 w-4 ${metric.color}`} /></div>
-                    <div className="flex items-center gap-2">
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${metric.status === "good" ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" : "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"}`}>
-                        {metric.status === "good" ? "On Target" : "Needs Improvement"}
-                      </span>
-                      <div className="relative">
-                        <Info className="h-3.5 w-3.5 text-gray-300 hover:text-gray-500 cursor-help dark:text-gray-600 dark:hover:text-gray-400" />
-                        <div className="absolute right-0 top-5 z-50 hidden w-48 rounded-lg bg-gray-900 p-2 text-xs text-white shadow-lg group-hover:block dark:bg-gray-700">
-                          {metric.tooltip}
-                          <div className="absolute -top-1 right-2 h-2 w-2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+                <Card>
+                  <CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-purple-500" /> DORA Metrics</CardTitle></CardHeader>
+                  <div className="px-4 pb-4 space-y-3">
+                    {[
+                      { label: "Deployment Frequency", value: `${deployFreq}/day`, target: "4/day", met: deployFreq >= 4 },
+                      { label: "Lead Time", value: `${avgLeadTime}h`, target: "< 72h", met: avgLeadTime <= 72 },
+                      { label: "MTTR", value: mttrValue > 0 ? `${mttrValue}m` : "N/A", target: "< 30m", met: mttrValue <= 30 },
+                      { label: "Failure Rate", value: `${changeFailureRate}%`, target: "< 5%", met: changeFailureRate <= 5 },
+                    ].map(m => (
+                      <div key={m.label} className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600 dark:text-gray-400">{m.label}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{m.value}</span>
+                          <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium ${m.met ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>{m.met ? "✓" : "!"}</span>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{metric.value}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{metric.label}</p>
-                    <p className="mt-1 text-[10px] text-gray-400">Target: {metric.target}</p>
+                    ))}
                   </div>
                 </Card>
-              ))}
-            </div>
               );
             })()}
-          </div>
 
-          {/* Risk & Validation Trends */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {/* SLA Compliance */}
             <Card>
-              <CardHeader>
-                <CardTitle>Risk Score Trend</CardTitle>
-                <CardDescription>Average risk score per week with deployment count</CardDescription>
-              </CardHeader>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={riskTrendData}>
-                    <defs>
-                      <linearGradient id="riskGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                    <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" domain={[0, 100]} />
-                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }} />
-                    <Area type="monotone" dataKey="avgRisk" stroke="#2563eb" fill="url(#riskGradient)" strokeWidth={2} name="Avg Risk" />
-                    <Legend />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Validation Pass Rate Trend</CardTitle>
-                <CardDescription>Weekly test pass rate across all validation types</CardDescription>
-              </CardHeader>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={validationTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                    <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" domain={[80, 100]} />
-                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }} />
-                    <Line type="monotone" dataKey="passRate" stroke="#22c55e" strokeWidth={2} dot={{ r: 4, fill: "#22c55e" }} name="Pass Rate %" />
-                    <Line type="monotone" dataKey="totalTests" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4, fill: "#8b5cf6" }} name="Total Tests" yAxisId="right" />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                    <Legend />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-          </div>
-
-          {/* Lead Time & Deployment Frequency */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Lead Time Breakdown by Stage</CardTitle>
-                <CardDescription>Average hours spent in each deployment pipeline stage</CardDescription>
-              </CardHeader>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={leadTimeBreakdown} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis type="number" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                    <YAxis type="category" dataKey="stage" tick={{ fontSize: 11 }} stroke="#94a3b8" width={110} />
-                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }}
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      formatter={(value: any) => [`${value} hours`, "Avg Time"]} />
-                    <Bar dataKey="avgHours" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Avg Hours" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Deployment Frequency & Outcomes</CardTitle>
-                <CardDescription>Weekly deployment success, failures, and rollbacks</CardDescription>
-              </CardHeader>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={deploymentFrequencyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                    <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
-                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
-                    <Bar dataKey="successful" stackId="a" fill="#22c55e" name="Successful" />
-                    <Bar dataKey="failed" stackId="a" fill="#ef4444" name="Failed" />
-                    <Bar dataKey="rolledBack" stackId="a" fill="#f97316" name="Rolled Back" radius={[4, 4, 0, 0]} />
-                    <Legend />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-          </div>
-
-          {/* Weekly Deploy Health Table */}
-          <Card>
-            <CardHeader><CardTitle>Weekly Deployment Health Summary</CardTitle></CardHeader>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-gray-800">
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Week</th>
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Deployments</th>
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Success Rate</th>
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Avg Risk Score</th>
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">MTTR (min)</th>
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Health</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {weeklyDeployHealth.map((w) => {
-                    const health = w.success >= 95 && w.avgRisk < 30 ? "Excellent" : w.success >= 90 && w.avgRisk < 40 ? "Good" : w.success >= 85 ? "Fair" : "Poor";
-                    const healthColor = health === "Excellent" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : health === "Good" ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300" : health === "Fair" ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300";
-                    return (
-                      <tr key={w.week} className="border-b border-gray-50 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50">
-                        <td className="py-3 font-medium text-gray-900 dark:text-gray-100">{w.week}</td>
-                        <td className="py-3 text-gray-600 dark:text-gray-400">{w.changes}</td>
-                        <td className="py-3">
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-20 rounded-full bg-gray-100 overflow-hidden dark:bg-gray-800">
-                              <div className={`h-full rounded-full ${w.success >= 95 ? "bg-green-400" : w.success >= 90 ? "bg-blue-400" : "bg-amber-400"}`} style={{ width: `${w.success}%` }} />
-                            </div>
-                            <span className="text-gray-700 font-medium dark:text-gray-300">{w.success}%</span>
-                          </div>
-                        </td>
-                        <td className="py-3">
-                          <span className={`rounded px-2 py-0.5 text-xs font-semibold ${w.avgRisk >= 40 ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300" : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"}`}>{w.avgRisk}</span>
-                        </td>
-                        <td className="py-3 text-gray-600 dark:text-gray-400">{w.mttr}m</td>
-                        <td className="py-3"><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${healthColor}`}>{health}</span></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-
-          {/* ── MTTR Trend + SLA Compliance ── */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Timer className="h-4 w-4 text-green-500" /> MTTR Trend</CardTitle>
-                <CardDescription>Mean Time to Recovery per week. Target: under 30 minutes for elite DORA performance.</CardDescription>
-              </CardHeader>
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={weeklyDeployHealth} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                    <defs>
-                      <linearGradient id="mttrGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="week" tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                    <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" />
-                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", fontSize: "11px" }} />
-                    <Area type="monotone" dataKey="mttr" name="MTTR (min)" stroke="#22c55e" fill="url(#mttrGrad)" strokeWidth={2} dot={{ r: 3 }} />
-                    {/* Target line at 30 min */}
-                    <Line type="monotone" dataKey={() => 30} name="Target (30m)" stroke="#ef4444" strokeWidth={1} strokeDasharray="8 4" dot={false} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
-
-            {/* SLA Compliance Gauge */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-blue-500" /> SLA Compliance Dashboard</CardTitle>
-                <CardDescription>Service Level Agreement targets vs actual performance across key metrics.</CardDescription>
-              </CardHeader>
-              <div className="px-4 pb-4 space-y-3">
+              <CardHeader><CardTitle className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-blue-500" /> SLA Compliance</CardTitle></CardHeader>
+              <div className="px-4 pb-4 space-y-2">
                 {(() => {
+                  const mttrValue = weeklyDeployHealth.length > 0 ? Math.round(weeklyDeployHealth.reduce((s, w) => s + w.mttr, 0) / weeklyDeployHealth.length) : 0;
                   const slaMetrics = [
-                    { metric: "Change Success Rate", target: 95, actual: weeklyDeployHealth.length > 0 ? Math.round(weeklyDeployHealth.reduce((s, w) => s + w.success, 0) / weeklyDeployHealth.length) : 95, unit: "%" },
-                    { metric: "MTTR", target: 30, actual: weeklyDeployHealth.length > 0 ? Math.round(weeklyDeployHealth.reduce((s, w) => s + w.mttr, 0) / weeklyDeployHealth.length) : 23, unit: "min", inverse: true },
-                    { metric: "Change Lead Time", target: 48, actual: avgLeadTime, unit: "hrs", inverse: true },
-                    { metric: "Deployment Frequency", target: 3, actual: weeklyDeployHealth.length > 0 ? Math.round(weeklyDeployHealth.reduce((s, w) => s + w.changes, 0) / weeklyDeployHealth.length / 5 * 10) / 10 : 3.2, unit: "/day" },
-                    { metric: "Change Failure Rate", target: 5, actual: changeFailureRate, unit: "%", inverse: true },
+                    { metric: "Success Rate", target: 95, actual: weeklyDeployHealth.length > 0 ? Math.round(weeklyDeployHealth.reduce((s, w) => s + w.success, 0) / weeklyDeployHealth.length) : 95, unit: "%" },
+                    { metric: "MTTR", target: 30, actual: mttrValue, unit: "m", inverse: true },
+                    { metric: "Lead Time", target: 48, actual: avgLeadTime, unit: "h", inverse: true },
+                    { metric: "Failure Rate", target: 5, actual: changeFailureRate, unit: "%", inverse: true },
                   ];
                   return slaMetrics.map(m => {
                     const met = m.inverse ? m.actual <= m.target : m.actual >= m.target;
                     const pct = m.inverse ? Math.min(100, (m.target / Math.max(m.actual, 0.1)) * 100) : Math.min(100, (m.actual / Math.max(m.target, 0.1)) * 100);
                     return (
-                      <div key={m.metric} className="flex items-center gap-3">
+                      <div key={m.metric} className="flex items-center gap-2">
                         <span className={`h-2 w-2 rounded-full ${met ? "bg-green-500" : "bg-red-500"}`} />
-                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300 w-36">{m.metric}</span>
-                        <div className="flex-1 h-3 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
-                          <div className={`h-full rounded-full transition-all ${met ? "bg-green-400" : "bg-red-400"}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                        <span className="text-xs text-gray-600 w-20">{m.metric}</span>
+                        <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                          <div className={`h-full rounded-full ${met ? "bg-green-400" : "bg-red-400"}`} style={{ width: `${Math.min(100, pct)}%` }} />
                         </div>
-                        <span className={`text-xs font-bold w-16 text-right ${met ? "text-green-600" : "text-red-600"}`}>{m.actual}{m.unit}</span>
-                        <span className="text-[10px] text-gray-400 w-16">target: {m.target}{m.unit}</span>
+                        <span className={`text-xs font-bold w-12 text-right ${met ? "text-green-600" : "text-red-600"}`}>{m.actual}{m.unit}</span>
                       </div>
                     );
                   });
@@ -921,40 +672,28 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          {/* ── DORA Performance Classification ── */}
-          <Card className="border-purple-100 bg-purple-50/20 dark:border-purple-900 dark:bg-purple-950/10">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm"><Shield className="h-4 w-4 text-purple-500" /> DORA Performance Classification</CardTitle>
-              <CardDescription>Where your organization sits relative to industry DORA benchmarks.</CardDescription>
-            </CardHeader>
-            <div className="px-4 pb-4">
-              <div className="grid grid-cols-4 gap-3 text-center">
-                {[
-                  { tier: "Elite", deployFreq: "On-demand", leadTime: "< 1 hour", failRate: "< 5%", mttr: "< 1 hour", color: "border-green-300 bg-green-50 dark:border-green-800 dark:bg-green-950/30" },
-                  { tier: "High", deployFreq: "Daily–Weekly", leadTime: "1 day–1 week", failRate: "5–10%", mttr: "< 1 day", color: "border-blue-300 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30" },
-                  { tier: "Medium", deployFreq: "Weekly–Monthly", leadTime: "1 week–1 month", failRate: "10–15%", mttr: "< 1 week", color: "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30" },
-                  { tier: "Low", deployFreq: "Monthly+", leadTime: "1–6 months", failRate: "> 15%", mttr: "> 1 week", color: "border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30" },
-                ].map(t => {
-                  const isCurrentTier = (t.tier === "Elite" && changeFailureRate < 5) || (t.tier === "High" && changeFailureRate >= 5 && changeFailureRate < 10) || (t.tier === "Medium" && changeFailureRate >= 10 && changeFailureRate <= 15) || (t.tier === "Low" && changeFailureRate > 15);
-                  return (
-                    <div key={t.tier} className={`rounded-lg border p-3 ${t.color} ${isCurrentTier ? "ring-2 ring-purple-500 ring-offset-1" : ""}`}>
-                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{t.tier}</p>
-                      {isCurrentTier && <span className="inline-block rounded-full bg-purple-500 px-1.5 py-0.5 text-[9px] font-bold text-white mb-1">YOU</span>}
-                      <div className="text-[10px] text-gray-600 dark:text-gray-400 space-y-0.5 mt-1">
-                        <p>Deploy: {t.deployFreq}</p>
-                        <p>Lead: {t.leadTime}</p>
-                        <p>Fail: {t.failRate}</p>
-                        <p>MTTR: {t.mttr}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+          {/* Deployment Frequency Chart */}
+          <Card>
+            <CardHeader><CardTitle>Deployment Frequency & Outcomes</CardTitle></CardHeader>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={deploymentFrequencyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                  <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                  <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                  <Bar dataKey="successful" stackId="a" fill="#22c55e" name="Successful" />
+                  <Bar dataKey="failed" stackId="a" fill="#ef4444" name="Failed" />
+                  <Bar dataKey="rolledBack" stackId="a" fill="#f97316" name="Rolled Back" radius={[4, 4, 0, 0]} />
+                  <Legend />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </Card>
         </div>
       )}
-      {/* ═══ TAB: CHANGE HEALTH ═══ */}
+
+      {/* ═══ TAB: HEALTH & INSIGHTS ═══ */}
       {activeTab === "health" && (() => {
         // Group health radar data
         const radarData = teamVelocity.slice(0, 6).map(tv => ({
