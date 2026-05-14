@@ -855,14 +855,6 @@ export default function AnalyticsPage() {
 
       {/* ═══ TAB: INSIGHTS ═══ */}
       {activeTab === "insights" && (() => {
-        // Group health radar data
-        const radarData = teamVelocity.slice(0, 6).map(tv => ({
-          team: tv.team.length > 12 ? tv.team.slice(0, 10) + "…" : tv.team,
-          deployRate: tv.deployRate,
-          avgRisk: tv.avgRisk,
-          velocity: Math.min(100, tv.totalChanges * 10),
-        }));
-
         // Process health scores
         const avgDeployRate = teamVelocity.length > 0 ? Math.round(teamVelocity.reduce((s, t) => s + t.deployRate, 0) / teamVelocity.length) : 0;
         const avgTeamRisk = teamVelocity.length > 0 ? Math.round(teamVelocity.reduce((s, t) => s + t.avgRisk, 0) / teamVelocity.length) : 0;
@@ -899,23 +891,6 @@ export default function AnalyticsPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Group Risk Radar */}
-              <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-4 w-4 text-purple-500" /> Group Performance Radar</CardTitle><CardDescription>Deploy rate vs risk vs velocity per group</CardDescription></CardHeader>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={radarData}>
-                      <PolarGrid stroke="#e2e8f0" />
-                      <PolarAngleAxis dataKey="team" tick={{ fontSize: 10 }} />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 9 }} />
-                      <Radar name="Deploy Rate" dataKey="deployRate" stroke="#22c55e" fill="#22c55e" fillOpacity={0.15} />
-                      <Radar name="Risk" dataKey="avgRisk" stroke="#ef4444" fill="#ef4444" fillOpacity={0.1} />
-                      <Legend /><Tooltip />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-
               {/* Risk Distribution by Team */}
               <Card>
                 <CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-red-500" /> Group Risk Ranking</CardTitle><CardDescription>Average risk score per group</CardDescription></CardHeader>
