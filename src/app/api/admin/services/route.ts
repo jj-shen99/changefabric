@@ -32,8 +32,8 @@ export async function GET() {
       FROM Service
       ORDER BY name ASC
     `;
-    // Convert isActive from number to boolean for frontend
-    const result = services.map(s => ({ ...s, isActive: s.isActive === 1 }));
+    // Convert isActive from number/BigInt to boolean for frontend
+    const result = services.map(s => ({ ...s, isActive: Boolean(s.isActive) }));
     return NextResponse.json(result);
   } catch (e) {
     return serverError(e);
@@ -123,7 +123,7 @@ export async function PUT(request: Request) {
     if (updated.length === 0) {
       return badRequest("Service not found");
     }
-    return NextResponse.json({ ...updated[0], isActive: updated[0].isActive === 1 });
+    return NextResponse.json({ ...updated[0], isActive: Boolean(updated[0].isActive) });
   } catch (e) {
     return serverError(e);
   }

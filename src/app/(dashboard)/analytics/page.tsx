@@ -525,6 +525,24 @@ export default function AnalyticsPage() {
               })()}
             </div>
           </Card>
+
+          {/* Group Risk Ranking */}
+          <Card>
+            <CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-red-500" /> Group Risk Ranking</CardTitle><CardDescription>Average risk score per assignment group</CardDescription></CardHeader>
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={failureByTeam.slice().sort((a, b) => b.avgRisk - a.avgRisk).slice(0, 8)} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                  <YAxis type="category" dataKey="team" tick={{ fontSize: 10 }} stroke="#94a3b8" width={100} />
+                  <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                  <Bar dataKey="avgRisk" name="Avg Risk" radius={[0, 4, 4, 0]}>
+                    {failureByTeam.slice().sort((a, b) => b.avgRisk - a.avgRisk).slice(0, 8).map((entry, idx) => <Cell key={idx} fill={riskColor(entry.avgRisk)} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
         </div>
       )}
 
@@ -888,26 +906,6 @@ export default function AnalyticsPage() {
                   <p className="text-[10px] text-gray-400">{kpi.sub}</p>
                 </Card>
               ))}
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Risk Distribution by Team */}
-              <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-red-500" /> Group Risk Ranking</CardTitle><CardDescription>Average risk score per group</CardDescription></CardHeader>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={failureByTeam.slice().sort((a, b) => b.avgRisk - a.avgRisk).slice(0, 8)} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                      <YAxis type="category" dataKey="team" tick={{ fontSize: 10 }} stroke="#94a3b8" width={100} />
-                      <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
-                      <Bar dataKey="avgRisk" name="Avg Risk" radius={[0, 4, 4, 0]}>
-                        {failureByTeam.slice().sort((a, b) => b.avgRisk - a.avgRisk).slice(0, 8).map((entry, idx) => <Cell key={idx} fill={riskColor(entry.avgRisk)} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
             </div>
 
             {/* Health Formula */}
