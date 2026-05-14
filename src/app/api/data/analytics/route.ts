@@ -24,10 +24,12 @@ export async function GET(request: Request) {
   const repo = new PrismaChangeRequestRepository(prisma);
   const since = days > 0 ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
 
-  const [allCRs, releases] = await Promise.all([
+  const [allCRs, releases, assignmentGroups] = await Promise.all([
     repo.list(!canViewAll ? { requestedBy: userEmail } : undefined),
     prisma.release.findMany({ orderBy: { scheduledDate: "desc" } }),
+    prisma.group.findMany({ where: { type: { in: ["assignment", "both"] }, isActive: true }, select: { name: true } }),
   ]);
+  const validGroupNames = new Set(assignmentGroups.map(g => g.name));
   const crs = since ? allCRs.filter((c) => new Date(c.createdAt) >= since) : allCRs;
 
   // Per-release rollups using the new releaseId link
@@ -111,7 +113,9 @@ export async function GET(request: Request) {
 
   const teamStats: Record<string, { total: number; deployed: number; failed: number; rolledBack: number; risk: number }> = {};
   for (const c of crs) {
-    const team = c.assignmentGroup || "Unassigned";
+    const rawGroup = c.assignmentGroup || "Unassigned";
+    // Only include groups that exist in the assignment groups table, or show as "Other" if not found
+    const team = validGroupNames.has(rawGroup) ? rawGroup : (rawGroup === "Unassigned" ? "Unassigned" : "Other");
     if (!teamStats[team]) teamStats[team] = { total: 0, deployed: 0, failed: 0, rolledBack: 0, risk: 0 };
     teamStats[team].total++;
     teamStats[team].risk += c.computedRiskScore;

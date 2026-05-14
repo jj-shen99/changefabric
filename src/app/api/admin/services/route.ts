@@ -9,7 +9,7 @@ import { requireSession, isResponse, forbidden, badRequest, serverError } from "
 export async function GET() {
   const ctx = await requireSession();
   if (isResponse(ctx)) return ctx;
-  if (!ctx.perms.canViewAllData) return forbidden();
+  if (!ctx.perms.canViewAllData && !ctx.perms.canEditSettings && !ctx.perms.canManageUsers) return forbidden();
 
   try {
     const services = await prisma.service.findMany({
