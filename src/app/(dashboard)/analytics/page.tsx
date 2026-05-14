@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, PieChart, Pie, Legend,
-  LineChart, Line, AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  LineChart, Line, AreaChart, Area,
 } from "recharts";
 import {
   AlertTriangle, TrendingDown, RotateCcw, XCircle, Target, Zap, Clock, Users,
@@ -52,6 +52,10 @@ export default function AnalyticsPage() {
   const { failureAnalysis, rollbackIntelligence, velocity, loading: aLoading, error: aError } = useAnalytics(days);
   const { riskTrendData, deploymentFrequencyData, loading: dLoading, error: dError } = useData(days);
   const [activeTab, setActiveTab] = useState<AnalyticsTab>("overview");
+  
+  // Health Score Formula weights (must sum to 100)
+  const [healthWeights, setHealthWeights] = useState({ deployRate: 40, riskInverse: 30, failureInverse: 30 });
+  const [editingWeights, setEditingWeights] = useState(false);
 
   const loading = aLoading || dLoading;
   const error = aError || dError;
@@ -701,37 +705,8 @@ export default function AnalyticsPage() {
             )}
           </Card>
 
-          {/* ── Group Efficiency Radar + Velocity Trend ── */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {teamVelocity.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Target className="h-4 w-4 text-blue-500" /> Group Efficiency Radar</CardTitle>
-                  <CardDescription>Multi-dimensional group performance: deploy rate, volume, and risk control.</CardDescription>
-                </CardHeader>
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={teamVelocity.slice(0, 6).map(tv => ({
-                      team: tv.team.length > 12 ? tv.team.slice(0, 10) + "…" : tv.team,
-                      deployRate: tv.deployRate,
-                      riskControl: Math.max(0, 100 - tv.avgRisk),
-                      volume: Math.min(100, tv.totalChanges * 10),
-                    }))}>
-                      <PolarGrid stroke="#e2e8f0" />
-                      <PolarAngleAxis dataKey="team" tick={{ fontSize: 9 }} />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fontSize: 8 }} />
-                      <Radar name="Deploy Rate" dataKey="deployRate" stroke="#22c55e" fill="#22c55e" fillOpacity={0.15} />
-                      <Radar name="Risk Control" dataKey="riskControl" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} />
-                      <Radar name="Volume" dataKey="volume" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.1} />
-                      <Legend wrapperStyle={{ fontSize: "10px" }} /><Tooltip />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              </Card>
-            )}
-
-            {/* Weekly Velocity Trend */}
-            <Card>
+          {/* Weekly Velocity Trend */}
+          <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-green-500" /> Weekly Throughput &amp; Risk Trend</CardTitle>
                 <CardDescription>Change volume and average risk score per week. Divergence indicates risk-velocity tradeoff.</CardDescription>
@@ -756,7 +731,6 @@ export default function AnalyticsPage() {
                 </ResponsiveContainer>
               </div>
             </Card>
-          </div>
 
           {/* ── Change Window Analysis ── */}
           <Card>
@@ -873,19 +847,25 @@ export default function AnalyticsPage() {
 
       {/* ═══ TAB: INSIGHTS ═══ */}
       {activeTab === "insights" && (() => {
-        // Process health scores
+        // Process health scores using configurable weights
         const avgDeployRate = teamVelocity.length > 0 ? Math.round(teamVelocity.reduce((s, t) => s + t.deployRate, 0) / teamVelocity.length) : 0;
         const avgTeamRisk = teamVelocity.length > 0 ? Math.round(teamVelocity.reduce((s, t) => s + t.avgRisk, 0) / teamVelocity.length) : 0;
-        const healthScore = Math.round(avgDeployRate * 0.4 + (100 - avgTeamRisk) * 0.3 + (100 - changeFailureRate) * 0.3);
+        const healthScore = Math.round(
+          avgDeployRate * (healthWeights.deployRate / 100) + 
+          (100 - avgTeamRisk) * (healthWeights.riskInverse / 100) + 
+          (100 - changeFailureRate) * (healthWeights.failureInverse / 100)
+        );
         const healthLabel = healthScore >= 80 ? "Excellent" : healthScore >= 60 ? "Good" : healthScore >= 40 ? "Fair" : "Needs Attention";
         const healthColor = healthScore >= 80 ? "text-green-600" : healthScore >= 60 ? "text-blue-600" : healthScore >= 40 ? "text-amber-600" : "text-red-600";
+        const weightsTotal = healthWeights.deployRate + healthWeights.riskInverse + healthWeights.failureInverse;
+        const weightsValid = weightsTotal === 100;
 
         return (
           <div className="space-y-6">
             {/* Health KPIs */}
             <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
               {[
-                { label: "Overall Health", value: `${healthScore}/100`, sub: healthLabel, icon: Shield, color: healthColor, tooltip: "Composite score: Deploy Rate (40%) + Risk Inverse (30%) + Failure Inverse (30%)" },
+                { label: "Overall Health", value: `${healthScore}/100`, sub: healthLabel, icon: Shield, color: healthColor, tooltip: `Composite score: Deploy Rate (${healthWeights.deployRate}%) + Risk Inverse (${healthWeights.riskInverse}%) + Failure Inverse (${healthWeights.failureInverse}%)` },
                 { label: "Avg Deploy Rate", value: `${avgDeployRate}%`, sub: avgDeployRate >= 80 ? "On Target" : "Below Target", icon: CheckCircle2, color: avgDeployRate >= 80 ? "text-green-600" : "text-amber-600", tooltip: "Average percentage of changes successfully deployed across all groups" },
                 { label: "Avg Group Risk", value: `${avgTeamRisk}`, sub: avgTeamRisk < 40 ? "Low" : avgTeamRisk < 60 ? "Medium" : "High", icon: AlertTriangle, color: avgTeamRisk < 40 ? "text-green-600" : avgTeamRisk < 60 ? "text-amber-600" : "text-red-600", tooltip: "Average risk score across all groups (0-100). Lower is better" },
                 { label: "Failure Rate", value: `${changeFailureRate}%`, sub: changeFailureRate < 5 ? "Excellent" : changeFailureRate < 15 ? "Acceptable" : "High", icon: XCircle, color: changeFailureRate < 5 ? "text-green-600" : changeFailureRate < 15 ? "text-amber-600" : "text-red-600", tooltip: "Percentage of changes that failed or were rejected" },
@@ -910,14 +890,91 @@ export default function AnalyticsPage() {
 
             {/* Health Formula */}
             <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20">
-              <CardHeader><CardTitle className="flex items-center gap-2 text-sm"><FileText className="h-4 w-4 text-blue-600" /> Health Score Formula</CardTitle></CardHeader>
-              <div className="px-4 pb-4 space-y-2">
-                <p className="text-xs font-mono font-bold text-blue-700 dark:text-blue-400">Health = DeployRate×40% + (100−AvgRisk)×30% + (100−FailureRate)×30%</p>
-                <div className="grid grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-400">
-                  <div className="rounded bg-white dark:bg-gray-900 p-2 border border-blue-100 dark:border-blue-900"><strong className="text-blue-700 dark:text-blue-300">Deploy Rate (40%)</strong><p className="mt-0.5">Higher deploy rates indicate smooth change execution</p></div>
-                  <div className="rounded bg-white dark:bg-gray-900 p-2 border border-blue-100 dark:border-blue-900"><strong className="text-blue-700 dark:text-blue-300">Risk Inverse (30%)</strong><p className="mt-0.5">Lower average risk = higher health</p></div>
-                  <div className="rounded bg-white dark:bg-gray-900 p-2 border border-blue-100 dark:border-blue-900"><strong className="text-blue-700 dark:text-blue-300">Failure Inverse (30%)</strong><p className="mt-0.5">Lower failure rate = higher health</p></div>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-sm"><FileText className="h-4 w-4 text-blue-600" /> Health Score Formula</CardTitle>
+                  <button
+                    onClick={() => setEditingWeights(!editingWeights)}
+                    className={`text-xs px-2 py-1 rounded ${editingWeights ? "bg-blue-600 text-white" : "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"}`}
+                  >
+                    {editingWeights ? "Done" : "Edit Weights"}
+                  </button>
                 </div>
+              </CardHeader>
+              <div className="px-4 pb-4 space-y-3">
+                <p className="text-xs font-mono font-bold text-blue-700 dark:text-blue-400">
+                  Health = DeployRate×{healthWeights.deployRate}% + (100−AvgRisk)×{healthWeights.riskInverse}% + (100−FailureRate)×{healthWeights.failureInverse}%
+                </p>
+                {!weightsValid && (
+                  <p className="text-xs text-red-600 dark:text-red-400">⚠️ Weights must sum to 100% (currently {weightsTotal}%)</p>
+                )}
+                <div className="grid grid-cols-3 gap-3 text-xs text-gray-600 dark:text-gray-400">
+                  <div className="rounded bg-white dark:bg-gray-900 p-2 border border-blue-100 dark:border-blue-900">
+                    <div className="flex items-center justify-between">
+                      <strong className="text-blue-700 dark:text-blue-300">Deploy Rate</strong>
+                      {editingWeights ? (
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={healthWeights.deployRate}
+                          onChange={(e) => setHealthWeights({ ...healthWeights, deployRate: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) })}
+                          className="w-12 px-1 py-0.5 text-center text-xs border border-blue-300 rounded dark:bg-gray-800 dark:border-blue-700"
+                        />
+                      ) : (
+                        <span className="font-bold text-blue-600">{healthWeights.deployRate}%</span>
+                      )}
+                    </div>
+                    <p className="mt-1">Higher deploy rates indicate smooth change execution</p>
+                  </div>
+                  <div className="rounded bg-white dark:bg-gray-900 p-2 border border-blue-100 dark:border-blue-900">
+                    <div className="flex items-center justify-between">
+                      <strong className="text-blue-700 dark:text-blue-300">Risk Inverse</strong>
+                      {editingWeights ? (
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={healthWeights.riskInverse}
+                          onChange={(e) => setHealthWeights({ ...healthWeights, riskInverse: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) })}
+                          className="w-12 px-1 py-0.5 text-center text-xs border border-blue-300 rounded dark:bg-gray-800 dark:border-blue-700"
+                        />
+                      ) : (
+                        <span className="font-bold text-blue-600">{healthWeights.riskInverse}%</span>
+                      )}
+                    </div>
+                    <p className="mt-1">Lower average risk = higher health</p>
+                  </div>
+                  <div className="rounded bg-white dark:bg-gray-900 p-2 border border-blue-100 dark:border-blue-900">
+                    <div className="flex items-center justify-between">
+                      <strong className="text-blue-700 dark:text-blue-300">Failure Inverse</strong>
+                      {editingWeights ? (
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={healthWeights.failureInverse}
+                          onChange={(e) => setHealthWeights({ ...healthWeights, failureInverse: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) })}
+                          className="w-12 px-1 py-0.5 text-center text-xs border border-blue-300 rounded dark:bg-gray-800 dark:border-blue-700"
+                        />
+                      ) : (
+                        <span className="font-bold text-blue-600">{healthWeights.failureInverse}%</span>
+                      )}
+                    </div>
+                    <p className="mt-1">Lower failure rate = higher health</p>
+                  </div>
+                </div>
+                {editingWeights && (
+                  <div className="flex items-center justify-between pt-2 border-t border-blue-100 dark:border-blue-800">
+                    <span className="text-xs text-gray-500">Total: <span className={weightsValid ? "text-green-600 font-bold" : "text-red-600 font-bold"}>{weightsTotal}%</span></span>
+                    <button
+                      onClick={() => setHealthWeights({ deployRate: 40, riskInverse: 30, failureInverse: 30 })}
+                      className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                    >
+                      Reset to defaults
+                    </button>
+                  </div>
+                )}
               </div>
             </Card>
 
