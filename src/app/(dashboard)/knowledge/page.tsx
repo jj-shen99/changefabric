@@ -4,6 +4,7 @@
  * Knowledge page - Documentation for workflows, change types, approval logic, and role permissions
  */
 
+import { useState, useEffect, useCallback } from "react";
 import {
   Activity,
   ArrowRight,
@@ -19,11 +20,75 @@ import {
   Zap,
   Lock,
   UserPlus,
+  Loader2,
+  Check,
+  X,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
 
+interface RoleRecord {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string | null;
+  canManageUsers: boolean;
+  canManageRoles: boolean;
+  canManageChanges: boolean;
+  canApproveChanges: boolean;
+  canImplementChanges: boolean;
+  canManageReleases: boolean;
+  canEditSettings: boolean;
+  canViewMetrics: boolean;
+  canViewAllData: boolean;
+  isSystem: boolean;
+  isActive: boolean;
+  userCount: number;
+}
+
 export default function KnowledgePage() {
+  const [roles, setRoles] = useState<RoleRecord[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
+  const [rolesError, setRolesError] = useState("");
+
+  const fetchRoles = useCallback(async () => {
+    try {
+      setRolesLoading(true);
+      const res = await fetch("/api/admin/roles");
+      if (!res.ok) {
+        // If not authorized, just show empty - the static content is still useful
+        setRoles([]);
+        return;
+      }
+      const data = await res.json();
+      setRoles(data.roles || []);
+    } catch {
+      setRolesError("Failed to load roles");
+    } finally {
+      setRolesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRoles();
+  }, [fetchRoles]);
+
+  const roleBadge: Record<string, string> = {
+    admin: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+    change_manager: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+    approver: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+    implementer: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+    requester: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
+    cab_member: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300",
+  };
+
+  const PermissionIcon = ({ enabled }: { enabled: boolean }) => (
+    enabled ? (
+      <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+    ) : (
+      <X className="h-4 w-4 text-gray-300 dark:text-gray-600" />
+    )
+  );
   return (
     <>
       <PageHeader 
@@ -573,6 +638,90 @@ export default function KnowledgePage() {
             </div>
           </div>
         </Card>
+
+        {/* System Roles - Dynamic Table */}
+        {roles.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-indigo-500" />
+                System Roles
+              </CardTitle>
+              <CardDescription>Current system roles and their permissions with user counts</CardDescription>
+            </CardHeader>
+            {rolesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              </div>
+            ) : rolesError ? (
+              <div className="px-4 pb-4 text-sm text-red-600">{rolesError}</div>
+            ) : (
+              <div className="overflow-x-auto px-4 pb-4">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 dark:border-gray-800">
+                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Role</th>
+                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Description</th>
+                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400 text-center">Users</th>
+                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400 text-center">Manage Users</th>
+                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400 text-center">Manage Roles</th>
+                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400 text-center">Manage Changes</th>
+                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400 text-center">Approve</th>
+                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400 text-center">Implement</th>
+                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400 text-center">Settings</th>
+                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400 text-center">Metrics</th>
+                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400 text-center">All Data</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {roles.map((role) => (
+                      <tr key={role.id} className="border-b border-gray-50 dark:border-gray-800">
+                        <td className="py-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`rounded px-2 py-1 text-xs font-medium ${roleBadge[role.name] || "bg-gray-100 text-gray-700"}`}>
+                              {role.displayName}
+                            </span>
+                            {role.isSystem && (
+                              <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                                System
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3 text-gray-600 dark:text-gray-400 max-w-xs truncate">
+                          {role.description || "—"}
+                        </td>
+                        <td className="py-3 text-center">
+                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                            {role.userCount}
+                          </span>
+                        </td>
+                        <td className="py-3 text-center"><PermissionIcon enabled={role.canManageUsers} /></td>
+                        <td className="py-3 text-center"><PermissionIcon enabled={role.canManageRoles} /></td>
+                        <td className="py-3 text-center"><PermissionIcon enabled={role.canManageChanges} /></td>
+                        <td className="py-3 text-center"><PermissionIcon enabled={role.canApproveChanges} /></td>
+                        <td className="py-3 text-center"><PermissionIcon enabled={role.canImplementChanges} /></td>
+                        <td className="py-3 text-center"><PermissionIcon enabled={role.canEditSettings} /></td>
+                        <td className="py-3 text-center"><PermissionIcon enabled={role.canViewMetrics} /></td>
+                        <td className="py-3 text-center"><PermissionIcon enabled={role.canViewAllData} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            <div className="px-4 pb-4">
+              <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 p-3">
+                <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Role Assignment Rules</h4>
+                <ul className="text-[10px] text-gray-500 dark:text-gray-400 space-y-0.5">
+                  <li>• Users can have multiple roles. Permissions are combined (OR logic).</li>
+                  <li>• System roles cannot be deleted or modified.</li>
+                  <li>• Only admins can assign or remove the admin role.</li>
+                </ul>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Quick Reference */}
         <Card>

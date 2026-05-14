@@ -17,7 +17,6 @@ import {
   ClipboardList,
   UserCheck,
   UsersRound,
-  Shield,
   Server,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -211,24 +210,6 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
               aria-hidden="true"
             />
             CR Type Approvers
-          </Link>
-        )}
-        {permissions.canManageRoles && (
-          <Link
-            href="/settings/roles"
-            aria-current={pathname === "/settings/roles" ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-              pathname === "/settings/roles"
-                ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
-                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-            )}
-          >
-            <Shield
-              className={cn("h-4 w-4", pathname === "/settings/roles" ? "text-blue-700 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")}
-              aria-hidden="true"
-            />
-            Roles
           </Link>
         )}
         {permissions.canEditSettings && (
