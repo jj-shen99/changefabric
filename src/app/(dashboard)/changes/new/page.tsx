@@ -18,7 +18,6 @@ import {
   CR_RISK_LEVELS,
   CR_IMPACT_LEVELS,
   CR_URGENCY_LEVELS,
-  ASSIGNMENT_GROUPS,
 } from "@/lib/constants";
 
 interface UserSuggestion {
@@ -120,6 +119,10 @@ export default function NewChangePage() {
   const [showServiceSuggestions, setShowServiceSuggestions] = useState(false);
   const serviceInputRef = useRef<HTMLInputElement>(null);
 
+  // Assignment groups from database
+  interface AssignmentGroup { id: string; name: string; }
+  const [assignmentGroups, setAssignmentGroups] = useState<AssignmentGroup[]>([]);
+
   // Load templates
   useEffect(() => {
     setTemplatesLoading(true);
@@ -135,6 +138,21 @@ export default function NewChangePage() {
         console.error("Failed to load templates:", err);
       })
       .finally(() => setTemplatesLoading(false));
+  }, []);
+
+  // Load assignment groups from database
+  useEffect(() => {
+    fetch("/api/admin/groups")
+      .then((r) => r.ok ? r.json() : { groups: [] })
+      .then((data) => {
+        // Filter to only assignment groups (type = "assignment" or "both")
+        const groups = (data.groups || []).filter(
+          (g: { type: string; isActive: boolean }) => 
+            (g.type === "assignment" || g.type === "both") && g.isActive
+        );
+        setAssignmentGroups(groups);
+      })
+      .catch(() => setAssignmentGroups([]));
   }, []);
 
   // Load existing CRs for copy feature
@@ -530,7 +548,7 @@ export default function NewChangePage() {
               <Select label="Risk" value={form.riskLevel} onChange={(v) => update("riskLevel", v)} options={CR_RISK_LEVELS.map((o) => [o.value, o.label])} />
               <Select label="Impact" value={form.impactLevel} onChange={(v) => update("impactLevel", v)} options={CR_IMPACT_LEVELS.map((o) => [o.value, o.label])} />
               <Select label="Urgency" value={form.urgency} onChange={(v) => update("urgency", v)} options={CR_URGENCY_LEVELS.map((o) => [o.value, o.label])} />
-              <Select label="Assignment Group" value={form.assignmentGroup} onChange={(v) => update("assignmentGroup", v)} options={[["", "-- Select --"] as [string, string], ...ASSIGNMENT_GROUPS.map((o) => [o.value, o.label] as [string, string])]} />
+              <Select label="Assignment Group" value={form.assignmentGroup} onChange={(v) => update("assignmentGroup", v)} options={[["", "-- Select --"] as [string, string], ...assignmentGroups.map((g) => [g.name, g.name] as [string, string])]} />
             </div>
 
             {/* Assigned To with user autocomplete */}
