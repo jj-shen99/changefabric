@@ -339,20 +339,20 @@ export default function KnowledgePage() {
                 Risk-based approval tiers apply <strong>only to Standard change requests</strong>. Emergency CRs use a separate fast-track approval process, and Pre-approved CRs skip approval entirely.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="rounded-lg bg-red-50 dark:bg-red-950/30 p-3 border border-red-200 dark:border-red-800">
-                  <div className="text-xs font-bold text-red-600 dark:text-red-400">Critical (80-100)</div>
-                  <div className="text-lg font-bold text-red-700 dark:text-red-300">3 Approvers</div>
-                  <div className="text-[10px] text-red-500">Tech Lead, Security, CAB</div>
-                </div>
                 <div className="rounded-lg bg-orange-50 dark:bg-orange-950/30 p-3 border border-orange-200 dark:border-orange-800">
-                  <div className="text-xs font-bold text-orange-600 dark:text-orange-400">High (60-79)</div>
+                  <div className="text-xs font-bold text-orange-600 dark:text-orange-400">High Risk</div>
                   <div className="text-lg font-bold text-orange-700 dark:text-orange-300">2 Approvers</div>
-                  <div className="text-[10px] text-orange-500">Tech Lead, Manager</div>
+                  <div className="text-[10px] text-orange-500">CAB + Manager</div>
                 </div>
                 <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 p-3 border border-amber-200 dark:border-amber-800">
-                  <div className="text-xs font-bold text-amber-600 dark:text-amber-400">Medium (0-59)</div>
+                  <div className="text-xs font-bold text-amber-600 dark:text-amber-400">Medium Risk</div>
                   <div className="text-lg font-bold text-amber-700 dark:text-amber-300">1 Approver</div>
-                  <div className="text-[10px] text-amber-500">Tech Lead</div>
+                  <div className="text-[10px] text-amber-500">Manager</div>
+                </div>
+                <div className="rounded-lg bg-green-50 dark:bg-green-950/30 p-3 border border-green-200 dark:border-green-800">
+                  <div className="text-xs font-bold text-green-600 dark:text-green-400">Low Risk</div>
+                  <div className="text-lg font-bold text-green-700 dark:text-green-300">1 Approver</div>
+                  <div className="text-[10px] text-green-500">Team Lead</div>
                 </div>
               </div>
               <p className="mt-3 text-[10px] text-gray-400 dark:text-gray-500 italic">

@@ -30,23 +30,21 @@ interface SettingSection {
   items: SettingItem[];
 }
 
-// Approval policy defines what approval steps are auto-created based on risk score
+// Approval policy defines what approval steps are auto-created based on risk level
 interface ApprovalPolicy {
   id: string;
-  riskLevel: "critical" | "high" | "medium" | "low";
-  minScore: number;
-  maxScore: number;
+  riskLevel: "high" | "medium" | "low";
   requiredApprovals: number;
-  approverGroups: string[];  // e.g., ["Tech Lead", "Security Lead", "CAB"]
+  approverGroups: string[];  // e.g., ["CAB", "Manager"]
   autoApprove: boolean;
 }
 
 // Risk-Based Approval Tiers - applies to Standard CRs only
-// All Standard CRs require at least one approval regardless of risk score
+// All Standard CRs require at least one approval regardless of risk level
 const defaultApprovalPolicies: ApprovalPolicy[] = [
-  { id: "critical", riskLevel: "critical", minScore: 80, maxScore: 100, requiredApprovals: 3, approverGroups: ["Tech Lead", "Security Lead", "CAB"], autoApprove: false },
-  { id: "high", riskLevel: "high", minScore: 60, maxScore: 79, requiredApprovals: 2, approverGroups: ["Tech Lead", "Manager"], autoApprove: false },
-  { id: "medium", riskLevel: "medium", minScore: 0, maxScore: 59, requiredApprovals: 1, approverGroups: ["Tech Lead"], autoApprove: false },
+  { id: "high", riskLevel: "high", requiredApprovals: 2, approverGroups: ["CAB", "Manager"], autoApprove: false },
+  { id: "medium", riskLevel: "medium", requiredApprovals: 1, approverGroups: ["Manager"], autoApprove: false },
+  { id: "low", riskLevel: "low", requiredApprovals: 1, approverGroups: ["Team Lead"], autoApprove: false },
 ];
 
 const defaultSettings: SettingSection[] = [
@@ -246,7 +244,6 @@ export default function SettingsPage() {
   }
 
   const riskLevelColors: Record<string, string> = {
-    critical: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
     high: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
     medium: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
     low: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
@@ -365,10 +362,7 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${riskLevelColors[policy.riskLevel]}`}>
-                            {policy.riskLevel.toUpperCase()}
-                          </span>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">
-                            Risk Score: {policy.minScore} - {policy.maxScore}
+                            {policy.riskLevel.toUpperCase()} RISK
                           </span>
                         </div>
                         <label className="flex items-center gap-2 text-sm">

@@ -118,9 +118,8 @@ export const CR_PRIORITIES = [
 
 export const CR_RISK_LEVELS = [
   { value: "low", label: "Low" },
-  { value: "moderate", label: "Moderate" },
+  { value: "medium", label: "Medium" },
   { value: "high", label: "High" },
-  { value: "very_high", label: "Very High" },
 ] as const;
 
 export const CR_IMPACT_LEVELS = [

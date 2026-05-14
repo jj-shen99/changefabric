@@ -69,7 +69,7 @@ const defaultForm = {
   type: "standard",
   category: "other",
   priority: "3",
-  riskLevel: "moderate",
+  riskLevel: "medium",
   impactLevel: "3",
   urgency: "3",
   justification: "",
@@ -586,14 +586,6 @@ export default function NewChangePage() {
                   </div>
                 ) : (
                   <div className="space-y-1.5">
-                    {form.riskLevel === "critical" && (
-                      <div className="flex items-center gap-2 text-xs">
-                        <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
-                        <span className="text-red-700 dark:text-red-300">
-                          <strong>Critical Risk:</strong> Requires CAB + Security Team + VP approval
-                        </span>
-                      </div>
-                    )}
                     {form.riskLevel === "high" && (
                       <div className="flex items-center gap-2 text-xs">
                         <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
@@ -602,11 +594,11 @@ export default function NewChangePage() {
                         </span>
                       </div>
                     )}
-                    {form.riskLevel === "moderate" && (
+                    {form.riskLevel === "medium" && (
                       <div className="flex items-center gap-2 text-xs">
                         <CheckCircle2 className="h-3.5 w-3.5 text-yellow-500" />
                         <span className="text-yellow-700 dark:text-yellow-300">
-                          <strong>Moderate Risk:</strong> Requires Manager approval
+                          <strong>Medium Risk:</strong> Requires Manager approval
                         </span>
                       </div>
                     )}
