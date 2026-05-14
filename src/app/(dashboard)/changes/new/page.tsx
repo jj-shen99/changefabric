@@ -113,6 +113,13 @@ export default function NewChangePage() {
   const [showUserSuggestions, setShowUserSuggestions] = useState(false);
   const assignedToRef = useRef<HTMLInputElement>(null);
 
+  // Service autocomplete
+  interface ServiceSuggestion { id: string; name: string; displayName: string; category: string | null; }
+  const [serviceInput, setServiceInput] = useState("");
+  const [serviceSuggestions, setServiceSuggestions] = useState<ServiceSuggestion[]>([]);
+  const [showServiceSuggestions, setShowServiceSuggestions] = useState(false);
+  const serviceInputRef = useRef<HTMLInputElement>(null);
+
   // Load templates
   useEffect(() => {
     setTemplatesLoading(true);
@@ -205,6 +212,50 @@ export default function NewChangePage() {
   function clearAssignedTo() {
     setAssignedToUser(null);
     setForm((f) => ({ ...f, assignedTo: "" }));
+  }
+
+  // Service search
+  useEffect(() => {
+    if (serviceInput.length < 1) {
+      setServiceSuggestions([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/v2/services?search=${encodeURIComponent(serviceInput)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setServiceSuggestions(data || []);
+          setShowServiceSuggestions((data || []).length > 0);
+        }
+      } catch {
+        // Ignore search errors
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [serviceInput]);
+
+  function selectService(service: ServiceSuggestion) {
+    const currentServices = form.affectedServices
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!currentServices.includes(service.name)) {
+      const newServices = [...currentServices, service.name].join(", ");
+      setForm((f) => ({ ...f, affectedServices: newServices }));
+    }
+    setServiceInput("");
+    setServiceSuggestions([]);
+    setShowServiceSuggestions(false);
+  }
+
+  function removeService(serviceName: string) {
+    const currentServices = form.affectedServices
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .filter((s) => s !== serviceName);
+    setForm((f) => ({ ...f, affectedServices: currentServices.join(", ") }));
   }
 
   function applyTemplate(t: Template) {
@@ -552,13 +603,58 @@ export default function NewChangePage() {
                 />
               </Field>
             </div>
-            <Field label="Affected services (comma-separated)">
-              <input
-                value={form.affectedServices}
-                onChange={(e) => update("affectedServices", e.target.value)}
-                placeholder="payment-service, order-service"
-                className="input"
-              />
+            <Field label="Affected services">
+              <div className="space-y-2">
+                {/* Selected services as tags */}
+                {form.affectedServices && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {form.affectedServices.split(",").map((s) => s.trim()).filter(Boolean).map((service) => (
+                      <span
+                        key={service}
+                        className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900 dark:text-blue-300"
+                      >
+                        {service}
+                        <button
+                          type="button"
+                          onClick={() => removeService(service)}
+                          className="ml-0.5 rounded-full p-0.5 hover:bg-blue-200 dark:hover:bg-blue-800"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {/* Service search input */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <input
+                    ref={serviceInputRef}
+                    type="text"
+                    value={serviceInput}
+                    onChange={(e) => setServiceInput(e.target.value)}
+                    onFocus={() => serviceSuggestions.length > 0 && setShowServiceSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowServiceSuggestions(false), 200)}
+                    placeholder="Type to search services..."
+                    className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm dark:border-gray-700 dark:bg-gray-900"
+                  />
+                  {showServiceSuggestions && serviceSuggestions.length > 0 && (
+                    <ul className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 max-h-48 overflow-auto">
+                      {serviceSuggestions.map((service) => (
+                        <li
+                          key={service.id}
+                          className="cursor-pointer px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onMouseDown={() => selectService(service)}
+                        >
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{service.displayName}</div>
+                          <div className="text-xs text-gray-500">{service.name}{service.category && ` • ${service.category}`}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">Search and select services, or type manually separated by commas</p>
+              </div>
             </Field>
           </div>
         </Card>

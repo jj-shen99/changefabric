@@ -165,16 +165,23 @@ export default function AnalyticsPage() {
               </div>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Failure Rate by Group</CardTitle></CardHeader>
+              <CardHeader>
+                <CardTitle>Failure Rate by Assignment Group</CardTitle>
+                <CardDescription>Percentage of failed changes per assignment group</CardDescription>
+              </CardHeader>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={failureByTeam} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis type="number" tick={{ fontSize: 11 }} stroke="#94a3b8" domain={[0, 100]} />
-                    <YAxis dataKey="team" type="category" tick={{ fontSize: 11 }} stroke="#94a3b8" width={100} />
-                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
-                    <Bar dataKey="avgRisk" name="Avg Risk" radius={[0, 4, 4, 0]}>
-                      {failureByTeam.map((entry, idx) => <Cell key={idx} fill={riskColor(entry.avgRisk)} />)}
+                    <XAxis type="number" tick={{ fontSize: 11 }} stroke="#94a3b8" domain={[0, 100]} unit="%" />
+                    <YAxis dataKey="team" type="category" tick={{ fontSize: 11 }} stroke="#94a3b8" width={120} />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }}
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      formatter={(value: any) => [`${value}%`, "Failure Rate"]}
+                    />
+                    <Bar dataKey="failureRate" name="Failure Rate" radius={[0, 4, 4, 0]}>
+                      {failureByTeam.map((entry, idx) => <Cell key={idx} fill={entry.failureRate > 15 ? "#ef4444" : entry.failureRate > 5 ? "#f97316" : "#22c55e"} />)}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>

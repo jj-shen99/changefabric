@@ -18,6 +18,7 @@ import {
   UserCheck,
   UsersRound,
   Shield,
+  Server,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS } from "@/lib/constants";
@@ -173,7 +174,25 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
               className={cn("h-4 w-4", pathname === "/settings/groups" ? "text-blue-700 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")}
               aria-hidden="true"
             />
-            Groups
+            Assignment Groups
+          </Link>
+        )}
+        {permissions.canManageUsers && (
+          <Link
+            href="/settings/services"
+            aria-current={pathname === "/settings/services" ? "page" : undefined}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+              pathname === "/settings/services"
+                ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400"
+                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+            )}
+          >
+            <Server
+              className={cn("h-4 w-4", pathname === "/settings/services" ? "text-blue-700 dark:text-blue-400" : "text-gray-400 dark:text-gray-500")}
+              aria-hidden="true"
+            />
+            Services
           </Link>
         )}
         {permissions.canManageUsers && (

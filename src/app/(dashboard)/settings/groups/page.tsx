@@ -15,11 +15,6 @@ interface Group {
   createdAt: string;
 }
 
-const GROUP_TYPES = [
-  { value: "approver", label: "Approver Group", description: "For approval workflows" },
-  { value: "assignment", label: "Assignment Group", description: "For CR assignments" },
-  { value: "both", label: "Both", description: "Can be used for both" },
-];
 
 export default function GroupsPage() {
   const [groups, setGroups] = useState<Group[]>([]);
@@ -31,15 +26,14 @@ export default function GroupsPage() {
   const [showForm, setShowForm] = useState(false);
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
-  const [formType, setFormType] = useState("approver");
+  const [formType] = useState("assignment");
   const [submitting, setSubmitting] = useState(false);
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editType, setEditType] = useState("");
-
+  
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -99,7 +93,6 @@ export default function GroupsPage() {
       setShowForm(false);
       setFormName("");
       setFormDescription("");
-      setFormType("approver");
       await load();
     } finally {
       setSubmitting(false);
@@ -117,7 +110,7 @@ export default function GroupsPage() {
           id,
           name: editName.trim(),
           description: editDescription.trim(),
-          type: editType,
+          type: "assignment",
         }),
       });
 
@@ -158,20 +151,18 @@ export default function GroupsPage() {
     setEditingId(group.id);
     setEditName(group.name);
     setEditDescription(group.description);
-    setEditType(group.type);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setEditName("");
     setEditDescription("");
-    setEditType("");
   }
 
   if (loading) {
     return (
       <>
-        <PageHeader title="Group Management" subtitle="Manage approver and assignment groups" />
+        <PageHeader title="Assignment Groups" subtitle="Manage assignment groups for change requests" />
         <div className="p-6 text-sm text-gray-500">Loading...</div>
       </>
     );
@@ -180,7 +171,7 @@ export default function GroupsPage() {
   if (!isAdmin) {
     return (
       <>
-        <PageHeader title="Group Management" subtitle="Manage approver and assignment groups" />
+        <PageHeader title="Assignment Groups" subtitle="Manage assignment groups for change requests" />
         <div className="p-6">
           <Card className="p-6">
             <div className="flex items-center gap-3 text-amber-600">
@@ -193,14 +184,16 @@ export default function GroupsPage() {
     );
   }
 
-  const activeGroups = groups.filter(g => g.isActive);
-  const inactiveGroups = groups.filter(g => !g.isActive);
+  // Filter to only show assignment groups (type === "assignment" or "both")
+  const assignmentGroups = groups.filter(g => g.type === "assignment" || g.type === "both");
+  const activeGroups = assignmentGroups.filter(g => g.isActive);
+  const inactiveGroups = assignmentGroups.filter(g => !g.isActive);
 
   return (
     <>
       <PageHeader
-        title="Group Management"
-        subtitle="Manage approver and assignment groups"
+        title="Assignment Groups"
+        subtitle="Manage assignment groups for change requests"
         actions={
           <button
             onClick={() => setShowForm(!showForm)}
@@ -245,19 +238,7 @@ export default function GroupsPage() {
                   className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-500">Type</label>
-                <select
-                  value={formType}
-                  onChange={(e) => setFormType(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-                >
-                  {GROUP_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end gap-2">
+                            <div className="flex items-end gap-2">
                 <button
                   type="submit"
                   disabled={submitting || !formName.trim()}
@@ -314,15 +295,6 @@ export default function GroupsPage() {
                           placeholder="Description"
                           className="w-48 rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-800"
                         />
-                        <select
-                          value={editType}
-                          onChange={(e) => setEditType(e.target.value)}
-                          className="rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-800"
-                        >
-                          {GROUP_TYPES.map((t) => (
-                            <option key={t.value} value={t.value}>{t.label}</option>
-                          ))}
-                        </select>
                         <button
                           onClick={() => updateGroup(group.id)}
                           className="rounded p-1 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
@@ -347,8 +319,7 @@ export default function GroupsPage() {
                               {group.name}
                             </p>
                             <p className="text-xs text-gray-500">
-                              {GROUP_TYPES.find(t => t.value === group.type)?.label || group.type}
-                              {group.description && ` • ${group.description}`}
+                              Assignment Group{group.description && ` • ${group.description}`}
                             </p>
                           </div>
                         </div>
@@ -404,7 +375,7 @@ export default function GroupsPage() {
                           {group.name}
                         </p>
                         <p className="text-xs text-gray-400">
-                          {GROUP_TYPES.find(t => t.value === group.type)?.label || group.type}
+                          Assignment Group (Inactive)
                         </p>
                       </div>
                     </div>
