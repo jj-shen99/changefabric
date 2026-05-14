@@ -307,6 +307,43 @@ async function main() {
     }
   }
 
+  // ── Seed Services ─────────────────────────────────────────────
+  console.log("Seeding services…");
+  const services = [
+    { name: "api-gateway", displayName: "API Gateway", category: "infrastructure", criticality: "mission-critical", owner: "Platform Team" },
+    { name: "user-service", displayName: "User Service", category: "application", criticality: "mission-critical", owner: "Identity Team" },
+    { name: "payment-service", displayName: "Payment Service", category: "application", criticality: "mission-critical", owner: "Payments Team" },
+    { name: "order-service", displayName: "Order Service", category: "application", criticality: "business-critical", owner: "Commerce Team" },
+    { name: "cart-service", displayName: "Cart Service", category: "application", criticality: "business-critical", owner: "Commerce Team" },
+    { name: "checkout-service", displayName: "Checkout Service", category: "application", criticality: "mission-critical", owner: "Commerce Team" },
+    { name: "search-service", displayName: "Search Service", category: "application", criticality: "business-critical", owner: "Search Team" },
+    { name: "recommendation-service", displayName: "Recommendation Service", category: "application", criticality: "standard", owner: "ML Platform" },
+    { name: "notification-service", displayName: "Notification Service", category: "application", criticality: "standard", owner: "Platform Team" },
+    { name: "email-service", displayName: "Email Service", category: "application", criticality: "standard", owner: "Platform Team" },
+    { name: "postgresql-primary", displayName: "PostgreSQL Primary", category: "database", criticality: "mission-critical", owner: "Data Engineering" },
+    { name: "postgresql-replica", displayName: "PostgreSQL Replica", category: "database", criticality: "business-critical", owner: "Data Engineering" },
+    { name: "redis-cluster", displayName: "Redis Cluster", category: "database", criticality: "business-critical", owner: "Platform Team" },
+    { name: "elasticsearch", displayName: "Elasticsearch", category: "database", criticality: "business-critical", owner: "Search Team" },
+    { name: "kafka-cluster", displayName: "Kafka Cluster", category: "infrastructure", criticality: "mission-critical", owner: "Platform Team" },
+    { name: "load-balancer", displayName: "Load Balancer", category: "network", criticality: "mission-critical", owner: "Infrastructure" },
+    { name: "cdn", displayName: "CDN", category: "network", criticality: "business-critical", owner: "Infrastructure" },
+    { name: "vault", displayName: "HashiCorp Vault", category: "security", criticality: "mission-critical", owner: "Security" },
+    { name: "monitoring-stack", displayName: "Monitoring Stack", category: "infrastructure", criticality: "business-critical", owner: "SRE" },
+    { name: "ci-cd-pipeline", displayName: "CI/CD Pipeline", category: "infrastructure", criticality: "business-critical", owner: "DevOps" },
+  ];
+
+  for (const s of services) {
+    const id = crypto.randomUUID();
+    try {
+      await prisma.$executeRaw`
+        INSERT OR IGNORE INTO Service (id, name, displayName, description, category, owner, criticality, isActive, createdBy, createdAt, updatedAt)
+        VALUES (${id}, ${s.name}, ${s.displayName}, '', ${s.category}, ${s.owner}, ${s.criticality}, 1, 'admin@example.com', datetime('now'), datetime('now'))
+      `;
+    } catch {
+      // Ignore duplicates
+    }
+  }
+
   // ── Workflow Definitions ───────────────────────────────────────
   for (const wf of BUILTIN_WORKFLOWS) {
     await prisma.workflowDefinition.upsert({

@@ -190,7 +190,7 @@ export default function AnalyticsPage() {
               </div>
             </Card>
             <Card>
-              <CardHeader><CardTitle>Failure Rate by Team</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Failure Rate by Group</CardTitle></CardHeader>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={failureByTeam} layout="vertical">
@@ -280,7 +280,7 @@ export default function AnalyticsPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-500" /> Failure Root Cause Analysis</CardTitle>
-                <CardDescription>AI-classified failure root causes from change outcomes and rollback data.</CardDescription>
+                <CardDescription>Estimated root causes based on {failed} failed and {rolledBack} rolled back changes.</CardDescription>
               </CardHeader>
               <div className="px-4 pb-4 space-y-2">
                 {(() => {
@@ -375,7 +375,7 @@ export default function AnalyticsPage() {
                 else insights.push({ text: `Change failure rate (${changeFailureRate}%) is within elite DORA performance range (<5%)`, severity: "info" });
                 if (rollbackIntelligence.rollbackRate > 10) insights.push({ text: `Rollback rate (${rollbackIntelligence.rollbackRate}%) is elevated — investigate pre-deployment validation gaps`, severity: "high" });
                 const highRiskTeams = failureByTeam.filter(t => t.avgRisk >= 60);
-                if (highRiskTeams.length > 0) insights.push({ text: `${highRiskTeams.length} team(s) have avg risk ≥60: ${highRiskTeams.map(t => t.team).join(", ")}`, severity: "high" });
+                if (highRiskTeams.length > 0) insights.push({ text: `${highRiskTeams.length} group(s) have avg risk ≥60: ${highRiskTeams.map(t => t.team).join(", ")}`, severity: "high" });
                 const topService = serviceRiskRanking[0];
                 if (topService && topService.avgRiskExposure >= 60) insights.push({ text: `Highest risk service: ${topService.service} (exposure: ${topService.avgRiskExposure}) — consider ring-fenced deployments`, severity: "high" });
                 if (deployed > 0 && failed === 0 && rolledBack === 0) insights.push({ text: `Perfect deployment record: ${deployed} successful with zero failures or rollbacks`, severity: "info" });
@@ -399,10 +399,10 @@ export default function AnalyticsPage() {
           {/* KPI Row */}
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {[
-              { label: "Total Changes", value: totalChangesVel, icon: GitPullRequest, color: "#3b82f6", tooltip: "Total changes across all teams" },
+              { label: "Total Changes", value: totalChangesVel, icon: GitPullRequest, color: "#3b82f6", tooltip: "Total changes across all groups" },
               { label: "Deployed", value: totalDeployed, icon: Zap, color: "#22c55e", tooltip: "Successfully deployed changes" },
               { label: "Avg Lead Time", value: `${avgLeadTime}h`, icon: Clock, color: "#8b5cf6", tooltip: "Average time from creation to deployment (hours)" },
-              { label: "Teams Active", value: teamVelocity.length, icon: Users, color: "#f59e0b", tooltip: "Number of teams with change activity" },
+              { label: "Groups Active", value: teamVelocity.length, icon: Users, color: "#f59e0b", tooltip: "Number of groups with change activity" },
             ].map((kpi) => (
               <Card key={kpi.label} className="p-4 group relative">
                 <div className="flex items-center justify-between">
@@ -425,7 +425,7 @@ export default function AnalyticsPage() {
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card>
-              <CardHeader><CardTitle>Team Velocity</CardTitle></CardHeader>
+              <CardHeader><CardTitle>Group Velocity</CardTitle></CardHeader>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={teamVelocity}>
@@ -461,14 +461,14 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          {/* Team Performance Table */}
+          {/* Group Performance Table */}
           <Card>
-            <CardHeader><div className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-blue-500" /><CardTitle>Team Performance</CardTitle></div></CardHeader>
+            <CardHeader><div className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-blue-500" /><CardTitle>Group Performance</CardTitle></div></CardHeader>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-gray-800">
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Team</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Group</th>
                     <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Changes</th>
                     <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Deployed</th>
                     <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Deploy Rate</th>
@@ -495,50 +495,66 @@ export default function AnalyticsPage() {
             </div>
           </Card>
 
-          {/* Approval Efficiency */}
+          {/* Approval Efficiency - Chart View */}
           <Card>
-            <CardHeader><CardTitle>Change Approval Efficiency</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Clock className="h-4 w-4 text-purple-500" /> Change Approval Efficiency</CardTitle>
+              <CardDescription>Lead time distribution by category (hours from creation to deployment)</CardDescription>
+            </CardHeader>
             {approvalEfficiency.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 dark:border-gray-800">
-                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">ID</th>
-                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Title</th>
-                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Team</th>
-                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Approvers</th>
-                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Lead Time</th>
-                      <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Category</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {approvalEfficiency.map((ae) => (
-                      <tr key={ae.id} className="border-b border-gray-50 dark:border-gray-800">
-                        <td className="py-3 font-mono text-xs text-gray-400">{ae.id}</td>
-                        <td className="py-3 font-medium text-gray-900 dark:text-gray-100">{ae.title}</td>
-                        <td className="py-3 text-gray-600 dark:text-gray-400">{ae.team}</td>
-                        <td className="py-3 text-gray-600 dark:text-gray-400">{ae.approverCount}</td>
-                        <td className="py-3">
-                          <span className={`text-sm font-medium ${ae.leadTimeHours > 48 ? "text-red-600" : ae.leadTimeHours > 24 ? "text-amber-600" : "text-green-600"}`}>{ae.leadTimeHours}h</span>
-                        </td>
-                        <td className="py-3"><span className="rounded bg-gray-100 px-2 py-0.5 text-xs capitalize text-gray-600 dark:bg-gray-800 dark:text-gray-400">{ae.category.replace(/_/g, " ")}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="h-72 px-4 pb-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={(() => {
+                    // Group by category and calculate avg lead time
+                    const catMap: Record<string, { total: number; count: number }> = {};
+                    approvalEfficiency.forEach(ae => {
+                      const cat = ae.category || "other";
+                      if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 };
+                      catMap[cat].total += ae.leadTimeHours;
+                      catMap[cat].count++;
+                    });
+                    return Object.entries(catMap).map(([category, data]) => ({
+                      category: category.replace(/_/g, " "),
+                      avgLeadTime: Math.round(data.total / data.count),
+                      count: data.count,
+                    })).sort((a, b) => b.avgLeadTime - a.avgLeadTime);
+                  })()}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="category" tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" label={{ value: "Hours", angle: -90, position: "insideLeft", fontSize: 10 }} />
+                    <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+                    <Legend />
+                    <Bar dataKey="avgLeadTime" name="Avg Lead Time (h)" fill="#8b5cf6" radius={[4, 4, 0, 0]}>
+                      {(() => {
+                        const catMap: Record<string, { total: number; count: number }> = {};
+                        approvalEfficiency.forEach(ae => {
+                          const cat = ae.category || "other";
+                          if (!catMap[cat]) catMap[cat] = { total: 0, count: 0 };
+                          catMap[cat].total += ae.leadTimeHours;
+                          catMap[cat].count++;
+                        });
+                        return Object.entries(catMap).map(([, data], idx) => {
+                          const avg = data.total / data.count;
+                          const color = avg > 48 ? "#ef4444" : avg > 24 ? "#f59e0b" : "#22c55e";
+                          return <Cell key={idx} fill={color} />;
+                        });
+                      })()}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             ) : (
               <p className="py-6 text-center text-sm text-gray-400">No deployed changes with lead time data</p>
             )}
           </Card>
 
-          {/* ── Team Efficiency Radar + Velocity Trend ── */}
+          {/* ── Group Efficiency Radar + Velocity Trend ── */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {teamVelocity.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Target className="h-4 w-4 text-blue-500" /> Team Efficiency Radar</CardTitle>
-                  <CardDescription>Multi-dimensional team performance: deploy rate, volume, and risk control.</CardDescription>
+                  <CardTitle className="flex items-center gap-2"><Target className="h-4 w-4 text-blue-500" /> Group Efficiency Radar</CardTitle>
+                  <CardDescription>Multi-dimensional group performance: deploy rate, volume, and risk control.</CardDescription>
                 </CardHeader>
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
@@ -940,7 +956,7 @@ export default function AnalyticsPage() {
       )}
       {/* ═══ TAB: CHANGE HEALTH ═══ */}
       {activeTab === "health" && (() => {
-        // Team health radar data
+        // Group health radar data
         const radarData = teamVelocity.slice(0, 6).map(tv => ({
           team: tv.team.length > 12 ? tv.team.slice(0, 10) + "…" : tv.team,
           deployRate: tv.deployRate,
@@ -961,10 +977,10 @@ export default function AnalyticsPage() {
             <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
               {[
                 { label: "Overall Health", value: `${healthScore}/100`, sub: healthLabel, icon: Shield, color: healthColor, tooltip: "Composite score: Deploy Rate (40%) + Risk Inverse (30%) + Failure Inverse (30%)" },
-                { label: "Avg Deploy Rate", value: `${avgDeployRate}%`, sub: avgDeployRate >= 80 ? "On Target" : "Below Target", icon: CheckCircle2, color: avgDeployRate >= 80 ? "text-green-600" : "text-amber-600", tooltip: "Average percentage of changes successfully deployed across all teams" },
-                { label: "Avg Team Risk", value: `${avgTeamRisk}`, sub: avgTeamRisk < 40 ? "Low" : avgTeamRisk < 60 ? "Medium" : "High", icon: AlertTriangle, color: avgTeamRisk < 40 ? "text-green-600" : avgTeamRisk < 60 ? "text-amber-600" : "text-red-600", tooltip: "Average risk score across all teams (0-100). Lower is better" },
+                { label: "Avg Deploy Rate", value: `${avgDeployRate}%`, sub: avgDeployRate >= 80 ? "On Target" : "Below Target", icon: CheckCircle2, color: avgDeployRate >= 80 ? "text-green-600" : "text-amber-600", tooltip: "Average percentage of changes successfully deployed across all groups" },
+                { label: "Avg Group Risk", value: `${avgTeamRisk}`, sub: avgTeamRisk < 40 ? "Low" : avgTeamRisk < 60 ? "Medium" : "High", icon: AlertTriangle, color: avgTeamRisk < 40 ? "text-green-600" : avgTeamRisk < 60 ? "text-amber-600" : "text-red-600", tooltip: "Average risk score across all groups (0-100). Lower is better" },
                 { label: "Failure Rate", value: `${changeFailureRate}%`, sub: changeFailureRate < 5 ? "Excellent" : changeFailureRate < 15 ? "Acceptable" : "High", icon: XCircle, color: changeFailureRate < 5 ? "text-green-600" : changeFailureRate < 15 ? "text-amber-600" : "text-red-600", tooltip: "Percentage of changes that failed or were rejected" },
-                { label: "Active Teams", value: `${teamVelocity.length}`, sub: `${totalDeployed} deployed`, icon: Users, color: "text-blue-600", tooltip: "Number of teams with change activity in selected period" },
+                { label: "Active Groups", value: `${teamVelocity.length}`, sub: `${totalDeployed} deployed`, icon: Users, color: "text-blue-600", tooltip: "Number of groups with change activity in selected period" },
               ].map((kpi) => (
                 <Card key={kpi.label} className="p-4 group relative">
                   <div className="flex items-center justify-between">
@@ -984,9 +1000,9 @@ export default function AnalyticsPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Team Risk Radar */}
+              {/* Group Risk Radar */}
               <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-4 w-4 text-purple-500" /> Team Performance Radar</CardTitle><CardDescription>Deploy rate vs risk vs velocity per team</CardDescription></CardHeader>
+                <CardHeader><CardTitle className="flex items-center gap-2"><Shield className="h-4 w-4 text-purple-500" /> Group Performance Radar</CardTitle><CardDescription>Deploy rate vs risk vs velocity per group</CardDescription></CardHeader>
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <RadarChart data={radarData}>
@@ -1003,7 +1019,7 @@ export default function AnalyticsPage() {
 
               {/* Risk Distribution by Team */}
               <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-red-500" /> Team Risk Ranking</CardTitle><CardDescription>Average risk score per team</CardDescription></CardHeader>
+                <CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-red-500" /> Group Risk Ranking</CardTitle><CardDescription>Average risk score per group</CardDescription></CardHeader>
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={failureByTeam.slice().sort((a, b) => b.avgRisk - a.avgRisk).slice(0, 8)} layout="vertical">
@@ -1033,13 +1049,13 @@ export default function AnalyticsPage() {
               </div>
             </Card>
 
-            {/* Detailed Team Health Table */}
+            {/* Detailed Group Health Table */}
             <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-green-500" /> Team Health Summary</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-green-500" /> Group Health Summary</CardTitle></CardHeader>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead><tr className="border-b border-gray-100 dark:border-gray-800">
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Team</th>
+                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Group</th>
                     <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Changes</th>
                     <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Deployed</th>
                     <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Deploy Rate</th>

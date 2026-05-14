@@ -462,6 +462,26 @@ model CRTypeApprover {
   @@index([isActive])
 }
 
+// ── Services ─────────────────────────────────────────────────
+// Catalog of services that can be affected by change requests
+
+model Service {
+  id          String   @id @default(uuid())
+  name        String   @unique              // e.g., "api-gateway", "user-service"
+  displayName String                        // e.g., "API Gateway", "User Service"
+  description String   @default("")
+  category    String   @default("other")    // infrastructure | application | database | network | security | other
+  owner       String?                       // Team or person responsible
+  criticality String   @default("standard") // mission-critical | business-critical | standard
+  isActive    Boolean  @default(true)
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+}
+
 // ── System Settings ──────────────────────────────────────────
 // Key-value store for system-wide settings like approval policies
 
