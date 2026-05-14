@@ -8,7 +8,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Save, FileText, ChevronDown, Copy, Search, UserPlus, X, Users } from "lucide-react";
+import { ArrowLeft, Save, FileText, ChevronDown, Copy, Search, UserPlus, X, Users, Shield, AlertTriangle, Zap, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 import {
@@ -569,6 +569,59 @@ export default function NewChangePage() {
               <Select label="Impact" value={form.impactLevel} onChange={(v) => update("impactLevel", v)} options={CR_IMPACT_LEVELS.map((o) => [o.value, o.label])} />
               <Select label="Urgency" value={form.urgency} onChange={(v) => update("urgency", v)} options={CR_URGENCY_LEVELS.map((o) => [o.value, o.label])} />
             </div>
+
+            {/* Risk-Based Approval Requirements */}
+            {form.type !== "pre-approved" && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                    {form.type === "emergency" ? "Emergency Approval" : "Risk-Based Approval Requirements"}
+                  </span>
+                </div>
+                {form.type === "emergency" ? (
+                  <div className="flex items-center gap-2 text-xs text-orange-700 dark:text-orange-300">
+                    <Zap className="h-3.5 w-3.5" />
+                    <span>Fast-track approval: Any member of Emergency CAB can approve</span>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {form.riskLevel === "critical" && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+                        <span className="text-red-700 dark:text-red-300">
+                          <strong>Critical Risk:</strong> Requires CAB + Security Team + VP approval
+                        </span>
+                      </div>
+                    )}
+                    {form.riskLevel === "high" && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <AlertTriangle className="h-3.5 w-3.5 text-orange-500" />
+                        <span className="text-orange-700 dark:text-orange-300">
+                          <strong>High Risk:</strong> Requires CAB + Manager approval
+                        </span>
+                      </div>
+                    )}
+                    {form.riskLevel === "moderate" && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-yellow-500" />
+                        <span className="text-yellow-700 dark:text-yellow-300">
+                          <strong>Moderate Risk:</strong> Requires Manager approval
+                        </span>
+                      </div>
+                    )}
+                    {form.riskLevel === "low" && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                        <span className="text-green-700 dark:text-green-300">
+                          <strong>Low Risk:</strong> Requires Team Lead approval
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Assignment Group with autocomplete */}
             <div className="relative">

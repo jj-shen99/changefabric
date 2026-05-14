@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
-import { Shield, Plus, Trash2, Users, AlertTriangle, Zap, FileText } from "lucide-react";
+import { Plus, Trash2, Users, AlertTriangle, Zap, FileText } from "lucide-react";
 import Link from "next/link";
 
 interface Approver {
@@ -34,7 +34,6 @@ interface GroupSuggestion {
 const CR_TYPES = [
   { value: "standard", label: "Standard", icon: FileText, color: "text-blue-600", bg: "bg-blue-50", description: "Normal changes with risk-based approval tiers" },
   { value: "emergency", label: "Emergency", icon: Zap, color: "text-orange-600", bg: "bg-orange-50", description: "Urgent changes with fast-track and retrospective approval" },
-  { value: "pre-approved", label: "Pre-approved", icon: Shield, color: "text-green-600", bg: "bg-green-50", description: "Low-risk templated changes with no approval required" },
 ];
 
 export default function ApproversPage() {
