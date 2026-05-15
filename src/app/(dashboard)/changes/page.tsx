@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { Search, Plus, AlertTriangle, Clock, CheckCircle2, XCircle, Info, ChevronUp, ChevronDown, Download, X, Loader2 } from "lucide-react";
+import { Search, Plus, AlertTriangle, Clock, CheckCircle2, XCircle, Info, ChevronUp, ChevronDown, Download, X, Loader2, RefreshCw, Settings } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 import { usePermissions } from "@/hooks";
@@ -98,15 +98,36 @@ export default function ChangesPage() {
     user: "",
     password: "",
     days: "30",
+    saveCredentials: false,
   });
+  const [hasSavedCredentials, setHasSavedCredentials] = useState(false);
 
-  // Check if import is enabled for this org
+  // Check if import is enabled for this org and if credentials are saved
   const checkImportEnabled = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/org-settings");
       if (res.ok) {
         const data = await res.json();
         setImportEnabled(data.settings?.enableCRImport || false);
+      }
+      
+      // Check for saved credentials
+      const syncRes = await fetch("/api/admin/snow-sync");
+      if (syncRes.ok) {
+        const syncData = await syncRes.json();
+        const settings = syncData.settings;
+        const hasCredentials = !!settings.snowInstance && settings.hasPassword;
+        setHasSavedCredentials(hasCredentials);
+        
+        // Pre-fill form with saved settings (except password)
+        if (settings.snowInstance) {
+          setImportForm(prev => ({
+            ...prev,
+            instance: settings.snowInstance || "",
+            user: settings.snowUsername || "",
+            days: String(settings.snowSyncDays || 30),
+          }));
+        }
       }
     } catch {
       // Ignore errors
@@ -157,16 +178,96 @@ export default function ChangesPage() {
       }
 
       setImportSuccess(data.message);
+      
+      // Save credentials if requested
+      if (importForm.saveCredentials) {
+        try {
+          await fetch("/api/admin/snow-sync", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              snowInstance: importForm.instance,
+              snowUsername: importForm.user,
+              snowPassword: importForm.password,
+              snowSyncDays: parseInt(importForm.days, 10) || 30,
+            }),
+          });
+          setHasSavedCredentials(true);
+        } catch {
+          // Ignore save errors - import was still successful
+        }
+      }
+      
       // Reload the list after successful import
       await load();
       // Close modal after short delay to show success message
       setTimeout(() => {
         setShowImportModal(false);
         setImportSuccess(null);
-        setImportForm({ instance: "", user: "", password: "", days: "30" });
+        // Keep instance/user if credentials were saved, clear password
+        if (importForm.saveCredentials) {
+          setImportForm(prev => ({ ...prev, password: "", saveCredentials: false }));
+        } else {
+          setImportForm({ instance: "", user: "", password: "", days: "30", saveCredentials: false });
+        }
       }, 1500);
     } catch (err) {
       setImportError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setImportLoading(false);
+    }
+  }
+  
+  // Handle sync using saved credentials
+  async function handleSyncUp() {
+    setImportLoading(true);
+    setImportError(null);
+    setImportSuccess(null);
+
+    try {
+      const res = await fetch("/api/cron/snow-sync", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        const errorMsg = data.error || `HTTP ${res.status}`;
+        // If ServiceNow credentials error, prompt user to enter new credentials
+        // Note: "User not found" from our API means app user, not ServiceNow user
+        // ServiceNow auth errors typically contain "401", "authentication failed", "invalid user", etc.
+        const isSnowAuthError = 
+            errorMsg.toLowerCase().includes("invalid user") ||
+            errorMsg.toLowerCase().includes("invalid password") ||
+            errorMsg.toLowerCase().includes("authentication failed") ||
+            errorMsg.toLowerCase().includes("invalid credentials") ||
+            errorMsg.toLowerCase().includes("access denied") ||
+            (errorMsg.includes("401") && errorMsg.toLowerCase().includes("servicenow"));
+        
+        // If credentials not configured, also open modal
+        const needsCredentials = 
+            errorMsg.toLowerCase().includes("credentials not configured") ||
+            errorMsg.toLowerCase().includes("please set up credentials");
+            
+        if (isSnowAuthError || needsCredentials) {
+          setImportError(needsCredentials 
+            ? "ServiceNow credentials not configured. Please enter credentials."
+            : "ServiceNow credentials are invalid. Please enter new credentials.");
+          setShowImportModal(true);
+          setImportLoading(false);
+          return;
+        }
+        throw new Error(errorMsg);
+      }
+
+      setImportSuccess(data.message);
+      await load();
+      // Auto-close success message after delay
+      setTimeout(() => {
+        setImportSuccess(null);
+      }, 3000);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : String(err));
+      // Auto-close error message after delay
+      setTimeout(() => {
+        setImportError(null);
+      }, 5000);
     } finally {
       setImportLoading(false);
     }
@@ -239,12 +340,36 @@ export default function ChangesPage() {
         actions={
           <div className="flex gap-2">
             {importEnabled && isAdmin && (
-              <button
-                onClick={() => setShowImportModal(true)}
-                className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20"
-              >
-                <Download className="h-4 w-4" /> Import from ServiceNow
-              </button>
+              hasSavedCredentials ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handleSyncUp}
+                    disabled={importLoading}
+                    className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20 disabled:opacity-50"
+                  >
+                    {importLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    {importLoading ? "Syncing..." : "Sync Up"}
+                  </button>
+                  <button
+                    onClick={() => setShowImportModal(true)}
+                    title="Update ServiceNow credentials"
+                    className="rounded-lg border border-white/30 bg-white/10 p-2 text-white hover:bg-white/20"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20"
+                >
+                  <Download className="h-4 w-4" /> Import from ServiceNow
+                </button>
+              )
             )}
             {canManageChanges && (
               <Link
@@ -258,6 +383,24 @@ export default function ChangesPage() {
         }
       />
     <div className="space-y-6 p-4 md:p-6">
+      {/* Sync notifications (shown when using Sync Up button) */}
+      {!showImportModal && importSuccess && (
+        <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4" />
+            {importSuccess}
+          </div>
+        </div>
+      )}
+      {!showImportModal && importError && (
+        <div className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4" />
+            {importError}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat icon={<Clock className="h-4 w-4" />} label="Pending" value={counts.pending} tone="amber" tooltip="CRs in: Draft, Submitted, Assessing, Awaiting Approval" />
         <Stat icon={<AlertTriangle className="h-4 w-4" />} label="In Flight" value={counts.inFlight} tone="indigo" tooltip="CRs in: Approved, Scheduled, In Progress, Implemented, Reviewing" />
@@ -377,7 +520,7 @@ export default function ChangesPage() {
                 <input
                   type="url"
                   required
-                  placeholder="https://your-instance.example.com"
+                  placeholder="https://your-instance.service-now.com"
                   value={importForm.instance}
                   onChange={(e) => setImportForm({ ...importForm, instance: e.target.value })}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
@@ -424,6 +567,19 @@ export default function ChangesPage() {
                   onChange={(e) => setImportForm({ ...importForm, days: e.target.value })}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
                 />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="saveCredentials"
+                  checked={importForm.saveCredentials}
+                  onChange={(e) => setImportForm({ ...importForm, saveCredentials: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <label htmlFor="saveCredentials" className="text-sm text-gray-700 dark:text-gray-300">
+                  Save credentials for future sync (encrypted)
+                </label>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

@@ -4,7 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { getSecret } from "@/lib/crypto";
 
 /* ─── Configuration ─── */
-const DEFAULT_REPO_URL = "https://code.devsnc.com/dev/perf-testing-ai";
+// Configure via GIT_DEFAULT_REPO env var or pass repoUrl in request
+const DEFAULT_REPO_URL = process.env.GIT_DEFAULT_REPO || "https://github.com/example/repo";
 const DEFAULT_DAYS = 14;
 
 /* ─── Gitea / GitHub-compatible REST API helpers ─── */
@@ -569,7 +570,7 @@ export async function GET(request: Request) {
 
     if (commits.length === 0) {
       return NextResponse.json(
-        { error: `No commits found for ${owner}/${repo}. The repository may not exist, may be private, or may have no commits in the last ${days} days. Verify the repo URL is correct (e.g. https://code.devsnc.com/owner/repo).` },
+        { error: `No commits found for ${owner}/${repo}. The repository may not exist, may be private, or may have no commits in the last ${days} days. Verify the repo URL is correct (e.g. https://github.com/owner/repo).` },
         { status: 404 }
       );
     }

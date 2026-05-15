@@ -13,6 +13,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { createDecipheriv, createHash } from "crypto";
+import path from "path";
 import "dotenv/config";
 
 import {
@@ -22,20 +23,47 @@ import {
   type ChangeRequest as CoreCR,
 } from "../src/core";
 
-// Decrypt DATABASE_URL if encrypted (mirrors src/lib/crypto.ts logic)
-if (process.env.DATABASE_URL?.startsWith("enc:")) {
-  const raw = process.env.ENCRYPTION_KEY || "default-dev-key-change-in-production";
-  const key = createHash("sha256").update(raw).digest();
-  const packed = Buffer.from(process.env.DATABASE_URL.slice(4), "base64");
-  const iv = packed.subarray(0, 16);
-  const authTag = packed.subarray(16, 32);
-  const ciphertext = packed.subarray(32);
-  const decipher = createDecipheriv("aes-256-gcm", key, iv);
-  decipher.setAuthTag(authTag);
-  process.env.DATABASE_URL = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+// Resolve DATABASE_URL to absolute path for seed script
+// DATABASE_URL should be "file:./prisma/dev.db" (relative to project root)
+// Legacy format "file:./dev.db" is also supported (assumes prisma/ folder)
+function resolveDatabaseUrl(): string {
+  let url = process.env.DATABASE_URL || "";
+  
+  // Decrypt if encrypted
+  if (url.startsWith("enc:")) {
+    const raw = process.env.ENCRYPTION_KEY || "default-dev-key-change-in-production";
+    const key = createHash("sha256").update(raw).digest();
+    const packed = Buffer.from(url.slice(4), "base64");
+    const iv = packed.subarray(0, 16);
+    const authTag = packed.subarray(16, 32);
+    const ciphertext = packed.subarray(32);
+    const decipher = createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(authTag);
+    url = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+  }
+  
+  // Resolve relative SQLite paths to absolute paths
+  if (url.startsWith("file:./")) {
+    let relativePath = url.slice(7); // Remove "file:./"
+    // Legacy support: if path doesn't include "prisma/", assume it's relative to prisma/ folder
+    if (!relativePath.startsWith("prisma/") && !relativePath.includes("/prisma/")) {
+      relativePath = `prisma/${relativePath}`;
+    }
+    const absolutePath = path.resolve(process.cwd(), relativePath);
+    url = `file:${absolutePath}`;
+  }
+  
+  return url;
 }
 
-const prisma = new PrismaClient();
+const databaseUrl = resolveDatabaseUrl();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: databaseUrl,
+    },
+  },
+});
 
 async function main() {
   console.log("Seeding re-architected change-management database…");

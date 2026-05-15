@@ -27,6 +27,17 @@ model Organization {
   // Feature flags
   enableCRImport Boolean @default(false)    // Allow importing CRs from ServiceNow
   
+  // ServiceNow sync settings (credentials are encrypted with AES-256-GCM)
+  snowInstance       String?                // ServiceNow instance URL (e.g., https://instance.service-now.com)
+  snowUsername       String?                // ServiceNow username (encrypted)
+  snowPassword       String?                // ServiceNow password (encrypted)
+  snowSyncEnabled    Boolean @default(false) // Enable automatic sync
+  snowSyncIntervalHours Int  @default(24)   // Sync interval in hours (1-168)
+  snowSyncDays       Int     @default(30)   // Import CRs from last N days
+  snowLastSyncAt     DateTime?              // Last successful sync timestamp
+  snowLastSyncBy     String?                // Who triggered last sync
+  snowLastSyncResult String?                // Last sync result (JSON)
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -22,8 +22,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, message: "Username is required" });
     }
 
-    // Test connection against GitHub Enterprise (code.devsnc.com)
-    const testUrl = "https://code.devsnc.com/api/v3/user";
+    // Test connection against GitHub Enterprise
+    // Configure GIT_ENTERPRISE_URL env var for your instance
+    const gitHost = process.env.GIT_ENTERPRISE_URL || "https://github.com";
+    const testUrl = `${gitHost}/api/v3/user`;
     
     const authHeader = "Basic " + Buffer.from(`${user}:${password}`).toString("base64");
 
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
       const login = data.login || user;
       return NextResponse.json({ 
         success: true, 
-        message: `Authenticated as ${login} on code.devsnc.com` 
+        message: `Authenticated as ${login} on ${gitHost}` 
       });
     } else if (res.status === 401) {
       return NextResponse.json({ 

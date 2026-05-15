@@ -202,7 +202,7 @@ export default function CodeAnalysisPage() {
                   type="text"
                   value={gitRepo}
                   onChange={(e) => setGitRepo(e.target.value)}
-                  placeholder="https://github.com/owner/repo or https://code.devsnc.com/owner/repo"
+                  placeholder="https://github.com/owner/repo"
                   className="w-full rounded-lg border border-purple-200 bg-white py-2 px-3 text-sm outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 dark:border-purple-800 dark:bg-gray-900 dark:text-gray-100"
                 />
               </div>

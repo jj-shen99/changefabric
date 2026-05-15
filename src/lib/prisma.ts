@@ -7,10 +7,15 @@ if (process.env.DATABASE_URL?.startsWith("enc:")) {
   process.env.DATABASE_URL = decrypt(process.env.DATABASE_URL);
 }
 
-// Resolve relative SQLite paths to absolute paths from project root
-// This ensures the database is found regardless of the working directory
+// Resolve relative SQLite paths to absolute paths
+// DATABASE_URL should be "file:./prisma/dev.db" (relative to project root)
+// Legacy format "file:./dev.db" is also supported (assumes prisma/ folder)
 if (process.env.DATABASE_URL?.startsWith("file:./")) {
-  const relativePath = process.env.DATABASE_URL.slice(7); // Remove "file:./"
+  let relativePath = process.env.DATABASE_URL.slice(7); // Remove "file:./"
+  // Legacy support: if path doesn't include "prisma/", assume it's relative to prisma/ folder
+  if (!relativePath.startsWith("prisma/") && !relativePath.includes("/prisma/")) {
+    relativePath = `prisma/${relativePath}`;
+  }
   const absolutePath = path.resolve(process.cwd(), relativePath);
   process.env.DATABASE_URL = `file:${absolutePath}`;
 }

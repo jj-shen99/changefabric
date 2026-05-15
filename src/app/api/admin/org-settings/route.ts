@@ -74,9 +74,17 @@ export async function PUT(request: Request) {
       return badRequest("No valid fields to update");
     }
 
-    const updated = await prisma.organization.update({
+    // Use upsert to create the org if it doesn't exist
+    const updated = await prisma.organization.upsert({
       where: { orgId: ctx.orgId },
-      data: updateData,
+      update: updateData,
+      create: {
+        orgId: ctx.orgId,
+        name: body.name || ctx.orgId,
+        description: body.description || "",
+        enableCRImport: body.enableCRImport ?? false,
+        isActive: true,
+      },
       select: {
         orgId: true,
         name: true,
