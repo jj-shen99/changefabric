@@ -115,7 +115,7 @@ export default function ApproversPage() {
       const userRoles = session?.user?.roles || [];
       const permissions = session?.user?.permissions || {};
       const hasAccess = userRoles.includes("admin") || permissions.canManageUsers;
-      setIsAdmin(userRoles.includes("admin"));
+      setIsAdmin(userRoles.includes("admin") || permissions.canManageUsers);
 
       if (!hasAccess) {
         setError("Access denied. Admin privileges required.");

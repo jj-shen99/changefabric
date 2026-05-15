@@ -23,6 +23,49 @@ function displayVal(field: unknown): string {
   return "";
 }
 
+/** Map ServiceNow state values to our workflow states */
+function mapServiceNowState(snState: string): string {
+  const stateMap: Record<string, string> = {
+    // ServiceNow standard states
+    "new": "draft",
+    "draft": "draft",
+    "assess": "awaiting_approval",
+    "authorize": "awaiting_approval",
+    "scheduled": "scheduled",
+    "implement": "in_progress",
+    "review": "in_progress",
+    "closed": "closed",
+    "canceled": "closed",
+    "cancelled": "closed",
+    // Numeric states (ServiceNow uses -5 to 3)
+    "-5": "draft",      // New
+    "-4": "awaiting_approval", // Assess
+    "-3": "awaiting_approval", // Authorize
+    "-2": "scheduled",  // Scheduled
+    "-1": "in_progress", // Implement
+    "0": "in_progress", // Review
+    "3": "closed",      // Closed
+    "4": "closed",      // Canceled
+  };
+  const normalized = (snState || "").toLowerCase().trim();
+  return stateMap[normalized] || "draft";
+}
+
+/** Map ServiceNow approval values to our approval states */
+function mapServiceNowApproval(snApproval: string): string {
+  const approvalMap: Record<string, string> = {
+    "not requested": "not_requested",
+    "not yet requested": "not_requested",
+    "requested": "pending",
+    "approved": "approved",
+    "rejected": "rejected",
+    "cancelled": "not_requested",
+    "canceled": "not_requested",
+  };
+  const normalized = (snApproval || "").toLowerCase().trim();
+  return approvalMap[normalized] || "not_requested";
+}
+
 /* ─── Fetch from ServiceNow ─── */
 
 export interface SyncOptions {
@@ -31,6 +74,7 @@ export interface SyncOptions {
   user?: string;
   password?: string;
   syncedBy?: string;
+  orgId?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -186,6 +230,7 @@ export async function syncChangeRequests(
         externalId: row.sys_id || null,
         externalSource: "servicenow",
         workflowKey: "standard",
+        orgId: options?.orgId || "demo",
         title: row.short_description || `Imported from ServiceNow (${num})`,
         description: row.description || "",
         type: (row.type || "standard").toLowerCase(),
@@ -194,8 +239,8 @@ export async function syncChangeRequests(
         riskLevel,
         impactLevel: (row.impact || "3").toString().match(/[1-3]/)?.[0] || "3",
         urgency: (row.urgency || "3").toString().match(/[1-3]/)?.[0] || "3",
-        state: row.state || "draft",
-        approvalState: row.approval || "not_requested",
+        state: mapServiceNowState(row.state),
+        approvalState: mapServiceNowApproval(row.approval),
         justification: row.justification || "",
         implementationPlan: row.implementation_plan || "",
         backoutPlan: row.backout_plan || "",
@@ -211,7 +256,7 @@ export async function syncChangeRequests(
         configurationItem: row.cmdb_ci || null,
         businessService: row.business_service || null,
         affectedServices: JSON.stringify([]),
-        tags: JSON.stringify([]),
+        tags: JSON.stringify(["imported", "servicenow"]),
         createdBy: syncedBy || row.opened_by || "servicenow",
       };
 

@@ -200,3 +200,77 @@ rm -rf .next node_modules
 npm install
 npm run build
 ```
+
+## Production Deployment Scripts
+
+A comprehensive set of deployment scripts is available in `scripts/deploy/`:
+
+### Quick Start with Docker Compose
+
+```bash
+# Set required environment variables
+export NEXTAUTH_SECRET="your-secure-secret-key"
+export DB_PASSWORD="your-db-password"
+
+# Start all services (app, PostgreSQL, nginx)
+docker-compose -f scripts/deploy/docker-compose.yml up -d
+
+# View logs
+docker-compose -f scripts/deploy/docker-compose.yml logs -f app
+
+# Stop services
+docker-compose -f scripts/deploy/docker-compose.yml down
+```
+
+### Manual Deployment
+
+```bash
+# Make scripts executable
+chmod +x scripts/deploy/*.sh
+
+# Deploy to staging
+./scripts/deploy/deploy.sh staging
+
+# Deploy to production
+./scripts/deploy/deploy.sh production
+
+# Health check
+./scripts/deploy/health-check.sh https://your-domain.com
+
+# Backup database
+./scripts/deploy/backup-db.sh ./backups
+
+# Rollback if needed
+./scripts/deploy/rollback.sh
+```
+
+### Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `deploy.sh` | Main deployment with pre-checks, build, migrations, restart |
+| `rollback.sh` | Rollback to a previous backup |
+| `health-check.sh` | Verify application health endpoints |
+| `backup-db.sh` | Backup database (SQLite or PostgreSQL) |
+
+### Docker Services
+
+The `docker-compose.yml` includes:
+
+- **app**: Next.js application (port 3600)
+- **db**: PostgreSQL 16 with health checks
+- **nginx**: Reverse proxy with SSL, rate limiting, gzip
+- **redis**: Optional session caching (use `--profile with-redis`)
+
+### SSL Configuration
+
+Place SSL certificates in `scripts/deploy/ssl/`:
+- `fullchain.pem`
+- `privkey.pem`
+
+Or use Let's Encrypt:
+```bash
+certbot certonly --webroot -w /var/www/certbot -d your-domain.com
+```
+
+See `scripts/deploy/README.md` for complete documentation.

@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: scripts/deploy/Dockerfile
+    container_name: change-mgmt-app
+    restart: unless-stopped
+    ports:
+      - "3600:3600"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://changemgmt:${DB_PASSWORD:-changeme}@db:5432/change_management?schema=public
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3600}
+      - LLM_PROVIDER=${LLM_PROVIDER:-disabled}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3600/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - change-mgmt-network
+    volumes:
+      - app-logs:/app/logs
+
+  db:
+    image: postgres:16-alpine
+    container_name: change-mgmt-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=changemgmt
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+      - POSTGRES_DB=change_management
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U changemgmt -d change_management"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - change-mgmt-network
+    ports:
+      - "5432:5432"
+
+  nginx:
+    image: nginx:alpine
+    container_name: change-mgmt-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      - app
+    networks:
+      - change-mgmt-network
+
+  # Optional: Redis for session caching
+  redis:
+    image: redis:7-alpine
+    container_name: change-mgmt-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - change-mgmt-network
+    profiles:
+      - with-redis
+
+networks:
+  change-mgmt-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  app-logs:
+  nginx-logs:
+  redis-data:

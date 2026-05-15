@@ -227,52 +227,6 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          {/* Top Services by Risk */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-red-500" /> Top Services by Risk</CardTitle>
-              <CardDescription>Services with highest average risk exposure from changes</CardDescription>
-            </CardHeader>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 dark:border-gray-800">
-                    <th className="pb-3 pl-4 font-medium text-gray-500 dark:text-gray-400">Service</th>
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Category</th>
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Criticality</th>
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Avg Risk</th>
-                    <th className="pb-3 font-medium text-gray-500 dark:text-gray-400">Changes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {serviceRiskRanking.slice(0, 5).map((svc) => (
-                    <tr key={svc.service} className="border-b border-gray-50 dark:border-gray-800">
-                      <td className="py-3 pl-4 font-medium text-gray-900 dark:text-gray-100">{svc.service}</td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400 capitalize">{(svc as { category?: string }).category || "—"}</td>
-                      <td className="py-3">
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          (svc as { criticality?: string }).criticality === "mission-critical" ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" :
-                          (svc as { criticality?: string }).criticality === "business-critical" ? "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300" :
-                          "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
-                        }`}>
-                          {(svc as { criticality?: string }).criticality || "standard"}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-16 rounded-full bg-gray-100 dark:bg-gray-800">
-                            <div className="h-2 rounded-full" style={{ width: `${svc.avgRiskExposure}%`, backgroundColor: riskColor(svc.avgRiskExposure) }} />
-                          </div>
-                          <span className="text-xs font-medium">{svc.avgRiskExposure}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 text-gray-600 dark:text-gray-400">{svc.changeCount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
         </div>
       )}
 
@@ -530,23 +484,6 @@ export default function AnalyticsPage() {
             </div>
           </Card>
 
-          {/* Group Risk Ranking */}
-          <Card>
-            <CardHeader><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4 text-red-500" /> Group Risk Ranking</CardTitle><CardDescription>Average risk score per assignment group</CardDescription></CardHeader>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={failureByTeam.slice().sort((a, b) => b.avgRisk - a.avgRisk).slice(0, 8)} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} stroke="#94a3b8" />
-                  <YAxis type="category" dataKey="team" tick={{ fontSize: 10 }} stroke="#94a3b8" width={100} />
-                  <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }} />
-                  <Bar dataKey="avgRisk" name="Avg Risk" radius={[0, 4, 4, 0]}>
-                    {failureByTeam.slice().sort((a, b) => b.avgRisk - a.avgRisk).slice(0, 8).map((entry, idx) => <Cell key={idx} fill={riskColor(entry.avgRisk)} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
         </div>
       )}
 

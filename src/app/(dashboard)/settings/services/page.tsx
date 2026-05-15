@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, Server, AlertTriangle, CheckCircle2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Server, AlertTriangle, CheckCircle2, Search, Download, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
 
@@ -15,6 +15,7 @@ interface Service {
   criticality: string;
   isActive: boolean;
   createdAt: string;
+  orgId: string;
 }
 
 const CATEGORIES = [
@@ -48,6 +49,7 @@ export default function ServicesPage() {
     criticality: "standard",
     isActive: true,
   });
+  const [importing, setImporting] = useState(false);
 
   const fetchServices = async () => {
     try {
@@ -130,6 +132,28 @@ export default function ServicesPage() {
     });
   };
 
+  const importDefaults = async () => {
+    if (!confirm("Import default services? This will add standard services (API Gateway, Auth Service, databases, etc.) that don't already exist.")) return;
+    
+    setImporting(true);
+    try {
+      const res = await fetch("/api/admin/services/import-defaults", { method: "POST" });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        alert(data.error || "Failed to import services");
+        return;
+      }
+      
+      alert(data.message);
+      await fetchServices();
+    } catch {
+      alert("Failed to import default services");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filteredServices = services.filter(
     (s) =>
       s.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -153,13 +177,23 @@ export default function ServicesPage() {
         title="Services Management"
         subtitle="Manage the catalog of services that can be affected by change requests"
         actions={
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            Add Service
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={importDefaults}
+              disabled={importing}
+              className="flex items-center gap-2 rounded-lg border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 disabled:opacity-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-950"
+            >
+              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Import Defaults
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+              <Plus className="h-4 w-4" />
+              Add Service
+            </button>
+          </div>
         }
       />
 
@@ -333,6 +367,7 @@ export default function ServicesPage() {
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-800">
                   <th className="px-4 pb-3 font-medium text-gray-500 dark:text-gray-400">Service</th>
+                  <th className="px-4 pb-3 font-medium text-gray-500 dark:text-gray-400">Org</th>
                   <th className="px-4 pb-3 font-medium text-gray-500 dark:text-gray-400">Category</th>
                   <th className="px-4 pb-3 font-medium text-gray-500 dark:text-gray-400">Criticality</th>
                   <th className="px-4 pb-3 font-medium text-gray-500 dark:text-gray-400">Owner</th>
@@ -350,6 +385,11 @@ export default function ServicesPage() {
                           <p className="font-medium text-gray-900 dark:text-gray-100">{service.displayName}</p>
                           <p className="text-xs text-gray-400 font-mono">{service.name}</p>
                         </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-100 dark:bg-gray-700 rounded">
+                          {service.orgId}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">

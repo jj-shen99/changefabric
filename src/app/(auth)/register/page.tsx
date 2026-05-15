@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [orgId, setOrgId] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -35,13 +36,23 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!orgId.trim()) {
+      setError("Organization ID is required");
+      return;
+    }
+
+    if (!/^[a-z0-9-]+$/.test(orgId)) {
+      setError("Organization ID must be lowercase alphanumeric with hyphens only");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name, password }),
+        body: JSON.stringify({ email, name, password, orgId: orgId.trim() }),
       });
 
       const data = await res.json();
@@ -108,6 +119,22 @@ export default function RegisterPage() {
             onChange={(e) => setEmail(e.target.value)}
             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-blue-400"
           />
+        </div>
+
+        <div>
+          <label htmlFor="orgId" className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Organization ID <span className="text-red-500">*</span>
+          </label>
+          <input
+            id="orgId"
+            type="text"
+            required
+            placeholder="e.g., demo, acme-corp"
+            value={orgId}
+            onChange={(e) => setOrgId(e.target.value.toLowerCase())}
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:border-blue-400"
+          />
+          <p className="mt-1 text-xs text-gray-400">Lowercase letters, numbers, and hyphens only</p>
         </div>
 
         <div>

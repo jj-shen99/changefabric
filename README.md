@@ -37,13 +37,15 @@ A full-stack **software change validation and release impact analysis dashboard*
 ### Authentication & Authorization
 - **Login / Register / Reset Password** pages with form validation
 - **JWT-based sessions** via NextAuth.js with credentials provider
-- **5 Core User Roles** with granular permission matrix:
-  - **Admin** — Full system access, user management, settings, CR deletion
+- **6 Core User Roles** with granular permission matrix:
+  - **Super Admin** — Global access across all organizations, user management, organization management
+  - **Admin** — Full system access within organization, user management, settings, CR deletion
   - **Manager** — Create/edit CRs, approve, implement, manage releases (includes approver + implementer abilities)
   - **Approver** — Approve CRs assigned to them, view activity logs
   - **Implementer** — Execute approved changes, cannot create/approve
   - **Requester** — Create and edit their own CRs, view metrics for own CRs
-- **Role Hierarchy** — Admin supersedes all; Manager includes approver + implementer (system prevents redundant role assignments)
+- **Role Hierarchy** — Super Admin > Admin > Manager > Approver/Implementer > Requester
+- **Multi-Tenancy** — Organization-based data isolation (see [MULTI_TENANCY.md](docs/MULTI_TENANCY.md))
 - **Per-user data isolation** — non-admin users only see their own synced change requests and analyses
 - **Per-user credential storage** — each user saves their own ServiceNow/Git credentials (AES-256-GCM encrypted)
 - **Role-based UI gating** — sidebar items, CRUD buttons, and pages hidden based on permissions
@@ -119,9 +121,19 @@ A full-stack **software change validation and release impact analysis dashboard*
 - **Pre-approved CRs**: No approval required, direct scheduling for low-risk templated changes
 
 ### Change Request Templates
-- **19 pre-built templates** covering various workflows and categories
+- **25+ pre-built templates** covering various workflows and categories
+- **Detailed templates** with comprehensive implementation, backout, and test plans:
+  - Database Schema Migration, Microservice Deployment, Kubernetes Cluster Upgrade
+  - API Version Deprecation, Data Center Migration, Third-Party Integration
+  - Compliance Audit Remediation, Security Incident Response
 - Templates include: Database Migration, API Deployment, Security Patch, Feature Flag, Infrastructure, and more
 - **Copy from existing CR** feature for quick duplication
+
+### Settings & Administration
+- **Groups Management** — Create, edit, delete assignment groups with "Import Defaults" for standard groups
+- **Services Management** — Manage service catalog with "Import Defaults" for common infrastructure services
+- **User Management** — Admin user management with organization name display (not UUIDs)
+- **Super Admin Features** — Create users for any organization, manage all orgs
 
 ### Testing & Code Quality
 - **Jest + React Testing Library** with **450+ unit tests** covering:

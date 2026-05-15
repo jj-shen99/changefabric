@@ -28,14 +28,19 @@ export async function GET(request: Request) {
   const userRoles = (session.user as { roles?: string[] }).roles || [];
   const permissions = (session.user as { permissions?: { canViewAllData?: boolean } }).permissions;
   const userEmail = session.user.email || "";
+  const isSuperAdmin = (session.user as { isSuperAdmin?: boolean }).isSuperAdmin || false;
+  const userOrgId = (session.user as { orgId?: string }).orgId || "demo";
   const canViewAll = userRoles.includes("admin") || permissions?.canViewAllData;
 
   const repo = new PrismaChangeRequestRepository(prisma);
   const since =
     days > 0 ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
 
-  // Users with canViewAllData see all CRs, others see only their own (requested, assigned, or approver)
-  const allCrs = await repo.list();
+  // Filter by orgId unless super admin
+  const orgFilter = isSuperAdmin ? {} : { orgId: userOrgId };
+  
+  // Users with canViewAllData see all CRs in their org, others see only their own (requested, assigned, or approver)
+  const allCrs = await repo.list(orgFilter);
   let crs = allCrs;
   
   if (!canViewAll) {

@@ -60,7 +60,7 @@ import { PageHeader } from "@/components/page-header";
 interface Weights { risk: number; impact: number; urgency: number; priority: number; type: number; scope: number; }
 const DEFAULT_WEIGHTS: Weights = { risk: 0.25, impact: 0.25, urgency: 0.15, priority: 0.15, type: 0.10, scope: 0.10 };
 
-function scoreRisk(v: string): number { const l = (v||"").toLowerCase(); if (l==="very high") return 95; if (l==="high") return 75; if (l==="moderate") return 50; if (l==="low") return 25; if (l==="none") return 5; return 40; }
+function scoreRisk(v: string): number { const l = (v||"").toLowerCase(); if (l==="high") return 85; if (l==="moderate") return 55; if (l==="low") return 25; if (l==="none") return 5; return 40; }
 function score123(v: string): number { const s = (v||"").trim(); if (s.startsWith("1")) return 85; if (s.startsWith("2")) return 55; if (s.startsWith("3")) return 25; return 40; }
 function scorePriority(v: string): number { const s = (v||"").trim(); if (s.startsWith("1")) return 95; if (s.startsWith("2")) return 75; if (s.startsWith("3")) return 50; if (s.startsWith("4")) return 25; return 40; }
 function scoreType(v: string): number { const l = (v||"").toLowerCase(); if (l==="emergency") return 90; if (l==="standard") return 50; if (l==="standard") return 25; return 40; }
@@ -217,21 +217,40 @@ function ImpactPageContent() {
 
   const uniqueStates = useMemo(() => {
     const fromData = changeRequests.map((c) => c.state).filter(Boolean);
-    // Use workflow states from the new schema
+    // Use workflow states from the new schema - ordered by workflow progression
     const standard = ["draft", "submitted", "awaiting_approval", "approved", "scheduled", "implemented", "closed", "rejected", "canceled", "rolled_back"];
-    return [...new Set([...standard, ...fromData])].sort();
+    // Return standard order first, then any additional states from data
+    const allStates = [...new Set([...standard, ...fromData])];
+    // Sort by standard order, unknown states at end
+    return allStates.sort((a, b) => {
+      const aIdx = standard.indexOf(a);
+      const bIdx = standard.indexOf(b);
+      if (aIdx === -1 && bIdx === -1) return a.localeCompare(b);
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
   }, [changeRequests]);
   const uniqueGroups = useMemo(() => {
     const fromData = changeRequests.map((c) => c.assignment_group).filter(Boolean);
-    // Use assignment groups from the new schema
-    const standard = ["Platform", "Payments", "Identity", "Data Engineering", "Infrastructure", "Security", "DevOps", "Frontend", "Backend", "Mobile", "QA", "Product", "SRE", "Database", "Network"];
+    // Use assignment groups matching the seeded database groups
+    const standard = ["Admin", "CAB", "Database", "DevOps", "Engineering", "Infrastructure", "On-Call", "Platform", "QA", "Security"];
     return [...new Set([...standard, ...fromData])].sort();
   }, [changeRequests]);
   const uniqueRiskLevels = useMemo(() => {
     const fromData = changeRequests.map((c) => c.risk).filter(Boolean);
-    // Use risk levels from the new schema (lowercase)
-    const standard = ["low", "moderate", "high", "very_high"];
-    return [...new Set([...standard, ...fromData])].sort();
+    // Use risk levels from the new schema - ordered high to low (no very_high)
+    const standard = ["high", "moderate", "low"];
+    const allLevels = [...new Set([...standard, ...fromData])].filter(r => r !== "very_high" && r !== "very high");
+    // Sort by standard order (high first, low last)
+    return allLevels.sort((a, b) => {
+      const aIdx = standard.indexOf(a.toLowerCase());
+      const bIdx = standard.indexOf(b.toLowerCase());
+      if (aIdx === -1 && bIdx === -1) return a.localeCompare(b);
+      if (aIdx === -1) return 1;
+      if (bIdx === -1) return -1;
+      return aIdx - bIdx;
+    });
   }, [changeRequests]);
 
 

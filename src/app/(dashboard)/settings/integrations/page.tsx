@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, CheckCircle2, XCircle, RefreshCw, Shield, Key, Bot, Sparkles } from "lucide-react";
+import { Eye, EyeOff, CheckCircle2, XCircle, RefreshCw, Shield, Key, Bot, Sparkles, Download, Loader2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
+import { usePermissions } from "@/hooks";
 
 interface ConnectionStatus {
   connected: boolean;
@@ -12,13 +13,20 @@ interface ConnectionStatus {
 }
 
 export default function IntegrationsPage() {
+  const { canEditSettings } = usePermissions();
+  
+  // ServiceNow Import state
+  const [enableCRImport, setEnableCRImport] = useState(false);
+  const [importSaving, setImportSaving] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  
   // LLM state
   const [llmProvider, setLlmProvider] = useState<"disabled" | "openai" | "anthropic" | "ollama">("disabled");
   const [openaiKey, setOpenaiKey] = useState("");
-  const [openaiModel, setOpenaiModel] = useState("gpt-4o-mini");
+  const [openaiModel, setOpenaiModel] = useState("gpt-4.1-mini");
   const [showOpenaiKey, setShowOpenaiKey] = useState(false);
   const [anthropicKey, setAnthropicKey] = useState("");
-  const [anthropicModel, setAnthropicModel] = useState("claude-3-5-sonnet-20241022");
+  const [anthropicModel, setAnthropicModel] = useState("claude-sonnet-4-20250514");
   const [showAnthropicKey, setShowAnthropicKey] = useState(false);
   const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
   const [ollamaModel, setOllamaModel] = useState("llama3.2");
@@ -30,18 +38,26 @@ export default function IntegrationsPage() {
   useEffect(() => {
     async function loadSettings() {
       try {
+        // Load LLM settings
         const res = await fetch("/api/settings/integrations");
         if (res.ok) {
           const data = await res.json();
           if (data.llm) {
             setLlmProvider(data.llm.provider || "disabled");
-            setOpenaiModel(data.llm.openaiModel || "gpt-4o-mini");
-            setAnthropicModel(data.llm.anthropicModel || "claude-3-5-sonnet-20241022");
+            setOpenaiModel(data.llm.openaiModel || "gpt-4.1-mini");
+            setAnthropicModel(data.llm.anthropicModel || "claude-sonnet-4-20250514");
             setOllamaUrl(data.llm.ollamaUrl || "http://localhost:11434");
             setOllamaModel(data.llm.ollamaModel || "llama3.2");
             if (data.llm.hasOpenaiKey) setOpenaiKey("••••••••");
             if (data.llm.hasAnthropicKey) setAnthropicKey("••••••••");
           }
+        }
+        
+        // Load org settings
+        const orgRes = await fetch("/api/admin/org-settings");
+        if (orgRes.ok) {
+          const orgData = await orgRes.json();
+          setEnableCRImport(orgData.settings?.enableCRImport || false);
         }
       } catch {
         // Ignore load errors
@@ -49,6 +65,30 @@ export default function IntegrationsPage() {
     }
     loadSettings();
   }, []);
+
+  // Toggle CR Import setting
+  async function toggleCRImport() {
+    setImportSaving(true);
+    setImportStatus(null);
+    try {
+      const res = await fetch("/api/admin/org-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enableCRImport: !enableCRImport }),
+      });
+      if (res.ok) {
+        setEnableCRImport(!enableCRImport);
+        setImportStatus(!enableCRImport ? "CR Import enabled" : "CR Import disabled");
+      } else {
+        const data = await res.json();
+        setImportStatus(data.error || "Failed to update setting");
+      }
+    } catch (err) {
+      setImportStatus(err instanceof Error ? err.message : "Failed to update setting");
+    } finally {
+      setImportSaving(false);
+    }
+  }
 
   // Test LLM connection
   async function testLlmConnection() {
@@ -118,8 +158,60 @@ export default function IntegrationsPage() {
 
   return (
     <>
-      <PageHeader title="Integrations" subtitle="Configure AI/LLM provider for analysis and summarization" />
+      <PageHeader title="Integrations" subtitle="Configure integrations and AI/LLM provider for analysis" />
       <div className="space-y-6 p-4 md:p-6">
+
+        {/* ServiceNow Import Integration */}
+        {canEditSettings && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Download className="h-5 w-5 text-indigo-600" />
+                ServiceNow Import
+              </CardTitle>
+              <CardDescription>Enable importing change requests from ServiceNow for analysis</CardDescription>
+            </CardHeader>
+            <div className="space-y-4 px-6 pb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    Enable CR Import
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    When enabled, an &quot;Import from ServiceNow&quot; button will appear on the Changes page
+                  </p>
+                </div>
+                <button
+                  onClick={toggleCRImport}
+                  disabled={importSaving}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    enableCRImport ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-700"
+                  } ${importSaving ? "opacity-50" : ""}`}
+                >
+                  {importSaving && (
+                    <Loader2 className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 animate-spin text-white" />
+                  )}
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      enableCRImport ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+              {importStatus && (
+                <div className={`rounded-lg p-3 text-sm ${
+                  importStatus.includes("enabled") 
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                    : importStatus.includes("disabled")
+                      ? "bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                      : "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
+                }`}>
+                  {importStatus}
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
 
         {/* LLM Provider Integration */}
         <Card>
@@ -140,8 +232,8 @@ export default function IntegrationsPage() {
                 className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
               >
                 <option value="disabled">Disabled (use heuristic analysis only)</option>
-                <option value="openai">OpenAI (GPT-4, GPT-4o-mini)</option>
-                <option value="anthropic">Anthropic (Claude 3.5)</option>
+                <option value="openai">OpenAI (GPT-4.1, GPT-4o)</option>
+                <option value="anthropic">Anthropic (Claude 4, Claude 3.5)</option>
                 <option value="ollama">Ollama (Local models)</option>
               </select>
               <p className="mt-1 text-xs text-gray-500">Select the LLM provider for AI-powered features. Disable to use deterministic heuristics only.</p>
@@ -180,10 +272,13 @@ export default function IntegrationsPage() {
                     onChange={(e) => setOpenaiModel(e.target.value)}
                     className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   >
-                    <option value="gpt-4o-mini">GPT-4o Mini (fast, cost-effective)</option>
-                    <option value="gpt-4o">GPT-4o (most capable)</option>
-                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo (legacy)</option>
+                    <option value="gpt-4.1">GPT-4.1 (latest, most capable)</option>
+                    <option value="gpt-4.1-mini">GPT-4.1 Mini (fast, cost-effective)</option>
+                    <option value="gpt-4.1-nano">GPT-4.1 Nano (fastest, cheapest)</option>
+                    <option value="gpt-4o">GPT-4o (previous gen)</option>
+                    <option value="gpt-4o-mini">GPT-4o Mini (previous gen, fast)</option>
+                    <option value="o3">o3 (reasoning model)</option>
+                    <option value="o4-mini">o4-mini (reasoning, fast)</option>
                   </select>
                 </div>
               </div>
@@ -222,9 +317,11 @@ export default function IntegrationsPage() {
                     onChange={(e) => setAnthropicModel(e.target.value)}
                     className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
                   >
-                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (recommended)</option>
-                    <option value="claude-3-opus-20240229">Claude 3 Opus (most capable)</option>
-                    <option value="claude-3-haiku-20240307">Claude 3 Haiku (fast)</option>
+                    <option value="claude-sonnet-4-20250514">Claude Sonnet 4 (latest, recommended)</option>
+                    <option value="claude-opus-4-20250514">Claude Opus 4 (most capable)</option>
+                    <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (extended thinking)</option>
+                    <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (previous gen)</option>
+                    <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (fast)</option>
                   </select>
                 </div>
               </div>

@@ -6,50 +6,62 @@ Complete guide to using the Change Request Management AI Dashboard.
 
 ### Demo Accounts
 
-| Email | Password | Role |
-|-------|----------|------|
-| `admin@example.com` | `admin123!` | Admin |
-| `mike@example.com` | `manager123!` | Manager |
-| `lisa@example.com` | `manager123!` | Manager |
-| `approver1@example.com` | `approver1` | Approver |
-| `implementer1@example.com` | `implementer1` | Implementer |
-| `requester1@example.com` | `requester1` | Requester |
-| `developer1@example.com` | `developer1` | Requester |
+| Email | Password | Role | Organization |
+|-------|----------|------|--------------|
+| `superadmin@example.com` | `superadmin123!` | Super Admin | All (*) |
+| `admin@example.com` | `admin123!` | Admin | demo |
+| `mike@example.com` | `manager123!` | Manager | demo |
+| `lisa@example.com` | `manager123!` | Manager | demo |
+| `approver1@example.com` | `approver1` | Approver | demo |
+| `implementer1@example.com` | `implementer1` | Implementer | demo |
+| `requester1@example.com` | `requester1` | Requester | demo |
+| `developer1@example.com` | `developer1` | Requester | demo |
 
 > **Note**: For approver, implementer, and requester roles, the password is the email prefix (e.g., `approver1@example.com` → password `approver1`)
 
 ### Role Permissions
 
-The system has 5 core user roles with different permission levels:
+The system has 6 core user roles with different permission levels:
 
-| Permission | Admin | Manager | Approver | Implementer | Requester |
-|------------|:-----:|:-------:|:--------:|:-----------:|:---------:|
-| View Dashboard | ✓ | ✓ | ✓ | ✓ | ✓ |
-| View Own CRs | ✓ | ✓ | ✓ | ✓ | ✓ |
-| View All CRs | ✓ | ✓ | ✗ | ✗ | ✗ |
-| Create CR | ✓ | ✓ | ✗ | ✗ | ✓ |
-| Edit Own CR | ✓ | ✓ | ✗ | ✗ | ✓ |
-| Edit Any CR | ✓ | ✓ | ✗ | ✗ | ✗ |
-| Approve CR | ✓ | ✓ | ✓ | ✗ | ✗ |
-| Implement CR | ✓ | ✓ | ✗ | ✓ | ✗ |
-| Manage Releases | ✓ | ✓ | ✗ | ✗ | ✗ |
-| Manage Users | ✓ | ✓* | ✗ | ✗ | ✗ |
-| Manage Settings | ✓ | ✗ | ✗ | ✗ | ✗ |
-| View Metrics | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Delete CRs (draft/awaiting) | ✓ | ✗ | ✗ | ✗ | ✗ |
+| Permission | Super Admin | Admin | Manager | Approver | Implementer | Requester |
+|------------|:-----------:|:-----:|:-------:|:--------:|:-----------:|:---------:|
+| View Dashboard | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| View Own CRs | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| View All CRs | ✓* | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Create CR | ✗ | ✓ | ✓ | ✗ | ✗ | ✓ |
+| Edit Own CR | ✗ | ✓ | ✓ | ✗ | ✗ | ✓ |
+| Edit Any CR | ✗ | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Approve CR | ✗ | ✓ | ✓ | ✓ | ✗ | ✗ |
+| Implement CR | ✗ | ✓ | ✓ | ✗ | ✓ | ✗ |
+| Manage Releases | ✗ | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Manage Users (own org) | ✗ | ✓ | ✓** | ✗ | ✗ | ✗ |
+| Manage Users (all orgs) | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Manage Organizations | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Manage Settings | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ |
+| View Metrics | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Delete CRs (draft/awaiting) | ✗ | ✓ | ✗ | ✗ | ✗ | ✗ |
 
-*\* Manager can manage non-admin users only*
+*\* Super Admin can view all CRs across all organizations but doesn't access the Changes page*
+*\*\* Manager can manage non-admin users only*
 
 **Role Descriptions:**
-- **Admin**: Full system access including user management, settings, and CR deletion
+- **Super Admin**: Global access across all organizations, manages organizations and users across all orgs
+- **Admin**: Full system access within their organization including user management, settings, and CR deletion
 - **Manager**: Create/edit CRs, approve changes, implement changes, manage releases, manage non-admin users (cannot manage roles)
 - **Approver**: Review and approve CRs assigned to them, view activity logs
 - **Implementer**: Execute approved changes on any CR (DevOps, SREs, DBAs)
 - **Requester**: Create and manage their own CRs, view metrics for own CRs
 
 **Role Hierarchy:**
-- Admin supersedes all roles (no additional roles needed)
+- Super Admin > Admin > Manager > Approver/Implementer > Requester
+- Admin supersedes all roles within their organization
 - Manager includes approver + implementer abilities (system prevents adding redundant roles)
+
+**Multi-Tenancy:**
+- Each user belongs to an organization (identified by `orgId`)
+- Users can only see data from their own organization
+- Super Admin can see and manage data across all organizations
+- See [MULTI_TENANCY.md](MULTI_TENANCY.md) for detailed documentation
 
 ## Dashboard Pages
 
@@ -353,6 +365,50 @@ The role hierarchy is: `requester` < `implementer` < `manager` < `admin`
 | `Enter` | Select / Open |
 | `Esc` | Close modal / Cancel |
 
+## Settings Pages
+
+### Groups Management (`/settings/groups`)
+
+Manage assignment groups for change requests. Groups are used to organize users and assign responsibility for changes.
+
+**Features:**
+- View all groups with their type (assignment, approval, both)
+- Add new groups with name, description, and type
+- Edit existing groups
+- Delete groups (with confirmation)
+- **Import Default Groups** - Click "Import Defaults" to add standard groups:
+  - Admin, CAB, Database, DevOps, Engineering, Infrastructure
+  - On-Call, Platform, QA, Security, Network, SRE
+
+### Services Management (`/settings/services`)
+
+Manage the catalog of services that can be affected by change requests.
+
+**Features:**
+- View all services with category and criticality
+- Add new services with name, display name, description, category, and criticality
+- Edit existing services
+- Delete services (with confirmation)
+- Search services by name or category
+- **Import Default Services** - Click "Import Defaults" to add standard services:
+  - Infrastructure: Kubernetes, Load Balancer, CDN, DNS, VPN
+  - Databases: PostgreSQL, Redis, Elasticsearch
+  - Applications: API Gateway, Auth Service, Payment Service, etc.
+  - Security: Secrets Manager, WAF, SIEM
+  - Monitoring: Prometheus, Grafana, Logging
+
+### User Management (`/settings/users`)
+
+Manage user accounts and role assignments (Admin only).
+
+**Features:**
+- View all users with their roles and organization
+- **Organization names displayed** instead of UUIDs for better readability
+- Sort by name, email, organization, roles, or join date
+- Assign/remove roles from users
+- Delete users (with confirmation)
+- **Create User** (Super Admin only) - Create new users for any organization
+
 ## Tips
 
 1. **Use Templates** - Start with a template to ensure all required fields are filled
@@ -360,3 +416,4 @@ The role hierarchy is: `requester` < `implementer` < `manager` < `admin`
 3. **Monitor Risk Scores** - High risk CRs require additional approvals
 4. **Add Comments** - Document decisions and discussions on the CR
 5. **Review Before Transition** - Ensure all guards are satisfied before transitioning
+6. **Import Defaults** - New organizations can quickly set up groups and services using the "Import Defaults" feature

@@ -11,8 +11,10 @@ async function requireRoleManagement() {
   const permissions = session.user?.permissions as Permissions | undefined;
   const roles = session.user?.roles as string[] | undefined;
   
-  // Admin or users with canManageUsers/canManageRoles permission can assign roles
-  const canManage = roles?.includes("admin") || 
+  // Admin, super admin, or users with canManageUsers/canManageRoles permission can assign roles
+  const isSuperAdmin = session.user?.isSuperAdmin || false;
+  const canManage = isSuperAdmin ||
+                    roles?.includes("admin") || 
                     permissions?.canManageUsers || 
                     permissions?.canManageRoles;
   if (!canManage) {
@@ -59,6 +61,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
+  // Check org access - admin can only view users in their own org (unless super admin)
+  const isSuperAdmin = auth.session.user?.isSuperAdmin || false;
+  const userOrgId = auth.session.user?.orgId || "demo";
+  if (!isSuperAdmin && user.orgId !== userOrgId) {
+    return NextResponse.json({ error: "Cannot access users from other organizations" }, { status: 403 });
+  }
+
   return NextResponse.json({
     userId: user.id,
     email: user.email,
@@ -93,6 +102,13 @@ export async function POST(request: Request) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Check org access - admin can only modify users in their own org (unless super admin)
+    const isSuperAdmin = auth.session.user?.isSuperAdmin || false;
+    const adminOrgId = auth.session.user?.orgId || "demo";
+    if (!isSuperAdmin && user.orgId !== adminOrgId) {
+      return NextResponse.json({ error: "Cannot modify users from other organizations" }, { status: 403 });
     }
 
     // Verify role exists
@@ -213,6 +229,19 @@ export async function DELETE(request: Request) {
       }
     }
 
+    // Verify user exists and check org access
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Check org access - admin can only modify users in their own org (unless super admin)
+    const isSuperAdmin = auth.session.user?.isSuperAdmin || false;
+    const adminOrgId = auth.session.user?.orgId || "demo";
+    if (!isSuperAdmin && user.orgId !== adminOrgId) {
+      return NextResponse.json({ error: "Cannot modify users from other organizations" }, { status: 403 });
+    }
+
     // Check if assignment exists
     const userRole = await prisma.userRole.findUnique({
       where: { userId_roleId: { userId, roleId } },
@@ -263,6 +292,13 @@ export async function PUT(request: Request) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Check org access - admin can only modify users in their own org (unless super admin)
+    const isSuperAdmin = auth.session.user?.isSuperAdmin || false;
+    const adminOrgId = auth.session.user?.orgId || "demo";
+    if (!isSuperAdmin && user.orgId !== adminOrgId) {
+      return NextResponse.json({ error: "Cannot modify users from other organizations" }, { status: 403 });
     }
 
     // Verify all roles exist

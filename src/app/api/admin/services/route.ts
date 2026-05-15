@@ -11,6 +11,7 @@ interface ServiceRow {
   owner: string | null;
   criticality: string;
   isActive: number;
+  orgId: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -27,11 +28,21 @@ export async function GET() {
 
   try {
     // Use raw SQL to avoid Prisma client model issues
-    const services = await prisma.$queryRaw<ServiceRow[]>`
-      SELECT id, name, displayName, description, category, owner, criticality, isActive, createdBy, createdAt, updatedAt
-      FROM Service
-      ORDER BY name ASC
-    `;
+    let services: ServiceRow[];
+    if (ctx.isSuperAdmin) {
+      services = await prisma.$queryRaw<ServiceRow[]>`
+        SELECT id, name, displayName, description, category, owner, criticality, isActive, orgId, createdBy, createdAt, updatedAt
+        FROM Service
+        ORDER BY name ASC
+      `;
+    } else {
+      services = await prisma.$queryRaw<ServiceRow[]>`
+        SELECT id, name, displayName, description, category, owner, criticality, isActive, orgId, createdBy, createdAt, updatedAt
+        FROM Service
+        WHERE orgId = ${ctx.orgId}
+        ORDER BY name ASC
+      `;
+    }
     // Convert isActive from number/BigInt to boolean for frontend
     const result = services.map(s => ({ ...s, isActive: Boolean(s.isActive) }));
     return NextResponse.json(result);
@@ -59,9 +70,9 @@ export async function POST(request: Request) {
 
     const normalizedName = name.toLowerCase().replace(/\s+/g, "-");
 
-    // Check for duplicate using raw SQL
+    // Check for duplicate using raw SQL within the org
     const existing = await prisma.$queryRaw<{ id: string }[]>`
-      SELECT id FROM Service WHERE name = ${normalizedName} LIMIT 1
+      SELECT id FROM Service WHERE name = ${normalizedName} AND orgId = ${ctx.orgId} LIMIT 1
     `;
     if (existing.length > 0) {
       return badRequest(`Service with name "${name}" already exists`);
@@ -70,11 +81,11 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     await prisma.$executeRaw`
-      INSERT INTO Service (id, name, displayName, description, category, owner, criticality, isActive, createdBy, createdAt, updatedAt)
-      VALUES (${id}, ${normalizedName}, ${displayName}, ${description || ""}, ${category || "other"}, ${owner || null}, ${criticality || "standard"}, 1, ${ctx.email}, ${now}, ${now})
+      INSERT INTO Service (id, name, displayName, description, category, owner, criticality, isActive, orgId, createdBy, createdAt, updatedAt)
+      VALUES (${id}, ${normalizedName}, ${displayName}, ${description || ""}, ${category || "other"}, ${owner || null}, ${criticality || "standard"}, 1, ${ctx.orgId}, ${ctx.email}, ${now}, ${now})
     `;
 
-    return NextResponse.json({ id, name: normalizedName, displayName, description: description || "", category: category || "other", owner: owner || null, criticality: criticality || "standard", isActive: true, createdBy: ctx.email, createdAt: now, updatedAt: now }, { status: 201 });
+    return NextResponse.json({ id, name: normalizedName, displayName, description: description || "", category: category || "other", owner: owner || null, criticality: criticality || "standard", isActive: true, orgId: ctx.orgId, createdBy: ctx.email, createdAt: now, updatedAt: now }, { status: 201 });
   } catch (e) {
     return serverError(e);
   }

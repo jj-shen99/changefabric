@@ -2,12 +2,12 @@
 
 /**
  * /changes — list view backed by the re-architected /api/v2/changes endpoint.
- * No more ServiceNow refresh. Native CRs only.
+ * Supports importing CRs from ServiceNow when enabled by admin.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { Search, Plus, AlertTriangle, Clock, CheckCircle2, XCircle, Info, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, Plus, AlertTriangle, Clock, CheckCircle2, XCircle, Info, ChevronUp, ChevronDown, Download, X, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/card";
 import { usePermissions } from "@/hooks";
@@ -78,7 +78,7 @@ function RiskPill({ score }: { score: number }) {
 }
 
 export default function ChangesPage() {
-  const { canManageChanges } = usePermissions();
+  const { canManageChanges, isAdmin } = usePermissions();
   const [items, setItems] = useState<CR[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,10 +86,37 @@ export default function ChangesPage() {
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  
+  // Import modal state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importEnabled, setImportEnabled] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [importForm, setImportForm] = useState({
+    instance: "",
+    user: "",
+    password: "",
+    days: "30",
+  });
+
+  // Check if import is enabled for this org
+  const checkImportEnabled = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/org-settings");
+      if (res.ok) {
+        const data = await res.json();
+        setImportEnabled(data.settings?.enableCRImport || false);
+      }
+    } catch {
+      // Ignore errors
+    }
+  }, []);
 
   useEffect(() => {
     void load();
-  }, []);
+    void checkImportEnabled();
+  }, [checkImportEnabled]);
 
   async function load() {
     setLoading(true);
@@ -103,6 +130,45 @@ export default function ChangesPage() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleImport(e: React.FormEvent) {
+    e.preventDefault();
+    setImportLoading(true);
+    setImportError(null);
+    setImportSuccess(null);
+
+    try {
+      const res = await fetch("/api/admin/import-cr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instance: importForm.instance,
+          user: importForm.user,
+          password: importForm.password,
+          days: parseInt(importForm.days, 10) || 30,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+
+      setImportSuccess(data.message);
+      // Reload the list after successful import
+      await load();
+      // Close modal after short delay to show success message
+      setTimeout(() => {
+        setShowImportModal(false);
+        setImportSuccess(null);
+        setImportForm({ instance: "", user: "", password: "", days: "30" });
+      }, 1500);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setImportLoading(false);
     }
   }
 
@@ -172,6 +238,14 @@ export default function ChangesPage() {
         subtitle="Native, vendor-neutral change management"
         actions={
           <div className="flex gap-2">
+            {importEnabled && isAdmin && (
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20"
+              >
+                <Download className="h-4 w-4" /> Import from ServiceNow
+              </button>
+            )}
             {canManageChanges && (
               <Link
                 href="/changes/new"
@@ -262,6 +336,117 @@ export default function ChangesPage() {
         )}
       </Card>
     </div>
+
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl dark:bg-gray-900">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Import from ServiceNow
+              </h2>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportError(null);
+                  setImportSuccess(null);
+                }}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {importSuccess && (
+              <div className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                {importSuccess}
+              </div>
+            )}
+
+            {importError && (
+              <div className="mb-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-900/30 dark:text-rose-300">
+                {importError}
+              </div>
+            )}
+
+            <form onSubmit={handleImport} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  ServiceNow Instance URL
+                </label>
+                <input
+                  type="url"
+                  required
+                  placeholder="https://your-instance.example.com"
+                  value={importForm.instance}
+                  onChange={(e) => setImportForm({ ...importForm, instance: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Username
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="admin"
+                  value={importForm.user}
+                  onChange={(e) => setImportForm({ ...importForm, user: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={importForm.password}
+                  onChange={(e) => setImportForm({ ...importForm, password: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Import CRs from last N days
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={importForm.days}
+                  onChange={(e) => setImportForm({ ...importForm, days: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowImportModal(false)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={importLoading}
+                  className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {importLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {importLoading ? "Importing..." : "Import"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

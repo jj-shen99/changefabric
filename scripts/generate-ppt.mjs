@@ -63,7 +63,7 @@ let sn = 0;
   s.addText("GCS Change & Release\nManagement Dashboard", { x: 1.0, y: 1.5, w: 11, h: 2.5, fontSize: 44, fontFace: "Arial", color: C.white, bold: true, lineSpacingMultiple: 1.1 });
   s.addShape(pptx.ShapeType.rect, { x: 1.0, y: 4.2, w: 3, h: 0.06, fill: { color: C.accent } });
   s.addText("Framework Architecture, Scoring Methodology & Live Demo", { x: 1.0, y: 4.5, w: 11, h: 0.6, fontSize: 20, fontFace: "Arial", color: C.gray });
-  s.addText("April 2026  |  GCS Engineering  |  v1.3.0", { x: 1.0, y: 5.5, w: 11, h: 0.5, fontSize: 14, fontFace: "Arial", color: C.gray });
+  s.addText("May 2026  |  GCS Engineering  |  v1.4.0", { x: 1.0, y: 5.5, w: 11, h: 0.5, fontSize: 14, fontFace: "Arial", color: C.gray });
   addFooter(s, sn, TOTAL);
 }
 
@@ -86,9 +86,9 @@ let sn = 0;
     ["6", "Plan Readiness & Dimension Scoring"],
     ["7", "ML Content Analysis Engine"],
     ["8", "Code Change Analysis & ML Feature Impact"],
-    ["9", "Production Outage & Performance Detection"],
-    ["10", "Analytics & Advanced Pages"],
-    ["11", "Authentication & Role-Based Access"],
+    ["9", "CR Templates & Workflow Engine"],
+    ["10", "Multi-Tenancy & Admin Features"],
+    ["11", "Production Deployment"],
     ["12", "Live Demo"],
     ["13", "Roadmap & Next Steps"],
   ];
@@ -691,8 +691,8 @@ let sn = 0;
   s.addShape(pptx.ShapeType.rect, { x: 0.8, y: 0.9, w: 1.5, h: 0.05, fill: { color: C.accent } });
 
   const phases = [
-    { phase: "Phase 1 — Current", items: ["✅ ServiceNow integration (90+ fields)", "✅ 4-layer impact scoring framework", "✅ ML content analysis engine", "✅ Code change analysis + feature impact", "✅ Per-user data isolation & credentials", "✅ Analytics suite (4 tabs)", "✅ 113 unit tests + architecture docs"], color: C.green },
-    { phase: "Phase 2 — Q2 2026", items: ["🔲 PostgreSQL production database", "🔲 Automated SN sync (webhook/cron)", "🔲 Email notifications for high-risk CRs", "🔲 Custom scoring weight presets", "🔲 Exportable reports (PDF/Excel)", "🔲 E2E tests with Playwright"], color: C.blue },
+    { phase: "Phase 1 — Current", items: ["✅ ServiceNow integration (90+ fields)", "✅ 4-layer impact scoring framework", "✅ ML content analysis engine", "✅ 25+ detailed CR templates", "✅ Multi-tenancy & org management", "✅ Docker deployment scripts", "✅ 450+ unit tests + architecture docs"], color: C.green },
+    { phase: "Phase 2 — Q2 2026", items: ["🔲 Automated SN sync (webhook/cron)", "🔲 Email notifications for high-risk CRs", "🔲 Custom scoring weight presets", "🔲 Exportable reports (PDF/Excel)", "🔲 E2E tests with Playwright", "🔲 Kubernetes Helm charts"], color: C.blue },
     { phase: "Phase 3 — Q3 2026", items: ["🔲 LLM-powered plan quality analysis", "🔲 Predictive risk modeling (ML)", "🔲 Multi-instance SN support", "🔲 Release approval workflow", "🔲 Slack/Teams integration", "🔲 Audit trail & compliance reports"], color: C.purple },
   ];
 

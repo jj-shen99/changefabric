@@ -12,6 +12,8 @@ export interface SessionContext {
   roles: string[];
   perms: Permissions;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
+  orgId: string;
   /** Primary role for backward compatibility with workflow RBAC */
   primaryRole: "admin" | "manager" | "implementer" | "requester";
 }
@@ -25,6 +27,8 @@ export async function requireSession(): Promise<SessionContext | NextResponse> {
   const roles = session.user.roles || [];
   const perms = session.user.permissions || DEFAULT_PERMISSIONS;
   const isAdmin = roles.includes("admin");
+  const isSuperAdmin = session.user.isSuperAdmin || false;
+  const orgId = session.user.orgId || "demo";
   
   // Determine primary role for backward compatibility with workflow RBAC
   // Role hierarchy: admin > manager > implementer > requester
@@ -42,6 +46,8 @@ export async function requireSession(): Promise<SessionContext | NextResponse> {
     roles,
     perms,
     isAdmin,
+    isSuperAdmin,
+    orgId,
     primaryRole,
   };
 }

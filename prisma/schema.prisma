@@ -14,6 +14,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ── Organizations ─────────────────────────────────────────────
+// Multi-tenant support: each organization has isolated data
+
+model Organization {
+  id          String   @id @default(uuid())
+  orgId       String   @unique              // Short identifier like "demo", "acme"
+  name        String                        // Display name
+  description String   @default("")
+  isActive    Boolean  @default(true)
+  
+  // Feature flags
+  enableCRImport Boolean @default(false)    // Allow importing CRs from ServiceNow
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orgId])
+}
+
 // ── Auth & Users ──────────────────────────────────────────────
 
 model User {
@@ -21,6 +40,7 @@ model User {
   email          String   @unique
   name           String
   hashedPassword String
+  orgId          String   @default("demo")  // Organization ID
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -29,6 +49,8 @@ model User {
 
   // Many-to-many relationship with roles
   userRoles      UserRole[]
+
+  @@index([orgId])
 }
 
 // ── Role-Based Access Control ─────────────────────────────────
@@ -39,6 +61,7 @@ model Role {
   name        String   @unique   // e.g., "admin", "change_manager", "approver"
   displayName String              // e.g., "Administrator", "Change Manager"
   description String?
+  orgId       String   @default("demo")  // Organization ID ("*" for super_admin = all orgs)
   
   // Permissions (each role can have multiple permissions enabled)
   canManageUsers      Boolean @default(false)
@@ -50,6 +73,7 @@ model Role {
   canEditSettings     Boolean @default(false)
   canViewMetrics      Boolean @default(false)
   canViewAllData      Boolean @default(false)
+  isSuperAdmin        Boolean @default(false)  // Super admin can see all orgs
   
   isSystem    Boolean  @default(false)  // System roles cannot be deleted
   isActive    Boolean  @default(true)
@@ -57,6 +81,8 @@ model Role {
   updatedAt   DateTime @updatedAt
 
   userRoles   UserRole[]
+
+  @@index([orgId])
 }
 
 // Junction table for User-Role many-to-many relationship
@@ -87,6 +113,7 @@ model ChangeRequest {
   externalId      String?  @unique                   // optional foreign system id (e.g. ServiceNow sys_id)
   externalSource  String?                            // "servicenow" | "jira" | null
   workflowKey     String   @default("standard")      // FK-by-key to WorkflowDefinition.key
+  orgId           String   @default("demo")          // Organization ID
 
   // Core descriptive fields (generic — superset of typical ITSM CR)
   title           String
@@ -156,6 +183,7 @@ model ChangeRequest {
   @@index([assignedTo])
   @@index([releaseId])
   @@index([createdAt])
+  @@index([orgId])
 }
 
 model Validation {
@@ -318,8 +346,11 @@ model Release {
   overallRisk     Int      @default(0)
   releaseManager  String
   notes           String?
+  orgId           String   @default("demo")     // Organization ID
 
   changeRequests  ChangeRequest[]
+
+  @@index([orgId])
 }
 
 model DashboardMetric {
@@ -334,7 +365,10 @@ model DashboardMetric {
   rollbackRate       Float    @default(0)
   mttr               String   @default("0m")
   changeLeadTime     String   @default("0 days")
+  orgId              String   @default("demo")   // Organization ID
   recordedAt         DateTime @default(now())
+
+  @@index([orgId])
 }
 
 // ── Integration Settings ─────────────────────────────────────────
@@ -389,9 +423,10 @@ model SavedAnalysis {
 
 model ChangeRequestTemplate {
   id              String   @id @default(uuid())
-  name            String   @unique                // e.g. "Database Migration", "Feature Flag Rollout"
+  name            String                          // e.g. "Database Migration", "Feature Flag Rollout"
   description     String   @default("")
   category        String   @default("other")      // infrastructure | feature | hotfix | database | config | security | other
+  orgId           String   @default("demo")       // Organization ID
   
   // Pre-filled values
   type            String   @default("standard")   // standard | emergency | pre-approved
@@ -418,8 +453,10 @@ model ChangeRequestTemplate {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  @@unique([name, orgId])                       // Name unique within org
   @@index([category])
   @@index([isActive])
+  @@index([orgId])
 }
 
 // ── Groups ───────────────────────────────────────────────────────
@@ -428,16 +465,19 @@ model ChangeRequestTemplate {
 
 model Group {
   id          String   @id @default(uuid())
-  name        String   @unique                  // e.g., "CAB", "Security Team", "Engineering"
+  name        String                            // e.g., "CAB", "Security Team", "Engineering"
   description String   @default("")
   type        String   @default("approver")     // "approver" | "assignment" | "both"
+  orgId       String   @default("demo")         // Organization ID
   isActive    Boolean  @default(true)
   createdBy   String                            // Admin who created this group
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@unique([name, orgId])                       // Name unique within org
   @@index([type])
   @@index([isActive])
+  @@index([orgId])
 }
 
 // ── CR Type Default Approvers ────────────────────────────────────
@@ -451,15 +491,17 @@ model CRTypeApprover {
   approverGroup   String?                         // Optional group name (e.g., "CAB", "Security")
   stepName        String   @default("Default")    // Approval step name (e.g., "Tech Review", "CAB")
   ordering        Int      @default(1)            // Order of the approval step
+  orgId           String   @default("demo")       // Organization ID
   isActive        Boolean  @default(true)
   createdBy       String                          // Admin who created this assignment
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@unique([crType, approverEmail, stepName])
+  @@unique([crType, approverEmail, stepName, orgId])
   @@index([crType])
   @@index([approverEmail])
   @@index([isActive])
+  @@index([orgId])
 }
 
 // ── Services ─────────────────────────────────────────────────
@@ -467,19 +509,22 @@ model CRTypeApprover {
 
 model Service {
   id          String   @id @default(uuid())
-  name        String   @unique              // e.g., "api-gateway", "user-service"
+  name        String                        // e.g., "api-gateway", "user-service"
   displayName String                        // e.g., "API Gateway", "User Service"
   description String   @default("")
   category    String   @default("other")    // infrastructure | application | database | network | security | other
   owner       String?                       // Team or person responsible
   criticality String   @default("standard") // mission-critical | business-critical | standard
+  orgId       String   @default("demo")     // Organization ID
   isActive    Boolean  @default(true)
   createdBy   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@unique([name, orgId])                   // Name unique within org
   @@index([category])
   @@index([isActive])
+  @@index([orgId])
 }
 
 // ── System Settings ──────────────────────────────────────────

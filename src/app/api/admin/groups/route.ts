@@ -22,11 +22,17 @@ export async function GET(request: Request) {
       type?: string;
       isActive?: boolean;
       name?: { contains: string };
+      orgId?: string;
     } = {};
 
     if (type) where.type = type;
     if (active !== null) where.isActive = active !== "false";
     if (search) where.name = { contains: search };
+    
+    // Filter by orgId unless super admin
+    if (!ctx.isSuperAdmin) {
+      where.orgId = ctx.orgId;
+    }
 
     const groups = await prisma.group.findMany({
       where,
@@ -72,8 +78,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Check for duplicate
-    const existing = await prisma.group.findUnique({ where: { name: name.trim() } });
+    // Check for duplicate within the org
+    const existing = await prisma.group.findUnique({ 
+      where: { name_orgId: { name: name.trim(), orgId: ctx.orgId } } 
+    });
     if (existing) {
       return badRequest(`Group "${name}" already exists`);
     }
@@ -83,6 +91,7 @@ export async function POST(request: Request) {
         name: name.trim(),
         description,
         type,
+        orgId: ctx.orgId,
         createdBy: ctx.email,
       },
     });
@@ -135,10 +144,17 @@ export async function PUT(request: Request) {
     if (!existing) {
       return badRequest("Group not found");
     }
+    
+    // Verify user has access to this group's org (unless super admin)
+    if (!ctx.isSuperAdmin && existing.orgId !== ctx.orgId) {
+      return forbidden("Cannot modify groups from other organizations");
+    }
 
     // Check for duplicate name if name is being changed
     if (name && name.trim() !== existing.name) {
-      const duplicate = await prisma.group.findUnique({ where: { name: name.trim() } });
+      const duplicate = await prisma.group.findUnique({ 
+        where: { name_orgId: { name: name.trim(), orgId: existing.orgId } } 
+      });
       if (duplicate) {
         return badRequest(`Group "${name}" already exists`);
       }

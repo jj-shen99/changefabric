@@ -11,8 +11,10 @@ async function requireUserManagement() {
   const permissions = session.user?.permissions as Permissions | undefined;
   const roles = session.user?.roles as string[] | undefined;
   
-  // Admin or users with canManageUsers or canManageRoles permission can view/manage users
-  const canManage = roles?.includes("admin") || 
+  // Admin, super admin, or users with canManageUsers or canManageRoles permission can view/manage users
+  const isSuperAdmin = session.user?.isSuperAdmin || false;
+  const canManage = isSuperAdmin ||
+                    roles?.includes("admin") || 
                     permissions?.canManageUsers || 
                     permissions?.canManageRoles;
   if (!canManage) {
@@ -32,11 +34,16 @@ export async function GET() {
   const currentUserRoles = auth.session.user?.roles as string[] | undefined;
   const isCurrentUserAdmin = currentUserRoles?.includes("admin");
 
+  const isSuperAdmin = auth.session.user?.isSuperAdmin || false;
+  const userOrgId = auth.session.user?.orgId || "demo";
+
   const users = await prisma.user.findMany({
+    where: isSuperAdmin ? {} : { orgId: userOrgId },
     select: {
       id: true,
       email: true,
       name: true,
+      orgId: true,
       createdAt: true,
       updatedAt: true,
       userRoles: {
@@ -54,6 +61,12 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
+  // Get all org names for mapping
+  const orgs = await prisma.organization.findMany({
+    select: { id: true, name: true },
+  });
+  const orgMap = new Map(orgs.map(o => [o.id, o.name]));
+
   // Filter out admin users for non-admin viewers
   const filteredUsers = isCurrentUserAdmin 
     ? users 
@@ -64,8 +77,10 @@ export async function GET() {
       id: u.id,
       email: u.email,
       name: u.name,
-      createdAt: u.createdAt,
-      updatedAt: u.updatedAt,
+      orgId: u.orgId,
+      orgName: orgMap.get(u.orgId) || u.orgId,
+      createdAt: u.createdAt.toISOString(),
+      updatedAt: u.updatedAt.toISOString(),
       roles: u.userRoles.map(ur => ({
         id: ur.role.id,
         name: ur.role.name,
@@ -73,6 +88,101 @@ export async function GET() {
       })),
     }))
   });
+}
+
+// POST /api/admin/users — Create a new user (super admin only)
+export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Only super admin can create users
+  const isSuperAdmin = session.user?.isSuperAdmin || false;
+  if (!isSuperAdmin) {
+    return NextResponse.json({ error: "Forbidden: only super admin can create users" }, { status: 403 });
+  }
+
+  try {
+    const body = await request.json();
+    const { email, name, orgId, roleIds } = body;
+
+    // Validate required fields
+    if (!email || !name || !orgId) {
+      return NextResponse.json({ error: "Email, name, and organization are required" }, { status: 400 });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+    }
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return NextResponse.json({ error: "A user with this email already exists" }, { status: 400 });
+    }
+
+    // Verify org exists
+    const org = await prisma.organization.findUnique({ where: { id: orgId } });
+    if (!org) {
+      return NextResponse.json({ error: "Organization not found" }, { status: 400 });
+    }
+
+    // Generate a temporary password (user will need to reset via forgot password flow)
+    // In production, this should trigger an email with a reset link
+    const tempPassword = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const bcrypt = await import("bcryptjs");
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    // Create user with optional roles
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        orgId,
+        hashedPassword,
+        userRoles: roleIds && roleIds.length > 0 ? {
+          create: (roleIds as string[]).map((roleId: string) => ({ roleId })),
+        } : undefined,
+      },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              select: {
+                id: true,
+                name: true,
+                displayName: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      message: "User created successfully. User should use 'Forgot Password' to set their password.",
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        orgId: user.orgId,
+        orgName: org.name,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+        roles: user.userRoles.map((ur: { role: { id: string; name: string; displayName: string } }) => ({
+          id: ur.role.id,
+          name: ur.role.name,
+          displayName: ur.role.displayName,
+        })),
+      },
+    }, { status: 201 });
+  } catch (error) {
+    console.error("Error creating user:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 // DELETE /api/admin/users — Delete a user
@@ -98,6 +208,13 @@ export async function DELETE(request: Request) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Check org access - admin can only delete users in their own org (unless super admin)
+    const isSuperAdmin = auth.session.user?.isSuperAdmin || false;
+    const userOrgId = auth.session.user?.orgId || "demo";
+    if (!isSuperAdmin && user.orgId !== userOrgId) {
+      return NextResponse.json({ error: "Cannot delete users from other organizations" }, { status: 403 });
     }
 
     // UserRoles will be cascade deleted

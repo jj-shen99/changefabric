@@ -72,6 +72,13 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Change request not found" }, { status: 404 });
     }
 
+    // Check org access - admin can only update CRs in their own org (unless super admin)
+    const isSuperAdmin = (session.user as { isSuperAdmin?: boolean }).isSuperAdmin || false;
+    const userOrgId = (session.user as { orgId?: string }).orgId || "demo";
+    if (!isSuperAdmin && existing.orgId !== userOrgId) {
+      return NextResponse.json({ error: "Cannot modify change requests from other organizations" }, { status: 403 });
+    }
+
     await prisma.changeRequest.update({ where: { number: crNumber }, data: updates });
 
     return NextResponse.json({ message: "Change request updated" });
@@ -104,6 +111,13 @@ export async function DELETE(request: Request) {
     const existing = await prisma.changeRequest.findUnique({ where: { number: crNumber } });
     if (!existing) {
       return NextResponse.json({ error: "Change request not found" }, { status: 404 });
+    }
+
+    // Check org access - admin can only delete CRs in their own org (unless super admin)
+    const isSuperAdmin = (session.user as { isSuperAdmin?: boolean }).isSuperAdmin || false;
+    const userOrgId = (session.user as { orgId?: string }).orgId || "demo";
+    if (!isSuperAdmin && existing.orgId !== userOrgId) {
+      return NextResponse.json({ error: "Cannot delete change requests from other organizations" }, { status: 403 });
     }
 
     await prisma.changeRequest.delete({ where: { number: crNumber } });

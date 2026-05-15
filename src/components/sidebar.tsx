@@ -18,6 +18,7 @@ import {
   UserCheck,
   UsersRound,
   Server,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_SECTIONS } from "@/lib/constants";
@@ -35,6 +36,7 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 const roleBadgeStyles: Record<string, { className: string }> = {
+  super_admin: { className: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300" },
   admin: { className: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" },
   change_manager: { className: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" },
   approver: { className: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300" },
@@ -54,9 +56,11 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   // Get roles and permissions from the new multi-role session
   const userRoles = (session?.user as { roles?: string[] })?.roles || [];
   const permissions = (session?.user as { permissions?: Permissions })?.permissions || DEFAULT_PERMISSIONS;
+  const isSuperAdmin = (session?.user as { isSuperAdmin?: boolean })?.isSuperAdmin || false;
   
   // Get the primary role for display (first role, or first "important" role)
-  const primaryRole = userRoles.includes("admin") ? "admin" 
+  const primaryRole = userRoles.includes("super_admin") ? "super_admin"
+    : userRoles.includes("admin") ? "admin" 
     : userRoles.includes("change_manager") ? "change_manager"
     : userRoles[0] || "requester";
   const primaryRoleLabel = SYSTEM_ROLE_LABELS[primaryRole as keyof typeof SYSTEM_ROLE_LABELS] || primaryRole;
@@ -76,10 +80,13 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
 
       <nav className="flex-1 overflow-y-auto px-3 py-4" aria-label="Primary">
         {NAV_SECTIONS.map((section, sIdx) => {
-          // Filter out "My Tasks" for admin users
+          // Filter out certain pages based on role
           const isAdmin = userRoles.includes("admin");
           const filteredItems = section.items.filter(item => {
+            // Hide "My Tasks" for admin users
             if (item.href === "/my-tasks" && isAdmin) return false;
+            // Hide these pages for super admin - they only manage orgs
+            if (isSuperAdmin && ["/changes", "/impact", "/my-tasks"].includes(item.href)) return false;
             return true;
           });
           
@@ -140,7 +147,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
           />
           Account
         </Link>
-        {(permissions.canManageUsers || permissions.canManageRoles) && (
+        {(permissions.canManageUsers || permissions.canManageRoles || isSuperAdmin) && (
           <Link
             href="/settings/users"
             aria-current={pathname === "/settings/users" ? "page" : undefined}
@@ -158,7 +165,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
             User Management
           </Link>
         )}
-        {permissions.canManageUsers && (
+        {permissions.canManageUsers && !isSuperAdmin && (
           <Link
             href="/settings/groups"
             aria-current={pathname === "/settings/groups" ? "page" : undefined}
@@ -176,7 +183,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
             Assignment Groups
           </Link>
         )}
-        {permissions.canManageUsers && (
+        {permissions.canManageUsers && !isSuperAdmin && (
           <Link
             href="/settings/services"
             aria-current={pathname === "/settings/services" ? "page" : undefined}
@@ -194,7 +201,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
             Services
           </Link>
         )}
-        {permissions.canManageUsers && (
+        {permissions.canManageUsers && !isSuperAdmin && (
           <Link
             href="/settings/approvers"
             aria-current={pathname === "/settings/approvers" ? "page" : undefined}
@@ -212,7 +219,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
             CR Type Approvers
           </Link>
         )}
-        {permissions.canEditSettings && (
+        {permissions.canEditSettings && !isSuperAdmin && (
           <Link
             href="/settings"
             aria-current={pathname === "/settings" ? "page" : undefined}
@@ -228,6 +235,24 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
               aria-hidden="true"
             />
             Settings
+          </Link>
+        )}
+        {isSuperAdmin && (
+          <Link
+            href="/admin/organizations"
+            aria-current={pathname === "/admin/organizations" ? "page" : undefined}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+              pathname === "/admin/organizations"
+                ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-400"
+                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+            )}
+          >
+            <Building2
+              className={cn("h-4 w-4", pathname === "/admin/organizations" ? "text-purple-700 dark:text-purple-400" : "text-gray-400 dark:text-gray-500")}
+              aria-hidden="true"
+            />
+            Organizations
           </Link>
         )}
       </div>

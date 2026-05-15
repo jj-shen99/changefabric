@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
-import { Users, Plus, Trash2, Edit2, AlertTriangle, Check, X } from "lucide-react";
+import { Users, Plus, Trash2, Edit2, AlertTriangle, Check, X, Download, Loader2 } from "lucide-react";
 
 interface Group {
   id: string;
@@ -13,6 +13,7 @@ interface Group {
   isActive: boolean;
   createdBy: string;
   createdAt: string;
+  orgId: string;
 }
 
 
@@ -33,6 +34,9 @@ export default function GroupsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
+
+  // Import state
+  const [importing, setImporting] = useState(false);
   
   const load = useCallback(async () => {
     setLoading(true);
@@ -44,7 +48,7 @@ export default function GroupsPage() {
       const userRoles = session?.user?.roles || [];
       const permissions = session?.user?.permissions || {};
       const hasAccess = userRoles.includes("admin") || permissions.canManageUsers;
-      setIsAdmin(userRoles.includes("admin"));
+      setIsAdmin(userRoles.includes("admin") || permissions.canManageUsers);
 
       if (!hasAccess) {
         setError("Access denied. Admin privileges required.");
@@ -159,6 +163,28 @@ export default function GroupsPage() {
     setEditDescription("");
   }
 
+  async function importDefaults() {
+    if (!confirm("Import default groups? This will add standard groups (Admin, CAB, DevOps, etc.) that don't already exist.")) return;
+    
+    setImporting(true);
+    try {
+      const res = await fetch("/api/admin/groups/import-defaults", { method: "POST" });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        alert(data.error || "Failed to import groups");
+        return;
+      }
+      
+      alert(data.message);
+      await load();
+    } catch {
+      alert("Failed to import default groups");
+    } finally {
+      setImporting(false);
+    }
+  }
+
   if (loading) {
     return (
       <>
@@ -195,13 +221,23 @@ export default function GroupsPage() {
         title="Assignment Groups"
         subtitle="Manage assignment groups for change requests"
         actions={
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            <Plus className="h-4 w-4" />
-            Add Group
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={importDefaults}
+              disabled={importing}
+              className="inline-flex items-center gap-2 rounded-lg border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 dark:border-indigo-400 dark:text-indigo-400 dark:hover:bg-indigo-950"
+            >
+              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Import Defaults
+            </button>
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            >
+              <Plus className="h-4 w-4" />
+              Add Group
+            </button>
+          </div>
         }
       />
 
@@ -317,6 +353,9 @@ export default function GroupsPage() {
                           <div>
                             <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                               {group.name}
+                              <span className="ml-2 px-1.5 py-0.5 text-[10px] font-mono bg-gray-100 dark:bg-gray-700 rounded">
+                                {group.orgId}
+                              </span>
                             </p>
                             <p className="text-xs text-gray-500">
                               Assignment Group{group.description && ` • ${group.description}`}

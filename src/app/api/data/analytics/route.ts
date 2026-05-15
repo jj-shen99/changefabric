@@ -19,15 +19,26 @@ export async function GET(request: Request) {
   const userRoles = (session.user as { roles?: string[] }).roles || [];
   const permissions = (session.user as { permissions?: { canViewAllData?: boolean } }).permissions;
   const userEmail = session.user.email || "";
+  const isSuperAdmin = (session.user as { isSuperAdmin?: boolean }).isSuperAdmin || false;
+  const userOrgId = (session.user as { orgId?: string }).orgId || "demo";
   const canViewAll = userRoles.includes("admin") || permissions?.canViewAllData;
 
   const repo = new PrismaChangeRequestRepository(prisma);
   const since = days > 0 ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : null;
 
+  // Build filter: org filter + optional requestedBy filter
+  const filter: { orgId?: string; requestedBy?: string } = {};
+  if (!isSuperAdmin) {
+    filter.orgId = userOrgId;
+  }
+  if (!canViewAll) {
+    filter.requestedBy = userEmail;
+  }
+
   // Fetch services for Service Risk Ranking
   interface ServiceRow { name: string; displayName: string; category: string; criticality: string; }
   const [allCRs, releases, assignmentGroups, servicesData] = await Promise.all([
-    repo.list(!canViewAll ? { requestedBy: userEmail } : undefined),
+    repo.list(Object.keys(filter).length > 0 ? filter : undefined),
     prisma.release.findMany({ orderBy: { scheduledDate: "desc" } }),
     prisma.group.findMany({ where: { type: { in: ["assignment", "both"] }, isActive: true }, select: { name: true } }),
     prisma.$queryRaw<ServiceRow[]>`SELECT name, displayName, category, criticality FROM Service WHERE isActive = 1`,

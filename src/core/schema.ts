@@ -10,7 +10,7 @@
 
 export type ChangeType = "standard" | "emergency" | "pre-approved";
 
-export type RiskLevel = "low" | "moderate" | "high" | "very_high";
+export type RiskLevel = "low" | "moderate" | "high";
 
 export type ImpactLevel = "1" | "2" | "3"; // 1 = highest impact
 
@@ -50,6 +50,7 @@ export interface ChangeRequest {
   externalId?: string | null;
   externalSource?: string | null;
   workflowKey: string;
+  orgId?: string;
 
   title: string;
   description: string;

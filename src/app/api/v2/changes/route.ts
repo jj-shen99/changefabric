@@ -23,9 +23,14 @@ export async function GET(request: Request) {
 
   const svc = getChangeRequestService();
   try {
-    const filter: { state?: string; requestedBy?: string } = {};
+    const filter: { state?: string; requestedBy?: string; orgId?: string } = {};
     if (state) filter.state = state;
     if (requestedBy) filter.requestedBy = requestedBy;
+    
+    // Filter by orgId unless super admin
+    if (!ctx.isSuperAdmin) {
+      filter.orgId = ctx.orgId;
+    }
 
     let items = await svc.list(filter);
     
@@ -109,7 +114,7 @@ export async function POST(request: Request) {
   const svc = getChangeRequestService();
   try {
     const cr = await svc.create(
-      { actor: ctx.email, actorRole: ctx.primaryRole },
+      { actor: ctx.email, actorRole: ctx.primaryRole, orgId: ctx.orgId },
       body as unknown as Parameters<typeof svc.create>[1]
     );
     return NextResponse.json(cr, { status: 201 });

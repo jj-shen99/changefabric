@@ -9,6 +9,7 @@ export function usePermissions() {
   // Get roles and permissions from session
   const roles = session?.user?.roles || [];
   const permissions: Permissions = session?.user?.permissions || DEFAULT_PERMISSIONS;
+  const isSuperAdmin = session?.user?.isSuperAdmin || false;
 
   return {
     // Role information
@@ -19,17 +20,21 @@ export function usePermissions() {
     // Permission flags (spread from aggregated permissions)
     ...permissions,
     
+    // Super admin flag (can manage all orgs)
+    isSuperAdmin,
+    
     // Convenience flags for common checks
-    isAdmin: roles.includes("admin"),
-    isChangeManager: roles.includes("change_manager"),
+    // Admin check includes org-specific admin roles (e.g., admin_gcs)
+    isAdmin: roles.some(r => r === "admin" || r.startsWith("admin_")),
+    isChangeManager: roles.some(r => r === "change_manager" || r.startsWith("change_manager_")),
     isApprover: roles.includes("approver") || roles.includes("cab_member"),
     isImplementer: roles.includes("implementer"),
-    isRequester: roles.includes("requester"),
+    isRequester: roles.some(r => r === "requester" || r.startsWith("requester_")),
     
     // Legacy compatibility
-    isManager: roles.includes("change_manager") || roles.includes("admin"),
+    isManager: roles.some(r => r === "change_manager" || r.startsWith("change_manager_") || r === "admin" || r.startsWith("admin_")),
     
     // Can assign roles (admin or has canManageRoles permission)
-    canAssignRoles: roles.includes("admin") || permissions.canManageRoles,
+    canAssignRoles: roles.some(r => r === "admin" || r.startsWith("admin_")) || permissions.canManageRoles,
   };
 }

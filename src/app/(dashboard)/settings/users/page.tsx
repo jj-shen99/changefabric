@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { usePermissions } from "@/hooks";
 import { Card, CardHeader, CardTitle } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
-import { Shield, Trash2, Loader2, UserPlus, Plus, Check, ChevronUp, ChevronDown } from "lucide-react";
+import { Shield, Trash2, Loader2, UserPlus, Plus, Check, ChevronUp, ChevronDown, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // Sorting types
-type SortKey = "name" | "email" | "roles" | "createdAt";
+type SortKey = "name" | "email" | "orgId" | "roles" | "createdAt";
 type SortDir = "asc" | "desc";
 
 interface RoleInfo {
@@ -23,6 +23,8 @@ interface UserRecord {
   name: string;
   roles: RoleInfo[];
   createdAt: string;
+  orgId: string;
+  orgName?: string;
 }
 
 interface AvailableRole {
@@ -34,17 +36,31 @@ interface AvailableRole {
   userCount: number;
 }
 
+interface Organization {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+}
+
 export default function UserManagementPage() {
-  const { canManageUsers, canManageRoles, isAdmin } = usePermissions();
+  const { canManageUsers, canManageRoles, isAdmin, isSuperAdmin } = usePermissions();
   const router = useRouter();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [availableRoles, setAvailableRoles] = useState<AvailableRole[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [savingRoles, setSavingRoles] = useState(false);
+  
+  // Create user modal state (super admin only)
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createForm, setCreateForm] = useState({ email: "", name: "", orgId: "", roleIds: [] as string[] });
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
   
   // Sorting state
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -72,6 +88,9 @@ export default function UserManagementPage() {
             const bFirstRole = b.roles[0]?.displayName || "";
             cmp = aFirstRole.localeCompare(bFirstRole);
           }
+          break;
+        case "orgId":
+          cmp = (a.orgId || "").localeCompare(b.orgId || "");
           break;
         case "createdAt":
           cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -120,10 +139,61 @@ export default function UserManagementPage() {
     }
   }, []);
 
+  const fetchOrganizations = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/orgs");
+      if (res.ok) {
+        const data = await res.json();
+        setOrganizations(data.organizations);
+      }
+    } catch {
+      // Ignore org fetch errors (non-super admins won't have access)
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsers();
     fetchRoles();
-  }, [fetchUsers, fetchRoles]);
+    fetchOrganizations();
+  }, [fetchUsers, fetchRoles, fetchOrganizations]);
+
+  async function handleCreateUser(e: React.FormEvent) {
+    e.preventDefault();
+    setCreating(true);
+    setCreateError("");
+    
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createForm),
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        setCreateError(data.error || "Failed to create user");
+        return;
+      }
+      
+      // Add new user to list
+      setUsers(prev => [data.user, ...prev]);
+      setShowCreateModal(false);
+      setCreateForm({ email: "", name: "", orgId: "", roleIds: [] });
+    } catch {
+      setCreateError("Failed to create user");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  function toggleCreateRole(roleId: string) {
+    setCreateForm(prev => ({
+      ...prev,
+      roleIds: prev.roleIds.includes(roleId)
+        ? prev.roleIds.filter(id => id !== roleId)
+        : [...prev.roleIds, roleId],
+    }));
+  }
 
   function startEditingRoles(user: UserRecord) {
     setEditingUserId(user.id);
@@ -221,9 +291,19 @@ export default function UserManagementPage() {
   return (
     <>
       <PageHeader title="User Management" subtitle="Manage user accounts and role assignments" actions={
-        <div className="flex items-center gap-2 rounded-lg bg-blue-50/20 px-3 py-1 text-xs font-medium text-blue-300">
-          <UserPlus className="h-3.5 w-3.5" />
-          {users.length} users
+        <div className="flex items-center gap-3">
+          {isSuperAdmin && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-2 text-sm font-medium text-white hover:bg-teal-700"
+            >
+              <Plus className="h-4 w-4" /> Create User
+            </button>
+          )}
+          <div className="flex items-center gap-2 rounded-lg bg-blue-50/20 px-3 py-1 text-xs font-medium text-blue-300">
+            <UserPlus className="h-3.5 w-3.5" />
+            {users.length} users
+          </div>
         </div>
       } />
     <div className="space-y-6 p-4 md:p-6">
@@ -265,6 +345,15 @@ export default function UserManagementPage() {
                   </th>
                   <th 
                     className="pb-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none"
+                    onClick={() => toggleSort("orgId")}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      Org
+                      {sortKey === "orgId" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                    </span>
+                  </th>
+                  <th 
+                    className="pb-3 font-medium text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 select-none"
                     onClick={() => toggleSort("roles")}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -296,6 +385,11 @@ export default function UserManagementPage() {
                       </div>
                     </td>
                     <td className="py-3 text-gray-600 dark:text-gray-400">{user.email}</td>
+                    <td className="py-3">
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium bg-gray-100 dark:bg-gray-700 rounded" title={user.orgId}>
+                        {user.orgName || user.orgId}
+                      </span>
+                    </td>
                     <td className="py-3">
                       {editingUserId === user.id ? (
                         <div className="space-y-2">
@@ -360,7 +454,7 @@ export default function UserManagementPage() {
                         </div>
                       )}
                     </td>
-                    <td className="py-3 text-gray-500 dark:text-gray-400">
+                    <td className="py-3 text-gray-500 dark:text-gray-400" title={new Date(user.createdAt).toLocaleString()}>
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>
                     <td className="py-3 text-right">
@@ -437,6 +531,129 @@ export default function UserManagementPage() {
         </div>
       </Card>
     </div>
+
+      {/* Create User Modal (Super Admin Only) */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl dark:bg-gray-900">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Create New User
+              </h2>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setCreateForm({ email: "", name: "", orgId: "", roleIds: [] });
+                  setCreateError("");
+                }}
+                className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {createError && (
+              <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-400">
+                {createError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="John Doe"
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="user@example.com"
+                  value={createForm.email}
+                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Organization *
+                </label>
+                <select
+                  required
+                  value={createForm.orgId}
+                  onChange={(e) => setCreateForm({ ...createForm, orgId: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"
+                >
+                  <option value="">Select organization...</option>
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Roles (optional)
+                </label>
+                <div className="flex flex-wrap gap-1">
+                  {availableRoles.map((role) => (
+                    <button
+                      key={role.id}
+                      type="button"
+                      onClick={() => toggleCreateRole(role.id)}
+                      className={`rounded px-2 py-1 text-[10px] font-medium transition-colors ${
+                        createForm.roleIds.includes(role.id)
+                          ? roleBadge[role.name] || "bg-gray-200 text-gray-700"
+                          : "bg-gray-100 text-gray-400 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-500"
+                      }`}
+                    >
+                      {createForm.roleIds.includes(role.id) && <Check className="inline h-3 w-3 mr-0.5" />}
+                      {role.displayName}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-xs text-gray-500">User can set password via &quot;Forgot Password&quot; after creation.</p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setCreateForm({ email: "", name: "", orgId: "", roleIds: [] });
+                    setCreateError("");
+                  }}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700 disabled:opacity-50"
+                >
+                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create User"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

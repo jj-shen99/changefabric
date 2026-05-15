@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { Bell, Shield, Plug, ChevronRight, Save, Loader2, Info } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Bell, Shield, Save, Loader2, Info } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
@@ -60,23 +60,25 @@ const defaultSettings: SettingSection[] = [
   },
 ];
 
-const integrationLinks = [
-  {
-    icon: Plug,
-    title: "LLM Provider",
-    description: "Configure AI/LLM for summarization, plan analysis, and risk assessment",
-    href: "/settings/integrations",
-  },
-];
 
 // Local storage key for general settings
 const SETTINGS_KEY = "dashboard_settings";
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabId>("general");
   const [settings, setSettings] = useState<SettingSection[]>(defaultSettings);
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Handle tab changes - navigate to integrations page directly
+  function handleTabChange(tabId: TabId) {
+    if (tabId === "integrations") {
+      router.push("/settings/integrations");
+    } else {
+      setActiveTab(tabId);
+    }
+  }
 
   // Approval policies state
   const [policies, setPolicies] = useState<ApprovalPolicy[]>(defaultApprovalPolicies);
@@ -258,7 +260,7 @@ export default function SettingsPage() {
           {TABS.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 activeTab === tab.id
                   ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
@@ -415,34 +417,7 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Integrations Tab */}
-        {activeTab === "integrations" && (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Configure external service connections for data synchronization and AI-powered features.
-            </p>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {integrationLinks.map((integration) => (
-                <Link
-                  key={integration.title}
-                  href={integration.href}
-                  className="group flex items-start gap-4 rounded-xl border border-gray-200 bg-white p-4 transition-all hover:border-indigo-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-indigo-600"
-                >
-                  <div className="rounded-lg bg-indigo-50 p-2.5 dark:bg-indigo-950">
-                    <integration.icon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium text-gray-900 dark:text-gray-100">{integration.title}</h3>
-                      <ChevronRight className="h-4 w-4 text-gray-400 transition-transform group-hover:translate-x-1" />
-                    </div>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{integration.description}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Integrations Tab - navigates to /settings/integrations */}
       </div>
     </>
   );

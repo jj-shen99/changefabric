@@ -89,7 +89,7 @@ export interface ChangeRequestRepository {
   create(cr: ChangeRequest): Promise<ChangeRequest>;
   update(number: string, patch: Partial<ChangeRequest>): Promise<ChangeRequest>;
   get(number: string): Promise<ChangeRequest | null>;
-  list(filter?: { state?: string; requestedBy?: string }): Promise<ChangeRequest[]>;
+  list(filter?: { state?: string; requestedBy?: string; orgId?: string }): Promise<ChangeRequest[]>;
   delete(number: string): Promise<void>;
 
   logTransition(input: {
@@ -109,12 +109,13 @@ export interface ChangeRequestRepository {
   addComment(comment: Omit<Comment, "id" | "createdAt"> & { id?: string }): Promise<Comment>;
   listComments(crNumber: string): Promise<Comment[]>;
 
-  getCRTypeApprovers(crType: string): Promise<CRTypeApprover[]>;
+  getCRTypeApprovers(crType: string, orgId?: string): Promise<CRTypeApprover[]>;
 }
 
 export interface ServiceContext {
   actor: string;
   actorRole?: "admin" | "manager" | "implementer" | "requester";
+  orgId?: string;
 }
 
 export class ChangeRequestService {
@@ -140,6 +141,7 @@ export class ChangeRequestService {
     const draft: ChangeRequest = {
       number,
       workflowKey: wfKey,
+      orgId: ctx.orgId ?? "demo",
       title: input.title,
       description: input.description ?? "",
       type: crType,
@@ -210,8 +212,8 @@ export class ChangeRequestService {
    * Falls back to assignedTo if no approvers configured.
    */
   private async createDefaultApprovalSteps(cr: ChangeRequest, _requestor: string): Promise<void> {
-    // Fetch configured approvers for this CR type
-    const typeApprovers = await this.repo.getCRTypeApprovers(cr.type);
+    // Fetch configured approvers for this CR type (filtered by org)
+    const typeApprovers = await this.repo.getCRTypeApprovers(cr.type, cr.orgId);
     
     if (typeApprovers.length > 0) {
       // Group approvers by stepName

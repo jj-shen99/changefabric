@@ -73,13 +73,27 @@ async function main() {
     "pm1@example.com": await hashEmailPrefix("pm1@example.com"),
   };
 
+  // ── Organizations ─────────────────────────────────────────────
+  console.log("Seeding organizations…");
+  await prisma.organization.upsert({
+    where: { orgId: "demo" },
+    update: {},
+    create: {
+      orgId: "demo",
+      name: "Demo Organization",
+      description: "Default demo organization for testing and development",
+      isActive: true,
+    },
+  });
+
   // ── Roles (System Roles) ─────────────────────────────────────
   console.log("Seeding roles…");
   const roles = [
     {
-      name: "admin",
-      displayName: "Administrator",
-      description: "Full system access - can manage users, roles, settings, and all data",
+      name: "super_admin",
+      displayName: "Super Administrator",
+      description: "Global admin - can see and manage all organizations",
+      orgId: "*",
       canManageUsers: true,
       canManageRoles: true,
       canManageChanges: true,
@@ -89,12 +103,31 @@ async function main() {
       canEditSettings: true,
       canViewMetrics: true,
       canViewAllData: true,
+      isSuperAdmin: true,
+      isSystem: true,
+    },
+    {
+      name: "admin",
+      displayName: "Administrator",
+      description: "Full system access - can manage users, roles, settings, and all data within org",
+      orgId: "demo",
+      canManageUsers: true,
+      canManageRoles: true,
+      canManageChanges: true,
+      canApproveChanges: true,
+      canImplementChanges: true,
+      canManageReleases: true,
+      canEditSettings: true,
+      canViewMetrics: true,
+      canViewAllData: true,
+      isSuperAdmin: false,
       isSystem: true,
     },
     {
       name: "change_manager",
       displayName: "Change Manager",
       description: "Manage change requests, releases, approve changes, and assign roles to users",
+      orgId: "demo",
       canManageUsers: false,
       canManageRoles: true,
       canManageChanges: true,
@@ -104,12 +137,14 @@ async function main() {
       canEditSettings: false,
       canViewMetrics: true,
       canViewAllData: true,
+      isSuperAdmin: false,
       isSystem: true,
     },
     {
       name: "approver",
       displayName: "Approver",
       description: "Review and approve/reject change requests",
+      orgId: "demo",
       canManageUsers: false,
       canManageRoles: false,
       canManageChanges: false,
@@ -119,12 +154,14 @@ async function main() {
       canEditSettings: false,
       canViewMetrics: true,
       canViewAllData: false,
+      isSuperAdmin: false,
       isSystem: true,
     },
     {
       name: "implementer",
       displayName: "Implementer",
       description: "Execute approved changes and update implementation status",
+      orgId: "demo",
       canManageUsers: false,
       canManageRoles: false,
       canManageChanges: false,
@@ -134,12 +171,14 @@ async function main() {
       canEditSettings: false,
       canViewMetrics: true,
       canViewAllData: false,
+      isSuperAdmin: false,
       isSystem: true,
     },
     {
       name: "requester",
       displayName: "Requester",
       description: "Create and submit change requests",
+      orgId: "demo",
       canManageUsers: false,
       canManageRoles: false,
       canManageChanges: true,
@@ -149,12 +188,14 @@ async function main() {
       canEditSettings: false,
       canViewMetrics: false,
       canViewAllData: false,
+      isSuperAdmin: false,
       isSystem: true,
     },
     {
       name: "cab_member",
       displayName: "CAB Member",
       description: "Change Advisory Board member - approve high-risk changes",
+      orgId: "demo",
       canManageUsers: false,
       canManageRoles: false,
       canManageChanges: false,
@@ -164,6 +205,7 @@ async function main() {
       canEditSettings: false,
       canViewMetrics: true,
       canViewAllData: true,
+      isSuperAdmin: false,
       isSystem: true,
     },
   ];
@@ -180,10 +222,14 @@ async function main() {
 
   // ── Users ──────────────────────────────────────────────────────
   console.log("Seeding users…");
+  const superAdminPwd = await bcrypt.hash("superadmin123!", 12);
   const users = [
-    // Admins
-    { email: "admin@example.com", name: "System Admin", roles: ["admin"], pwd: adminPwd },
-    { email: "ops-admin@example.com", name: "Operations Admin", roles: ["admin"], pwd: adminPwd },
+    // Super Admin (can see all orgs)
+    { email: "superadmin@example.com", name: "Super Administrator", roles: ["super_admin"], pwd: superAdminPwd, orgId: "*" },
+    
+    // Admins (org-specific)
+    { email: "admin@example.com", name: "System Admin", roles: ["admin"], pwd: adminPwd, orgId: "demo" },
+    { email: "ops-admin@example.com", name: "Operations Admin", roles: ["admin"], pwd: adminPwd, orgId: "demo" },
     
     // Engineering Managers (for normal/standard CRs)
     { email: "mike@example.com", name: "Mike Torres", roles: ["change_manager"], pwd: mgrPwd },
@@ -231,11 +277,12 @@ async function main() {
   ];
 
   for (const u of users) {
-    // Create or update user (without the old 'role' field)
+    // Create or update user with orgId
+    const userOrgId = (u as { orgId?: string }).orgId || "demo";
     const user = await prisma.user.upsert({
       where: { email: u.email },
-      update: { hashedPassword: u.pwd, name: u.name },
-      create: { email: u.email, name: u.name, hashedPassword: u.pwd },
+      update: { hashedPassword: u.pwd, name: u.name, orgId: userOrgId },
+      create: { email: u.email, name: u.name, hashedPassword: u.pwd, orgId: userOrgId },
     });
 
     // Assign roles to user
@@ -254,7 +301,7 @@ async function main() {
   // ── Groups ─────────────────────────────────────────────────────
   console.log("Seeding groups…");
 
-  const groups = [
+  const defaultGroups = [
     { name: "Engineering", description: "Engineering team for technical reviews", type: "approver" },
     { name: "Security", description: "Security team for security assessments", type: "approver" },
     { name: "CAB", description: "Change Advisory Board", type: "approver" },
@@ -267,12 +314,16 @@ async function main() {
     { name: "QA", description: "Quality assurance team", type: "assignment" },
   ];
 
-  for (const g of groups) {
-    await prisma.group.upsert({
-      where: { name: g.name },
-      update: { description: g.description, type: g.type },
-      create: { name: g.name, description: g.description, type: g.type, createdBy: "admin@example.com" },
-    });
+  // Get all organizations and seed groups for each
+  const allOrgs = await prisma.organization.findMany({ where: { isActive: true } });
+  for (const org of allOrgs) {
+    for (const g of defaultGroups) {
+      await prisma.group.upsert({
+        where: { name_orgId: { name: g.name, orgId: org.orgId } },
+        update: { description: g.description, type: g.type },
+        create: { name: g.name, description: g.description, type: g.type, orgId: org.orgId, createdBy: "system" },
+      });
+    }
   }
 
   // ── CR Type Default Approvers ─────────────────────────────────
@@ -309,7 +360,7 @@ async function main() {
 
   // ── Seed Services ─────────────────────────────────────────────
   console.log("Seeding services…");
-  const services = [
+  const defaultServices = [
     { name: "api-gateway", displayName: "API Gateway", category: "infrastructure", criticality: "mission-critical", owner: "Platform Team" },
     { name: "user-service", displayName: "User Service", category: "application", criticality: "mission-critical", owner: "Identity Team" },
     { name: "payment-service", displayName: "Payment Service", category: "application", criticality: "mission-critical", owner: "Payments Team" },
@@ -332,15 +383,18 @@ async function main() {
     { name: "ci-cd-pipeline", displayName: "CI/CD Pipeline", category: "infrastructure", criticality: "business-critical", owner: "DevOps" },
   ];
 
-  for (const s of services) {
-    const id = crypto.randomUUID();
-    try {
-      await prisma.$executeRaw`
-        INSERT OR IGNORE INTO Service (id, name, displayName, description, category, owner, criticality, isActive, createdBy, createdAt, updatedAt)
-        VALUES (${id}, ${s.name}, ${s.displayName}, '', ${s.category}, ${s.owner}, ${s.criticality}, 1, 'admin@example.com', datetime('now'), datetime('now'))
-      `;
-    } catch {
-      // Ignore duplicates
+  // Seed services for all organizations
+  for (const org of allOrgs) {
+    for (const s of defaultServices) {
+      const id = crypto.randomUUID();
+      try {
+        await prisma.$executeRaw`
+          INSERT OR IGNORE INTO Service (id, name, displayName, description, category, owner, criticality, isActive, orgId, createdBy, createdAt, updatedAt)
+          VALUES (${id}, ${s.name}, ${s.displayName}, '', ${s.category}, ${s.owner}, ${s.criticality}, 1, ${org.orgId}, 'system', datetime('now'), datetime('now'))
+        `;
+      } catch {
+        // Ignore duplicates
+      }
     }
   }
 
@@ -409,7 +463,7 @@ async function main() {
     type: "standard" | "emergency" | "pre-approved";
     category: string;
     priority: "1" | "2" | "3" | "4";
-    riskLevel: "low" | "moderate" | "high" | "very_high";
+    riskLevel: "low" | "moderate" | "high";
     impactLevel: "1" | "2" | "3";
     state: string;
     workflowKey: string;
@@ -566,7 +620,7 @@ async function main() {
       type: "standard",
       category: "database",
       priority: "2",
-      riskLevel: "very_high",
+      riskLevel: "high",
       impactLevel: "1",
       state: "draft",
       workflowKey: "standard",
@@ -1095,7 +1149,7 @@ Current Pain Points:
       type: "standard",
       category: "database",
       priority: "1",
-      riskLevel: "very_high",
+      riskLevel: "high",
       impactLevel: "1",
       state: "rejected",
       approvalState: "rejected",
@@ -1895,7 +1949,7 @@ ROI Analysis:
       type: "standard",
       category: "infrastructure",
       priority: "1",
-      riskLevel: "very_high",
+      riskLevel: "high",
       impactLevel: "1",
       state: "awaiting_approval",
       approvalState: "pending",
@@ -2257,6 +2311,7 @@ ROI Analysis:
       createdBy: coreCR.createdBy,
       closedAt: coreCR.closedAt ? new Date(coreCR.closedAt) : null,
       closedBy: coreCR.closedBy,
+      orgId: "demo",
     };
 
     await prisma.changeRequest.upsert({
@@ -2809,7 +2864,7 @@ ROI Analysis:
       type: "standard",
       workflowKey: "standard",
       priority: "1",
-      riskLevel: "very_high",
+      riskLevel: "high",
       impactLevel: "1",
       urgency: "2",
       assignmentGroup: "Infrastructure",
@@ -2985,7 +3040,7 @@ ROI Analysis:
       type: "emergency",
       workflowKey: "emergency",
       priority: "1",
-      riskLevel: "very_high",
+      riskLevel: "high",
       impactLevel: "1",
       urgency: "1",
       assignmentGroup: "Security",
@@ -3029,14 +3084,486 @@ ROI Analysis:
       riskAndImpactAnalysis: "Scaling up is low risk. Necessary to maintain service availability.",
       justification: "[Traffic spike or capacity alert]",
     },
+    // ═══════════════════════════════════════════════════════════════
+    // ADDITIONAL DETAILED TEMPLATES
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: "API Version Deprecation",
+      description: "Deprecate and sunset an API version with migration support for consumers",
+      category: "application",
+      type: "standard",
+      workflowKey: "standard",
+      priority: "2",
+      riskLevel: "moderate",
+      impactLevel: "2",
+      urgency: "3",
+      assignmentGroup: "Backend",
+      implementationPlan: `## Phase 1: Announcement (T-90 days)
+1. Document deprecation timeline in API changelog
+2. Add deprecation headers to API responses (Sunset, Deprecation)
+3. Send email notification to all registered API consumers
+4. Update API documentation with migration guide
+5. Create Slack channel #api-v1-deprecation for support
+
+## Phase 2: Migration Support (T-90 to T-30 days)
+1. Provide 1:1 migration support for top 10 consumers by volume
+2. Host weekly office hours for migration questions
+3. Monitor v1 vs v2 traffic ratio weekly
+4. Send reminder emails at T-60 and T-45 days
+5. Identify and escalate blocked consumers
+
+## Phase 3: Soft Deprecation (T-30 days)
+1. Return HTTP 299 warning headers on all v1 requests
+2. Implement rate limiting on v1 (50% of normal limits)
+3. Final reminder email to remaining v1 consumers
+4. Prepare list of consumers still on v1 for escalation
+
+## Phase 4: Hard Deprecation (T-0)
+1. Return HTTP 410 Gone for all v1 endpoints
+2. Redirect documentation to v2
+3. Archive v1 codebase
+4. Update monitoring to alert on any v1 traffic (should be zero)
+
+## Phase 5: Cleanup (T+30 days)
+1. Remove v1 code from repository
+2. Delete v1 infrastructure resources
+3. Archive v1 logs and metrics
+4. Close deprecation support channel`,
+      backoutPlan: `## Rollback Options by Phase
+
+### Phase 1-2 Rollback
+- Remove deprecation headers
+- Send "deprecation postponed" notification
+- Update documentation
+
+### Phase 3 Rollback
+- Remove rate limiting
+- Remove warning headers
+- Extend timeline and re-announce
+
+### Phase 4 Rollback (Emergency Only)
+- Re-enable v1 endpoints (code still exists)
+- Send apology notification
+- Schedule new deprecation date
+
+### Post-Phase 5
+- Rollback not possible without code restoration
+- Would require emergency deployment from archive`,
+      testPlan: `## Deprecation Header Tests
+- Verify Sunset header format (RFC 7231)
+- Verify Deprecation header present
+- Test header visibility in common HTTP clients
+
+## Rate Limiting Tests
+- Verify 50% rate limit enforcement
+- Test rate limit headers returned
+- Verify graceful degradation
+
+## Migration Tests
+- Full regression on v2 API
+- Verify all v1 functionality available in v2
+- Performance comparison v1 vs v2
+
+## Sunset Tests
+- Verify 410 response on all v1 endpoints
+- Verify redirect to v2 documentation
+- Test error message clarity`,
+      riskAndImpactAnalysis: `## Risk Assessment: MODERATE
+
+### Primary Risks
+1. **Consumer Disruption** (Likelihood: Medium, Impact: High)
+   - Mitigation: 90-day notice, migration support, office hours
+   
+2. **Incomplete Migration** (Likelihood: Low, Impact: High)
+   - Mitigation: Traffic monitoring, direct outreach to laggards
+   
+3. **Hidden Dependencies** (Likelihood: Medium, Impact: Medium)
+   - Mitigation: Comprehensive consumer registry, soft deprecation phase
+
+### Affected Parties
+- External API consumers: ~150 registered applications
+- Internal services: 12 microservices (all migrated in Phase 1)
+- Partner integrations: 5 (dedicated migration support)
+
+### Success Criteria
+- <1% of traffic on v1 at T-7 days
+- Zero P1 incidents from deprecation
+- All top 20 consumers migrated by T-30`,
+      justification: `[Describe why this API version is being deprecated - security, maintenance burden, feature limitations]`,
+    },
+    {
+      name: "Data Center Migration",
+      description: "Migrate workloads from one data center or cloud region to another",
+      category: "infrastructure",
+      type: "standard",
+      workflowKey: "standard",
+      priority: "1",
+      riskLevel: "high",
+      impactLevel: "1",
+      urgency: "2",
+      assignmentGroup: "Infrastructure",
+      implementationPlan: `## Phase 1: Assessment & Planning (Week 1-4)
+1. Inventory all workloads in source DC
+   - Compute instances (VMs, containers)
+   - Storage volumes and data sizes
+   - Network configurations (VPCs, subnets, security groups)
+   - DNS records and load balancers
+2. Identify dependencies and migration order
+3. Calculate bandwidth requirements for data sync
+4. Establish target architecture in destination DC
+5. Create detailed runbook for each workload type
+
+## Phase 2: Infrastructure Setup (Week 5-8)
+1. Provision network infrastructure in target DC
+   - VPCs, subnets, route tables
+   - VPN/Direct Connect to source DC
+   - Security groups and NACLs
+2. Set up monitoring and logging in target DC
+3. Configure DNS for gradual traffic shift
+4. Establish database replication (async initially)
+5. Deploy CI/CD pipelines for target DC
+
+## Phase 3: Data Synchronization (Week 9-12)
+1. Enable continuous replication for databases
+2. Sync object storage (S3/GCS) using cross-region replication
+3. Replicate secrets and configuration
+4. Verify data integrity with checksums
+5. Measure replication lag and optimize
+
+## Phase 4: Application Migration (Week 13-16)
+1. Deploy applications to target DC (dark launch)
+2. Run synthetic traffic tests
+3. Perform failover testing
+4. Migrate non-critical workloads first
+5. Gradually shift traffic (10% → 25% → 50% → 100%)
+
+## Phase 5: Cutover & Validation (Week 17-18)
+1. Final data sync with minimal downtime window
+2. Update DNS TTLs to 60 seconds
+3. Switch DNS to target DC
+4. Monitor for 48 hours
+5. Decommission source DC resources
+
+## Phase 6: Cleanup (Week 19-20)
+1. Terminate source DC instances
+2. Delete source DC storage (after backup verification)
+3. Remove cross-DC network connections
+4. Update documentation and runbooks
+5. Conduct post-migration review`,
+      backoutPlan: `## Rollback Strategy
+
+### Pre-Cutover Rollback (Phase 1-4)
+- Simply continue operating in source DC
+- Tear down target DC infrastructure
+- No customer impact
+
+### During Cutover Rollback
+1. Revert DNS to source DC
+2. Verify source DC still receiving writes
+3. Resync any data written to target DC
+4. Communicate delay to stakeholders
+
+### Post-Cutover Rollback (Emergency)
+1. Re-enable source DC infrastructure (kept warm for 30 days)
+2. Reverse database replication direction
+3. Sync data from target back to source
+4. Switch DNS back to source
+5. RTO: 4 hours, RPO: 15 minutes
+
+### Point of No Return
+- After source DC decommissioned (Week 19+)
+- Would require full rebuild
+- Maintain backups for 90 days post-migration`,
+      testPlan: `## Infrastructure Tests
+- Network connectivity between DCs
+- Latency measurements (<50ms requirement)
+- Bandwidth capacity verification
+- Failover testing for all critical paths
+
+## Data Integrity Tests
+- Row count comparison source vs target
+- Checksum validation on critical tables
+- Blob storage hash verification
+- Replication lag monitoring (<1 second)
+
+## Application Tests
+- Full regression suite in target DC
+- Performance benchmarks (must match source)
+- Chaos engineering (kill instances, network partitions)
+- Load testing at 2x peak traffic
+
+## Failover Tests
+- Simulate source DC failure
+- Measure actual RTO vs target
+- Verify no data loss (RPO = 0)
+- Test rollback procedure`,
+      riskAndImpactAnalysis: `## Risk Assessment: HIGH
+
+### Primary Risks
+1. **Data Loss** (Likelihood: Low, Impact: Critical)
+   - Mitigation: Continuous replication, checksums, 30-day source retention
+   
+2. **Extended Downtime** (Likelihood: Medium, Impact: Critical)
+   - Mitigation: Rehearsals, gradual traffic shift, instant rollback capability
+   
+3. **Performance Degradation** (Likelihood: Medium, Impact: High)
+   - Mitigation: Equivalent infrastructure, load testing, monitoring
+   
+4. **Hidden Dependencies** (Likelihood: High, Impact: Medium)
+   - Mitigation: Comprehensive discovery, phased migration, dark launch
+
+### Blast Radius
+- All production services
+- All customer-facing applications
+- Internal tools and dashboards
+
+### Recovery Objectives
+- RTO: 4 hours (rollback scenario)
+- RPO: 0 (synchronous replication during cutover)
+- Planned downtime: 30 minutes (DNS propagation)`,
+      justification: `[Describe business driver - cost optimization, compliance, latency improvement, DC contract expiration]`,
+    },
+    {
+      name: "Third-Party Integration",
+      description: "Integrate with external vendor API or service",
+      category: "application",
+      type: "standard",
+      workflowKey: "standard",
+      priority: "2",
+      riskLevel: "moderate",
+      impactLevel: "2",
+      urgency: "3",
+      assignmentGroup: "Backend",
+      implementationPlan: `## Phase 1: Vendor Setup (Week 1)
+1. Complete vendor security questionnaire
+2. Sign data processing agreement (DPA)
+3. Obtain API credentials (sandbox and production)
+4. Review API documentation and rate limits
+5. Identify required scopes/permissions
+
+## Phase 2: Development (Week 2-3)
+1. Implement API client with retry logic
+2. Add circuit breaker pattern for resilience
+3. Implement credential rotation support
+4. Create abstraction layer for vendor swap
+5. Add comprehensive logging (sanitized)
+
+## Phase 3: Testing (Week 4)
+1. Unit tests with mocked responses
+2. Integration tests against sandbox
+3. Load testing to verify rate limit handling
+4. Failure mode testing (timeouts, errors)
+5. Security review of data handling
+
+## Phase 4: Staging Deployment (Week 5)
+1. Deploy to staging environment
+2. Configure staging credentials
+3. End-to-end testing with real vendor sandbox
+4. Performance baseline establishment
+5. Runbook creation for common issues
+
+## Phase 5: Production Deployment (Week 6)
+1. Configure production credentials in secrets manager
+2. Deploy with feature flag (disabled)
+3. Enable for internal users only (dogfood)
+4. Gradual rollout: 5% → 25% → 100%
+5. Monitor error rates and latency
+
+## Phase 6: Monitoring & Optimization (Ongoing)
+1. Set up vendor-specific dashboards
+2. Configure alerts for error rate spikes
+3. Monitor API usage vs quota
+4. Optimize caching where applicable
+5. Regular vendor health checks`,
+      backoutPlan: `## Rollback Options
+
+### Feature Flag Rollback (Instant)
+1. Disable feature flag
+2. Users fall back to previous behavior
+3. No deployment required
+
+### Code Rollback
+1. Deploy previous version
+2. Verify integration disabled
+3. Communicate to affected users
+
+### Vendor Credential Rotation
+1. If credentials compromised
+2. Rotate in vendor portal
+3. Update secrets manager
+4. Restart affected services
+
+### Complete Removal
+1. Remove integration code
+2. Delete vendor credentials
+3. Update user documentation
+4. Notify affected users of feature removal`,
+      testPlan: `## Unit Tests
+- API client methods
+- Error handling paths
+- Retry logic
+- Circuit breaker behavior
+
+## Integration Tests
+- Authentication flow
+- CRUD operations
+- Pagination handling
+- Rate limit response handling
+
+## Performance Tests
+- Response time under load
+- Behavior at rate limit
+- Connection pool efficiency
+- Memory usage over time
+
+## Security Tests
+- Credential handling
+- Data sanitization in logs
+- TLS verification
+- Input validation`,
+      riskAndImpactAnalysis: `## Risk Assessment: MODERATE
+
+### Primary Risks
+1. **Vendor Outage** (Likelihood: Medium, Impact: High)
+   - Mitigation: Circuit breaker, graceful degradation, SLA in contract
+   
+2. **Data Privacy** (Likelihood: Low, Impact: Critical)
+   - Mitigation: DPA signed, data minimization, encryption in transit
+   
+3. **Rate Limiting** (Likelihood: High, Impact: Medium)
+   - Mitigation: Caching, request batching, quota monitoring
+
+### Dependencies
+- Vendor API availability
+- Network connectivity to vendor
+- Valid API credentials
+
+### Fallback Behavior
+- Feature disabled if vendor unavailable
+- Cached data served where applicable
+- User notified of degraded functionality`,
+      justification: `[Describe business need for this integration - payment processing, analytics, communication, etc.]`,
+    },
+    {
+      name: "Compliance Audit Remediation",
+      description: "Implement changes required by security or compliance audit findings",
+      category: "security",
+      type: "standard",
+      workflowKey: "standard",
+      priority: "1",
+      riskLevel: "moderate",
+      impactLevel: "2",
+      urgency: "2",
+      assignmentGroup: "Security",
+      implementationPlan: `## Phase 1: Finding Analysis (Day 1-3)
+1. Review audit findings in detail
+2. Categorize by severity (Critical, High, Medium, Low)
+3. Identify affected systems and owners
+4. Estimate remediation effort for each finding
+5. Create remediation tickets with deadlines
+
+## Phase 2: Critical Findings (Day 4-7)
+1. Address all Critical severity findings
+2. Implement emergency patches if needed
+3. Document compensating controls if fix delayed
+4. Obtain sign-off from security team
+5. Update audit tracker
+
+## Phase 3: High Findings (Week 2-3)
+1. Implement fixes for High severity findings
+2. Code review all security changes
+3. Security testing of implemented fixes
+4. Update security documentation
+5. Train affected teams on new controls
+
+## Phase 4: Medium/Low Findings (Week 4-6)
+1. Implement remaining findings
+2. Batch similar fixes for efficiency
+3. Update policies and procedures
+4. Create automation to prevent recurrence
+5. Schedule follow-up audit
+
+## Phase 5: Verification (Week 7)
+1. Internal security assessment
+2. Penetration testing of fixed areas
+3. Compliance team review
+4. Prepare evidence for auditors
+5. Schedule external verification
+
+## Phase 6: Closure (Week 8)
+1. Present remediation evidence to auditors
+2. Obtain formal closure of findings
+3. Update risk register
+4. Document lessons learned
+5. Implement preventive measures`,
+      backoutPlan: `## Rollback Considerations
+
+### Security Changes
+- Generally should NOT be rolled back
+- Document compensating controls if rollback required
+- Obtain CISO approval for any security rollback
+
+### If Rollback Required
+1. Document business justification
+2. Implement compensating controls
+3. Set aggressive timeline for proper fix
+4. Notify compliance team
+5. Update risk register with accepted risk
+
+### Compensating Controls Examples
+- Additional monitoring
+- Manual review processes
+- Restricted access
+- Enhanced logging`,
+      testPlan: `## Security Testing
+- Vulnerability scanning post-fix
+- Penetration testing of affected areas
+- Configuration compliance scanning
+- Access control verification
+
+## Functional Testing
+- Ensure fixes don't break functionality
+- User acceptance testing
+- Performance impact assessment
+- Integration testing
+
+## Compliance Testing
+- Evidence collection for auditors
+- Control effectiveness testing
+- Policy compliance verification
+- Documentation review`,
+      riskAndImpactAnalysis: `## Risk Assessment: MODERATE
+
+### Primary Risks
+1. **Incomplete Remediation** (Likelihood: Medium, Impact: High)
+   - Mitigation: Thorough testing, security review, external verification
+   
+2. **Business Disruption** (Likelihood: Low, Impact: Medium)
+   - Mitigation: Staged rollout, testing, rollback plan
+   
+3. **Compliance Deadline Miss** (Likelihood: Low, Impact: Critical)
+   - Mitigation: Prioritization, resource allocation, compensating controls
+
+### Regulatory Impact
+- [Specify applicable regulations: SOC2, HIPAA, PCI-DSS, GDPR]
+- Deadline: [Audit remediation deadline]
+- Penalties for non-compliance: [Describe]
+
+### Success Criteria
+- All Critical/High findings closed
+- External auditor sign-off obtained
+- No regression in security posture`,
+      justification: `[Reference audit report and specific findings being addressed]`,
+    },
   ];
 
   for (const t of templates) {
     await prisma.changeRequestTemplate.upsert({
-      where: { name: t.name },
+      where: { name_orgId: { name: t.name, orgId: "demo" } },
       update: t,
       create: {
         ...t,
+        orgId: "demo",
         createdBy: "admin@example.com",
       },
     });

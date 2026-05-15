@@ -30,6 +30,7 @@ function toCR(row: any): ChangeRequest {
     externalId: row.externalId,
     externalSource: row.externalSource,
     workflowKey: row.workflowKey,
+    orgId: row.orgId,
     title: row.title,
     description: row.description,
     type: row.type as ChangeType,
@@ -112,6 +113,7 @@ export class PrismaChangeRequestRepository implements ChangeRequestRepository {
         externalId: cr.externalId ?? null,
         externalSource: cr.externalSource ?? null,
         workflowKey: cr.workflowKey,
+        orgId: cr.orgId ?? "demo",
         title: cr.title,
         description: cr.description,
         type: cr.type,
@@ -167,11 +169,12 @@ export class PrismaChangeRequestRepository implements ChangeRequestRepository {
     return row ? toCR(row) : null;
   }
 
-  async list(filter?: { state?: string; requestedBy?: string }): Promise<ChangeRequest[]> {
+  async list(filter?: { state?: string; requestedBy?: string; orgId?: string }): Promise<ChangeRequest[]> {
     const rows = await this.prisma.changeRequest.findMany({
       where: {
         ...(filter?.state ? { state: filter.state } : {}),
         ...(filter?.requestedBy ? { requestedBy: filter.requestedBy } : {}),
+        ...(filter?.orgId ? { orgId: filter.orgId } : {}),
       },
       orderBy: { createdAt: "desc" },
     });
@@ -299,13 +302,15 @@ export class PrismaChangeRequestRepository implements ChangeRequestRepository {
     }));
   }
 
-  async getCRTypeApprovers(crType: string): Promise<Array<{
+  async getCRTypeApprovers(crType: string, orgId?: string): Promise<Array<{
     crType: string;
     approverEmail: string;
     approverGroup: string | null;
     stepName: string;
     ordering: number;
   }>> {
+    // Filter by orgId to ensure approvers are from the same organization
+    const filterOrgId = orgId || "demo";
     const rows = await this.prisma.$queryRaw<Array<{
       crType: string;
       approverEmail: string;
@@ -315,7 +320,7 @@ export class PrismaChangeRequestRepository implements ChangeRequestRepository {
     }>>`
       SELECT crType, approverEmail, approverGroup, stepName, ordering
       FROM CRTypeApprover
-      WHERE isActive = 1 AND crType = ${crType}
+      WHERE isActive = 1 AND crType = ${crType} AND orgId = ${filterOrgId}
       ORDER BY ordering, stepName
     `;
     return rows;

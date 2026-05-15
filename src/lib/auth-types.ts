@@ -19,6 +19,7 @@ export interface Role {
   name: string;
   displayName: string;
   description?: string | null;
+  orgId: string;
   canManageUsers: boolean;
   canManageRoles: boolean;
   canManageChanges: boolean;
@@ -28,6 +29,7 @@ export interface Role {
   canEditSettings: boolean;
   canViewMetrics: boolean;
   canViewAllData: boolean;
+  isSuperAdmin: boolean;
   isSystem: boolean;
   isActive: boolean;
 }
@@ -44,6 +46,8 @@ export interface UserRoleAssignment {
 declare module "next-auth" {
   interface User {
     roles?: string[];  // Array of role names
+    orgId?: string;
+    isSuperAdmin?: boolean;
   }
 
   interface Session {
@@ -53,6 +57,8 @@ declare module "next-auth" {
       email: string;
       roles: string[];  // Array of role names
       permissions: Permissions;
+      orgId: string;
+      isSuperAdmin: boolean;
     };
   }
 }
@@ -62,11 +68,14 @@ declare module "next-auth/jwt" {
     roles?: string[];
     permissions?: Permissions;
     id?: string;
+    orgId?: string;
+    isSuperAdmin?: boolean;
   }
 }
 
 // System role names (for reference)
 export type SystemRoleName = 
+  | "super_admin"
   | "admin" 
   | "change_manager" 
   | "approver" 
@@ -75,6 +84,7 @@ export type SystemRoleName =
   | "cab_member";
 
 export const SYSTEM_ROLE_LABELS: Record<SystemRoleName, string> = {
+  super_admin: "Super Administrator",
   admin: "Administrator",
   change_manager: "Change Manager",
   approver: "Approver",

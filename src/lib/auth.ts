@@ -53,6 +53,9 @@ export const authOptions: NextAuthOptions = {
         // Extract role names and aggregate permissions
         const roleNames = user.userRoles.map(ur => ur.role.name);
         const rolePermissions = user.userRoles.map(ur => ur.role);
+        
+        // Check if user has super_admin role (can see all orgs)
+        const isSuperAdmin = user.userRoles.some(ur => ur.role.isSuperAdmin);
 
         return {
           id: user.id,
@@ -60,6 +63,8 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           roles: roleNames,
           permissions: aggregatePermissions(rolePermissions),
+          orgId: user.orgId,
+          isSuperAdmin,
         };
       },
     }),
@@ -67,18 +72,49 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        const typedUser = user as { roles?: string[]; permissions?: Permissions };
+        const typedUser = user as { roles?: string[]; permissions?: Permissions; orgId?: string; isSuperAdmin?: boolean };
         token.roles = typedUser.roles || [];
         token.permissions = typedUser.permissions || DEFAULT_PERMISSIONS;
         token.id = user.id;
+        token.orgId = typedUser.orgId || "demo";
+        token.isSuperAdmin = typedUser.isSuperAdmin || false;
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.roles = (token.roles as string[]) || [];
-        session.user.permissions = (token.permissions as Permissions) || DEFAULT_PERMISSIONS;
-        session.user.id = token.id as string;
+      if (session.user && token.id) {
+        // Always fetch fresh roles from database to reflect admin changes
+        const userId = token.id as string;
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          include: {
+            userRoles: {
+              include: {
+                role: true,
+              },
+            },
+          },
+        });
+
+        if (user) {
+          // Extract fresh role names and permissions
+          const roleNames = user.userRoles.map(ur => ur.role.name);
+          const rolePermissions = user.userRoles.map(ur => ur.role);
+          const isSuperAdmin = user.userRoles.some(ur => ur.role.isSuperAdmin);
+
+          session.user.roles = roleNames;
+          session.user.permissions = aggregatePermissions(rolePermissions);
+          session.user.id = user.id;
+          session.user.orgId = user.orgId;
+          session.user.isSuperAdmin = isSuperAdmin;
+        } else {
+          // Fallback to token values if user not found
+          session.user.roles = (token.roles as string[]) || [];
+          session.user.permissions = (token.permissions as Permissions) || DEFAULT_PERMISSIONS;
+          session.user.id = token.id as string;
+          session.user.orgId = (token.orgId as string) || "demo";
+          session.user.isSuperAdmin = (token.isSuperAdmin as boolean) || false;
+        }
       }
       return session;
     },

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   try {
-    const { email, name, password } = await request.json();
+    const { email, name, password, orgId } = await request.json();
 
     if (!email || !name || !password) {
       return NextResponse.json(
@@ -20,6 +20,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // Validate orgId if provided
+    const userOrgId = orgId || "demo";
+    if (userOrgId !== "demo") {
+      const org = await prisma.organization.findUnique({ where: { orgId: userOrgId } });
+      if (!org) {
+        return NextResponse.json(
+          { error: "Invalid organization ID" },
+          { status: 400 }
+        );
+      }
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return NextResponse.json(
@@ -30,8 +42,10 @@ export async function POST(request: Request) {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Find the default "requester" role
-    const defaultRole = await prisma.role.findUnique({ where: { name: "requester" } });
+    // Find the default "requester" role for this org
+    const defaultRole = await prisma.role.findFirst({ 
+      where: { name: "requester", orgId: userOrgId } 
+    }) || await prisma.role.findUnique({ where: { name: "requester" } });
 
     // Create user and assign default role in a transaction
     const user = await prisma.$transaction(async (tx) => {
@@ -40,6 +54,7 @@ export async function POST(request: Request) {
           email,
           name,
           hashedPassword,
+          orgId: userOrgId,
         },
       });
 
