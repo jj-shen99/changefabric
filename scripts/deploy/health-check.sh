@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Health Check Script for Change Request Management AI
+# Health Check Script for Change Management Platform
 # Usage: ./scripts/deploy/health-check.sh [url]
 #
 

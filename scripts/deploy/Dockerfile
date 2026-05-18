@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for Change Request Management AI
+# Multi-stage Dockerfile for Change Management Platform
 # Optimized for production with minimal image size
 
 # ============================================

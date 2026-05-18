@@ -1,6 +1,6 @@
 # Production Deployment Scripts
 
-This directory contains scripts and configuration for deploying Change Request Management AI to production.
+This directory contains scripts and configuration for deploying the Change Management Platform to production.
 
 ## Quick Start
 
@@ -135,7 +135,7 @@ docker-compose -f scripts/deploy/docker-compose.yml ps
 docker-compose -f scripts/deploy/docker-compose.yml logs -f app
 
 # PM2 logs
-pm2 logs change-request-management-ai
+pm2 logs change-management
 ```
 
 ## Backup & Restore

@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # Configuration
-APP_NAME="change-request-management-ai"
+APP_NAME="change-management"
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/apps/${APP_NAME}}"
 BACKUP_DIR="${BACKUP_DIR:-/opt/backups/${APP_NAME}}"
 PM2_APP_NAME="${APP_NAME}"

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Database Backup Script for Change Request Management AI
+# Database Backup Script for Change Management Platform
 # Usage: ./scripts/deploy/backup-db.sh [output_dir]
 #
 

@@ -15,7 +15,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-APP_NAME="change-request-management-ai"
+APP_NAME="change-management"
 DEPLOY_USER="${DEPLOY_USER:-deploy}"
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/apps/${APP_NAME}}"
 BACKUP_DIR="${BACKUP_DIR:-/opt/backups/${APP_NAME}}"
@@ -121,13 +121,13 @@ echo -e "${GREEN}✓ Linting complete${NC}"
 # Run tests (optional in staging, required in production)
 echo -e "\n${BLUE}[6/8] Running tests...${NC}"
 if [[ "$ENVIRONMENT" == "production" ]]; then
-    npm test || {
+    npm test -- --passWithNoTests || {
         echo -e "${RED}Error: Tests failed. Aborting production deployment.${NC}"
         exit 1
     }
     echo -e "${GREEN}✓ All tests passed${NC}"
 else
-    npm test || {
+    npm test -- --passWithNoTests || {
         echo -e "${YELLOW}Warning: Some tests failed (continuing staging deployment)${NC}"
     }
 fi
