@@ -80,7 +80,7 @@ describe("ServiceNow Import Modal", () => {
 
     it("should reset form after successful import", () => {
       const filledForm = {
-        instance: "https://example.service-now.com",
+        instance: "https://example.itsm.com",
         user: "admin",
         password: "secret",
         days: "60",
@@ -121,7 +121,7 @@ describe("ServiceNow Import Modal", () => {
 
     it("should accept any valid HTTPS URL", () => {
       expect(validateUrl("https://example.com").valid).toBe(true);
-      expect(validateUrl("https://my-instance.service-now.com").valid).toBe(true);
+      expect(validateUrl("https://my-instance.itsm.com").valid).toBe(true);
       expect(validateUrl("https://custom-domain.internal.corp").valid).toBe(true);
     });
 
@@ -137,7 +137,7 @@ describe("ServiceNow Import Modal", () => {
       expect(result.error).toBe("Invalid instance URL format");
     });
 
-    it("should NOT require service-now.com domain", () => {
+    it("should accept any valid HTTPS domain", () => {
       // Any domain should be accepted
       expect(validateUrl("https://custom-itsm.example.com").valid).toBe(true);
       expect(validateUrl("https://internal.company.net").valid).toBe(true);

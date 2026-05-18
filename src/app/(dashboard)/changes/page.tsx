@@ -520,7 +520,7 @@ export default function ChangesPage() {
                 <input
                   type="url"
                   required
-                  placeholder="https://your-instance.service-now.com"
+                  placeholder="https://your-instance.example.com"
                   value={importForm.instance}
                   onChange={(e) => setImportForm({ ...importForm, instance: e.target.value })}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800"

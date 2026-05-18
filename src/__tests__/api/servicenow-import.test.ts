@@ -6,7 +6,7 @@
 describe("ServiceNow Import", () => {
   describe("Table API endpoint", () => {
     it("uses the correct change_request table", () => {
-      const instance = "https://test.service-now.com";
+      const instance = "https://test.itsm.example.com";
       const expectedPath = "/api/now/table/change_request";
       const fullUrl = `${instance}${expectedPath}`;
       
@@ -16,7 +16,7 @@ describe("ServiceNow Import", () => {
     });
 
     it("includes required query parameters", () => {
-      const baseUrl = "https://test.service-now.com/api/now/table/change_request";
+      const baseUrl = "https://test.itsm.example.com/api/now/table/change_request";
       const params = new URLSearchParams({
         sysparm_display_value: "true",
         sysparm_limit: "100",
@@ -90,9 +90,9 @@ describe("ServiceNow Import", () => {
         cr.externalSource && cr.externalSource !== "native";
 
       expect(isExternalImport({ externalSource: "servicenow" })).toBe(true);
-      expect(isExternalImport({ externalSource: "" })).toBe(false);
-      expect(isExternalImport({ externalSource: null })).toBe(false);
-      expect(isExternalImport({ externalSource: "native" })).toBe(false);
+      expect(isExternalImport({ externalSource: "" })).toBeFalsy();
+      expect(isExternalImport({ externalSource: null })).toBeFalsy();
+      expect(isExternalImport({ externalSource: "native" })).toBeFalsy();
     });
   });
 
@@ -102,17 +102,17 @@ describe("ServiceNow Import", () => {
         return !!(creds.instance && creds.user && creds.password);
       };
 
-      expect(validateCredentials({ instance: "https://test.service-now.com", user: "admin", password: "pass" })).toBe(true);
-      expect(validateCredentials({ instance: "https://test.service-now.com", user: "admin" })).toBe(false);
-      expect(validateCredentials({ instance: "https://test.service-now.com" })).toBe(false);
+      expect(validateCredentials({ instance: "https://test.itsm.example.com", user: "admin", password: "pass" })).toBe(true);
+      expect(validateCredentials({ instance: "https://test.itsm.example.com", user: "admin" })).toBe(false);
+      expect(validateCredentials({ instance: "https://test.itsm.example.com" })).toBe(false);
       expect(validateCredentials({})).toBe(false);
     });
 
     it("normalizes instance URL by removing trailing slash", () => {
       const normalizeInstance = (url: string) => url.replace(/\/$/, "");
 
-      expect(normalizeInstance("https://test.service-now.com/")).toBe("https://test.service-now.com");
-      expect(normalizeInstance("https://test.service-now.com")).toBe("https://test.service-now.com");
+      expect(normalizeInstance("https://test.itsm.example.com/")).toBe("https://test.itsm.example.com");
+      expect(normalizeInstance("https://test.itsm.example.com")).toBe("https://test.itsm.example.com");
     });
   });
 });

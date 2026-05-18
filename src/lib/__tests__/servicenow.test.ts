@@ -43,11 +43,11 @@ describe("ServiceNow Utilities", () => {
 
     it("accepts custom credentials", () => {
       const options = {
-        instance: "https://custom.service-now.com",
+        instance: "https://custom.itsm.example.com",
         user: "api_user",
         password: "secret123",
       };
-      expect(options.instance).toContain("service-now.com");
+      expect(options.instance).toContain("itsm.example.com");
       expect(options.user).toBe("api_user");
     });
 
@@ -59,7 +59,7 @@ describe("ServiceNow Utilities", () => {
     it("allows all options together", () => {
       const options = {
         days: 7,
-        instance: "https://test.service-now.com",
+        instance: "https://test.itsm.example.com",
         user: "admin",
         password: "admin",
         syncedBy: "sync@test.com",
@@ -132,7 +132,7 @@ describe("ServiceNow Utilities", () => {
 
   describe("URL construction", () => {
     it("builds correct base URL pattern", () => {
-      const instance = "https://test.service-now.com";
+      const instance = "https://test.itsm.example.com";
       const expectedPath = "/api/now/table/change_request";
       const fullUrl = `${instance}${expectedPath}`;
       expect(fullUrl).toContain("/api/now/table/change_request");
@@ -226,7 +226,7 @@ describe("ServiceNow Record Processing", () => {
     it("extracts display_value from reference objects", () => {
       const refField = {
         display_value: "IT Infrastructure",
-        link: "https://instance.service-now.com/api/now/table/sys_user_group/abc123",
+        link: "https://instance.itsm.example.com/api/now/table/sys_user_group/abc123",
       };
       expect(refField.display_value).toBe("IT Infrastructure");
     });
