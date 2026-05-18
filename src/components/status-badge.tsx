@@ -10,7 +10,7 @@ const changeStatusConfig: Record<string, { label: string; className: string }> =
   deployed: { label: "Deployed", className: "bg-green-100 text-green-800" },
   rolled_back: { label: "Rolled Back", className: "bg-red-100 text-red-800" },
   failed: { label: "Failed", className: "bg-red-100 text-red-800" },
-  // ServiceNow statuses
+  // External ITSM statuses
   New: { label: "New", className: "bg-gray-100 text-gray-700" },
   Assess: { label: "Assess", className: "bg-amber-100 text-amber-800" },
   Authorize: { label: "Authorize", className: "bg-blue-100 text-blue-800" },

@@ -5,7 +5,7 @@
  * the application. Persistence (Prisma), HTTP (Next.js API routes) and UI
  * layers all map to/from these types via thin adapters.
  *
- * Inspired by the ServiceNow change_request table but vendor-neutral.
+ * Inspired by common ITSM change_request patterns but vendor-neutral.
  */
 
 export type ChangeType = "standard" | "emergency" | "pre-approved";

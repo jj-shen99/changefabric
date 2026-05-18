@@ -5,7 +5,7 @@ import { requireSession, isResponse, forbidden, badRequest, serverError } from "
 
 /**
  * GET /api/admin/snow-sync
- * Get ServiceNow sync settings for the current org (credentials are masked)
+ * Get ITSM sync settings for the current org (credentials are masked)
  */
 export async function GET() {
   const ctx = await requireSession();
@@ -73,7 +73,7 @@ export async function GET() {
 
 /**
  * PUT /api/admin/snow-sync
- * Update ServiceNow sync settings (admin only)
+ * Update ITSM sync settings (admin only)
  * Credentials are encrypted before storage
  */
 export async function PUT(request: Request) {
@@ -206,7 +206,7 @@ export async function PUT(request: Request) {
 
 /**
  * DELETE /api/admin/snow-sync
- * Clear ServiceNow credentials and disable sync
+ * Clear ITSM credentials and disable sync
  */
 export async function DELETE() {
   const ctx = await requireSession();
@@ -228,7 +228,7 @@ export async function DELETE() {
       },
     });
 
-    return NextResponse.json({ success: true, message: "ServiceNow credentials cleared" });
+    return NextResponse.json({ success: true, message: "ITSM credentials cleared" });
   } catch (err) {
     return serverError(err);
   }

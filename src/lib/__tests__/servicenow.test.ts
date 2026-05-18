@@ -1,14 +1,14 @@
 /**
- * Unit tests for ServiceNow sync utilities
+ * Unit tests for ITSM sync utilities
  */
 
-// Mock the crypto module before importing servicenow
+// Mock the crypto module before importing ITSM sync
 jest.mock("@/lib/crypto", () => ({
   getSecret: jest.fn((_key: string, fallback: string) => fallback),
 }));
 
 // Test the displayVal function behavior through toRow
-describe("ServiceNow Utilities", () => {
+describe("ITSM Sync Utilities", () => {
   describe("displayVal extraction", () => {
     it("handles null/undefined values", () => {
       // displayVal is internal, but we can test its behavior through expected outputs
@@ -221,7 +221,7 @@ describe("ServiceNow Utilities", () => {
   });
 });
 
-describe("ServiceNow Record Processing", () => {
+describe("ITSM Record Processing", () => {
   describe("Reference field extraction", () => {
     it("extracts display_value from reference objects", () => {
       const refField = {

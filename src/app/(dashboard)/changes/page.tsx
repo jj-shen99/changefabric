@@ -2,7 +2,7 @@
 
 /**
  * /changes — list view backed by the re-architected /api/v2/changes endpoint.
- * Supports importing CRs from ServiceNow when enabled by admin.
+ * Supports importing CRs from external ITSM when enabled by admin.
  */
 
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -45,7 +45,7 @@ const STATE_TONE: Record<string, string> = {
   closed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
   rejected: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300",
   canceled: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
-  // ServiceNow states (mapped to similar native states)
+  // External ITSM states (mapped to similar native states)
   new: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   authorize: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
   implement: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300",
@@ -229,16 +229,16 @@ export default function ChangesPage() {
       const data = await res.json();
       if (!res.ok) {
         const errorMsg = data.error || `HTTP ${res.status}`;
-        // If ServiceNow credentials error, prompt user to enter new credentials
-        // Note: "User not found" from our API means app user, not ServiceNow user
-        // ServiceNow auth errors typically contain "401", "authentication failed", "invalid user", etc.
+        // If ITSM credentials error, prompt user to enter new credentials
+        // Note: "User not found" from our API means app user, not ITSM user
+        // ITSM auth errors typically contain "401", "authentication failed", "invalid user", etc.
         const isSnowAuthError = 
             errorMsg.toLowerCase().includes("invalid user") ||
             errorMsg.toLowerCase().includes("invalid password") ||
             errorMsg.toLowerCase().includes("authentication failed") ||
             errorMsg.toLowerCase().includes("invalid credentials") ||
             errorMsg.toLowerCase().includes("access denied") ||
-            (errorMsg.includes("401") && errorMsg.toLowerCase().includes("servicenow"));
+            (errorMsg.includes("401") && errorMsg.toLowerCase().includes("itsm"));
         
         // If credentials not configured, also open modal
         const needsCredentials = 
@@ -247,8 +247,8 @@ export default function ChangesPage() {
             
         if (isSnowAuthError || needsCredentials) {
           setImportError(needsCredentials 
-            ? "ServiceNow credentials not configured. Please enter credentials."
-            : "ServiceNow credentials are invalid. Please enter new credentials.");
+            ? "ITSM credentials not configured. Please enter credentials."
+            : "ITSM credentials are invalid. Please enter new credentials.");
           setShowImportModal(true);
           setImportLoading(false);
           return;
@@ -356,7 +356,7 @@ export default function ChangesPage() {
                   </button>
                   <button
                     onClick={() => setShowImportModal(true)}
-                    title="Update ServiceNow credentials"
+                    title="Update ITSM credentials"
                     className="rounded-lg border border-white/30 bg-white/10 p-2 text-white hover:bg-white/20"
                   >
                     <Settings className="h-4 w-4" />
@@ -367,7 +367,7 @@ export default function ChangesPage() {
                   onClick={() => setShowImportModal(true)}
                   className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20"
                 >
-                  <Download className="h-4 w-4" /> Import from ServiceNow
+                  <Download className="h-4 w-4" /> Import from ITSM
                 </button>
               )
             )}
@@ -486,7 +486,7 @@ export default function ChangesPage() {
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl dark:bg-gray-900">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Import from ServiceNow
+                Import from ITSM
               </h2>
               <button
                 onClick={() => {
@@ -515,7 +515,7 @@ export default function ChangesPage() {
             <form onSubmit={handleImport} className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  ServiceNow Instance URL
+                  ITSM Instance URL
                 </label>
                 <input
                   type="url"

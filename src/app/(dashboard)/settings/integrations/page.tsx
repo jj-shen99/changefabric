@@ -15,7 +15,7 @@ interface ConnectionStatus {
 export default function IntegrationsPage() {
   const { canEditSettings } = usePermissions();
   
-  // ServiceNow Import state
+  // ITSM Import state
   const [enableCRImport, setEnableCRImport] = useState(false);
   const [importSaving, setImportSaving] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
@@ -161,15 +161,15 @@ export default function IntegrationsPage() {
       <PageHeader title="Integrations" subtitle="Configure integrations and AI/LLM provider for analysis" />
       <div className="space-y-6 p-4 md:p-6">
 
-        {/* ServiceNow Import Integration */}
+        {/* ITSM Import Integration */}
         {canEditSettings && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Download className="h-5 w-5 text-indigo-600" />
-                ServiceNow Import
+                ITSM Import
               </CardTitle>
-              <CardDescription>Enable importing change requests from ServiceNow for analysis</CardDescription>
+              <CardDescription>Enable importing change requests from external ITSM for analysis</CardDescription>
             </CardHeader>
             <div className="space-y-4 px-6 pb-6">
               <div className="flex items-center justify-between">
@@ -178,7 +178,7 @@ export default function IntegrationsPage() {
                     Enable CR Import
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    When enabled, an &quot;Import from ServiceNow&quot; button will appear on the Changes page
+                    When enabled, an &quot;Import from ITSM&quot; button will appear on the Changes page
                   </p>
                 </div>
                 <button

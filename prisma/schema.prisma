@@ -25,12 +25,12 @@ model Organization {
   isActive    Boolean  @default(true)
   
   // Feature flags
-  enableCRImport Boolean @default(false)    // Allow importing CRs from ServiceNow
+  enableCRImport Boolean @default(false)    // Allow importing CRs from external ITSM
   
-  // ServiceNow sync settings (credentials are encrypted with AES-256-GCM)
-  snowInstance       String?                // ServiceNow instance URL (e.g., https://instance.service-now.com)
-  snowUsername       String?                // ServiceNow username (encrypted)
-  snowPassword       String?                // ServiceNow password (encrypted)
+  // External ITSM sync settings (credentials are encrypted with AES-256-GCM)
+  snowInstance       String?                // ITSM instance URL (e.g., https://instance.itsm.example.com)
+  snowUsername       String?                // ITSM username (encrypted)
+  snowPassword       String?                // ITSM password (encrypted)
   snowSyncEnabled    Boolean @default(false) // Enable automatic sync
   snowSyncIntervalHours Int  @default(24)   // Sync interval in hours (1-168)
   snowSyncDays       Int     @default(30)   // Import CRs from last N days
@@ -113,16 +113,16 @@ model UserRole {
 }
 
 // ── Generic Change Management Domain ─────────────────────────
-// Re-architected: framework-agnostic change-request schema, inspired by the
-// ServiceNow change_request table but free of any vendor coupling. The
-// ServiceNow connector (under src/lib/integrations/servicenow) is now an
+// Re-architected: framework-agnostic change-request schema, inspired by
+// common ITSM change_request patterns but free of any vendor coupling. The
+// ITSM connector (under src/lib/integrations/servicenow) is now an
 // optional plugin; the core schema below stands on its own.
 
 model ChangeRequest {
   // Identity
   number          String   @id                       // e.g. CHG0001234, generated locally
-  externalId      String?  @unique                   // optional foreign system id (e.g. ServiceNow sys_id)
-  externalSource  String?                            // "servicenow" | "jira" | null
+  externalId      String?  @unique                   // optional foreign system id (e.g. ITSM sys_id)
+  externalSource  String?                            // "itsm" | "jira" | null
   workflowKey     String   @default("standard")      // FK-by-key to WorkflowDefinition.key
   orgId           String   @default("demo")          // Organization ID
 
@@ -383,7 +383,7 @@ model DashboardMetric {
 }
 
 // ── Integration Settings ─────────────────────────────────────────
-// Stores encrypted credentials for ServiceNow and Git integrations
+// Stores encrypted credentials for ITSM and Git integrations
 
 model IntegrationSetting {
   id        String   @id @default(uuid())

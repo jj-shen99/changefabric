@@ -1,9 +1,9 @@
 /**
- * Tests for ServiceNow import functionality
+ * Tests for ITSM import functionality
  * @jest-environment node
  */
 
-describe("ServiceNow Import", () => {
+describe("ITSM Import", () => {
   describe("Table API endpoint", () => {
     it("uses the correct change_request table", () => {
       const instance = "https://test.itsm.example.com";
@@ -33,7 +33,7 @@ describe("ServiceNow Import", () => {
   });
 
   describe("State mapping", () => {
-    const serviceNowStates = [
+    const itsmStates = [
       "New",
       "Assess",
       "Authorize",
@@ -44,17 +44,17 @@ describe("ServiceNow Import", () => {
       "Canceled",
     ];
 
-    it("ServiceNow states are recognized", () => {
-      serviceNowStates.forEach((state) => {
+    it("ITSM states are recognized", () => {
+      itsmStates.forEach((state) => {
         expect(typeof state).toBe("string");
         expect(state.length).toBeGreaterThan(0);
       });
     });
 
-    it("ServiceNow states can be normalized", () => {
+    it("ITSM states can be normalized", () => {
       const normalizeState = (s: string) => s.toLowerCase().replace(/\s+/g, "_");
       
-      serviceNowStates.forEach((state) => {
+      itsmStates.forEach((state) => {
         const normalized = normalizeState(state);
         expect(normalized).toBe(normalized.toLowerCase());
         expect(normalized).not.toContain(" ");
@@ -63,14 +63,14 @@ describe("ServiceNow Import", () => {
   });
 
   describe("External source tracking", () => {
-    it("ServiceNow imports have externalSource set", () => {
+    it("External imports have externalSource set", () => {
       const importedCR = {
         number: "CHG0000001",
-        externalSource: "servicenow",
+        externalSource: "itsm",
         externalId: "abc123",
       };
 
-      expect(importedCR.externalSource).toBe("servicenow");
+      expect(importedCR.externalSource).toBe("itsm");
       expect(importedCR.externalId).toBeTruthy();
     });
 
@@ -89,7 +89,7 @@ describe("ServiceNow Import", () => {
       const isExternalImport = (cr: { externalSource?: string | null }) => 
         cr.externalSource && cr.externalSource !== "native";
 
-      expect(isExternalImport({ externalSource: "servicenow" })).toBe(true);
+      expect(isExternalImport({ externalSource: "itsm" })).toBe(true);
       expect(isExternalImport({ externalSource: "" })).toBeFalsy();
       expect(isExternalImport({ externalSource: null })).toBeFalsy();
       expect(isExternalImport({ externalSource: "native" })).toBeFalsy();
@@ -122,7 +122,7 @@ describe("Import API Response", () => {
     it("includes import statistics", () => {
       const successResponse = {
         success: true,
-        message: "Imported 10 change requests from ServiceNow",
+        message: "Imported 10 change requests from external ITSM",
         imported: 10,
         errors: 0,
         total: 10,
@@ -137,7 +137,7 @@ describe("Import API Response", () => {
     it("handles partial success", () => {
       const partialResponse = {
         success: true,
-        message: "Imported 8 change requests from ServiceNow",
+        message: "Imported 8 change requests from external ITSM",
         imported: 8,
         errors: 2,
         total: 10,
@@ -155,7 +155,7 @@ describe("Import API Response", () => {
     it("handles no CRs found", () => {
       const emptyResponse = {
         success: true,
-        message: "No change requests found in ServiceNow instance",
+        message: "No change requests found in ITSM instance",
         imported: 0,
       };
 
@@ -167,7 +167,7 @@ describe("Import API Response", () => {
   describe("Error response", () => {
     it("returns error for invalid credentials", () => {
       const errorResponse = {
-        error: "ServiceNow API 401: Unauthorized",
+        error: "ITSM API 401: Unauthorized",
       };
 
       expect(errorResponse.error).toContain("401");
@@ -175,7 +175,7 @@ describe("Import API Response", () => {
 
     it("returns error for HTML response (SSO redirect)", () => {
       const errorResponse = {
-        error: "ServiceNow returned HTML instead of JSON. The instance may require SSO authentication or the REST API may not be enabled.",
+        error: "ITSM returned HTML instead of JSON. The instance may require SSO authentication or the REST API may not be enabled.",
       };
 
       expect(errorResponse.error).toContain("HTML");

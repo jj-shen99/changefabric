@@ -364,7 +364,7 @@ function ImpactPageContent() {
 
   return (
     <>
-      <PageHeader title="Impact Analysis" subtitle="Computed impact scores from ServiceNow fields — click a row for details, adjust weights for what-if analysis" />
+      <PageHeader title="Impact Analysis" subtitle="Computed impact scores from change request fields — click a row for details, adjust weights for what-if analysis" />
     <div className="space-y-6 p-4 md:p-6">
 
       {/* ═══ Tabs + Save/Load Buttons ═══ */}
@@ -583,7 +583,7 @@ function ImpactPageContent() {
                     <button onClick={() => setWeightsOpen(!weightsOpen)} className="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900">{weightsOpen ? "▲ Collapse" : "▼ Expand"}</button>
                   </div>
                 </div>
-                <CardDescription className="text-sm">Overall = Σ (dimension_score × weight). Each dimension is scored 0–100 based on ServiceNow field values.</CardDescription>
+                <CardDescription className="text-sm">Overall = Σ (dimension_score × weight). Each dimension is scored 0–100 based on change request field values.</CardDescription>
               </CardHeader>
               {weightsOpen && (<>
                 <div className="rounded-lg bg-white dark:bg-gray-900 border border-blue-100 dark:border-blue-900 p-5 space-y-4">
@@ -775,7 +775,7 @@ function ImpactPageContent() {
                             })}
                           </div>
                         </Card>
-                        {/* ── Change Details (ServiceNow fields) ── */}
+                        {/* ── Change Details (CR fields) ── */}
                         <Card>
                           <CardHeader><CardTitle className="text-sm flex items-center gap-2"><FileText className="h-4 w-4 text-teal-500" />Change Details — {selectedPlan.cr.number}</CardTitle></CardHeader>
                           <div className="space-y-1 text-sm px-1">

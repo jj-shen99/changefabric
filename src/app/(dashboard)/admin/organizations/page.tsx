@@ -232,7 +232,7 @@ export default function OrganizationsPage() {
                   </div>
                   {org.snowInstance && (
                     <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      <span className="font-medium">ServiceNow:</span> {org.snowInstance}
+                      <span className="font-medium">ITSM:</span> {org.snowInstance}
                       {org.snowLastSyncAt && (
                         <span className="ml-2">
                           Last sync: {new Date(org.snowLastSyncAt).toLocaleString()}

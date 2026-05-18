@@ -303,7 +303,7 @@ export default function OverviewPage() {
 
             {/* Priority Distribution */}
             <Card>
-              <CardHeader><CardTitle className="flex items-center gap-2"><Gauge className="h-4 w-4 text-amber-500" /> Priority Distribution</CardTitle><CardDescription>CRs by ServiceNow priority level</CardDescription></CardHeader>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Gauge className="h-4 w-4 text-amber-500" /> Priority Distribution</CardTitle><CardDescription>CRs by priority level</CardDescription></CardHeader>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={prioData}>

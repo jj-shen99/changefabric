@@ -6,7 +6,7 @@ import { syncChangeRequests } from "@/lib/integrations/servicenow";
 /**
  * GET /api/cron/snow-sync
  * 
- * Cron endpoint to automatically sync change requests from ServiceNow.
+ * Cron endpoint to automatically sync change requests from external ITSM.
  * This should be called by an external scheduler (e.g., cron job, Vercel cron, etc.)
  * 
  * Security: Requires CRON_SECRET header to match the CRON_SECRET env var.
@@ -169,11 +169,11 @@ export async function GET(request: Request) {
 /**
  * POST /api/cron/snow-sync
  * 
- * Manually trigger sync using saved ServiceNow credentials.
+ * Manually trigger sync using saved ITSM credentials.
  * Finds any organization with saved credentials and syncs.
  */
 export async function POST() {
-  // Find any org with saved ServiceNow credentials
+  // Find any org with saved ITSM credentials
   const org = await prisma.organization.findFirst({
     where: {
       snowInstance: { not: null },
@@ -193,7 +193,7 @@ export async function POST() {
 
   if (!org) {
     return NextResponse.json(
-      { error: "ServiceNow credentials not configured. Please set up credentials first." },
+      { error: "ITSM credentials not configured. Please set up credentials first." },
       { status: 400 }
     );
   }
@@ -201,7 +201,7 @@ export async function POST() {
   // Credentials already validated by the query - just double-check
   if (!org.snowInstance || !org.snowUsername || !org.snowPassword) {
     return NextResponse.json(
-      { error: "ServiceNow credentials not configured. Please set up credentials first." },
+      { error: "ITSM credentials not configured. Please set up credentials first." },
       { status: 400 }
     );
   }

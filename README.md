@@ -47,7 +47,7 @@ A full-stack **software change validation and release impact analysis dashboard*
 - **Role Hierarchy** — Super Admin > Admin > Manager > Approver/Implementer > Requester
 - **Multi-Tenancy** — Organization-based data isolation (see [MULTI_TENANCY.md](docs/MULTI_TENANCY.md))
 - **Per-user data isolation** — non-admin users only see their own synced change requests and analyses
-- **Per-user credential storage** — each user saves their own ServiceNow/Git credentials (AES-256-GCM encrypted)
+- **Per-user credential storage** — each user saves their own ITSM/Git credentials (AES-256-GCM encrypted)
 - **Role-based UI gating** — sidebar items, CRUD buttons, and pages hidden based on permissions
 - User avatar, role badge, and sign-out in sidebar
 
@@ -341,7 +341,7 @@ src/
 │   ├── constants.ts          # App-wide constants
 │   ├── crypto.ts             # AES-256-GCM encryption/decryption
 │   ├── prisma.ts             # Prisma client singleton
-│   ├── servicenow.ts         # ServiceNow sync client
+│   ├── servicenow.ts         # External ITSM sync client
 │   └── utils.ts              # Utility functions
 ├── __tests__/                # Additional test suites
 │   ├── api/                  # API route tests

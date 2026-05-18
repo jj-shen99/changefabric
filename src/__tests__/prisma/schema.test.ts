@@ -100,7 +100,7 @@ describe("Prisma Schema - Organization Model", () => {
     });
   });
 
-  describe("ServiceNow Integration Fields", () => {
+  describe("External ITSM Integration Fields", () => {
     it("snowInstance can be null or string", () => {
       const orgWithoutSnow = createMockOrg();
       expect(orgWithoutSnow.snowInstance).toBeNull();
@@ -409,10 +409,10 @@ describe("Prisma Schema - ChangeRequest Model", () => {
 
     it("imported CRs have externalSource set", () => {
       const cr = createMockCR({
-        externalSource: "servicenow",
+        externalSource: "external_itsm",
         externalId: "sys_id_12345",
       });
-      expect(cr.externalSource).toBe("servicenow");
+      expect(cr.externalSource).toBe("external_itsm");
       expect(cr.externalId).toBe("sys_id_12345");
     });
   });

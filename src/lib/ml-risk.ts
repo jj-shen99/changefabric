@@ -6,7 +6,7 @@
  * in a deployment failure or rollback.
  *
  * The model is a logistic regression with handcrafted features
- * derived from ServiceNow change-request fields. Coefficients
+ * derived from change-request fields. Coefficients
  * were calibrated against historical change outcomes (treated
  * as model "training" — see scripts/train-risk-model.ts).
  *
@@ -27,7 +27,7 @@ export interface ChangeRequestFeatures {
   urgency?: string;
   /** "Very High" | "High" | "Moderate" | "Low" | "None". */
   risk?: string;
-  /** "1 - High" | "2 - Medium" | "3 - Low" — ServiceNow impact. */
+  /** "1 - High" | "2 - Medium" | "3 - Low" — ITSM impact. */
   impact?: string;
   /** "Large" | "Medium" | "Small". */
   scope?: string;

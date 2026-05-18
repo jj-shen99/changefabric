@@ -5,7 +5,7 @@ import { syncChangeRequests } from "@/lib/integrations/servicenow";
 
 /**
  * POST /api/admin/import-cr
- * Import change requests from ServiceNow (admin only, requires enableCRImport setting)
+ * Import change requests from external ITSM (admin only, requires enableCRImport setting)
  */
 export async function POST(request: Request) {
   const ctx = await requireSession();
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   const { instance, user, password, days } = body;
 
   if (!instance || !user || !password) {
-    return badRequest("ServiceNow instance URL, username, and password are required");
+    return badRequest("ITSM instance URL, username, and password are required");
   }
 
   // Validate instance URL format - must be a valid URL with https
@@ -79,8 +79,8 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
-    console.error("ServiceNow import error:", err);
-    const message = err instanceof Error ? err.message : "Failed to import from ServiceNow";
+    console.error("ITSM import error:", err);
+    const message = err instanceof Error ? err.message : "Failed to import from ITSM";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

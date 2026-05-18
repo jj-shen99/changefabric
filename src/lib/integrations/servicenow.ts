@@ -1,5 +1,5 @@
 /**
- * ServiceNow change_request sync logic.
+ * External ITSM change_request sync logic.
  * Shared by the CLI import script and the /api/sync route.
  */
 
@@ -8,12 +8,12 @@ import { getSecret } from "@/lib/crypto";
 
 /* ─── Configuration ─── */
 const PAGE_SIZE = 100;
-// ServiceNow credentials must be set via environment variables
+// ITSM credentials must be set via environment variables
 function snowInstance() { return getSecret("SNOW_INSTANCE"); }
 function snowUser() { return getSecret("SNOW_USER"); }
 function snowPassword() { return getSecret("SNOW_PASSWORD"); }
 
-/** Extract display_value from a ServiceNow reference field (string | { display_value, link } | null) */
+/** Extract display_value from an ITSM reference field (string | { display_value, link } | null) */
 function displayVal(field: unknown): string {
   if (!field) return "";
   if (typeof field === "string") return field;
@@ -23,10 +23,10 @@ function displayVal(field: unknown): string {
   return "";
 }
 
-/** Map ServiceNow state values to our workflow states */
-function mapServiceNowState(snState: string): string {
+/** Map external ITSM state values to our workflow states */
+function mapItsmState(snState: string): string {
   const stateMap: Record<string, string> = {
-    // ServiceNow standard states
+    // External ITSM standard states
     "new": "draft",
     "draft": "draft",
     "assess": "awaiting_approval",
@@ -37,7 +37,7 @@ function mapServiceNowState(snState: string): string {
     "closed": "closed",
     "canceled": "closed",
     "cancelled": "closed",
-    // Numeric states (ServiceNow uses -5 to 3)
+    // Numeric states (ITSM uses -5 to 3)
     "-5": "draft",      // New
     "-4": "awaiting_approval", // Assess
     "-3": "awaiting_approval", // Authorize
@@ -51,8 +51,8 @@ function mapServiceNowState(snState: string): string {
   return stateMap[normalized] || "draft";
 }
 
-/** Map ServiceNow approval values to our approval states */
-function mapServiceNowApproval(snApproval: string): string {
+/** Map external ITSM approval values to our approval states */
+function mapItsmApproval(snApproval: string): string {
   const approvalMap: Record<string, string> = {
     "not requested": "not_requested",
     "not yet requested": "not_requested",
@@ -66,7 +66,7 @@ function mapServiceNowApproval(snApproval: string): string {
   return approvalMap[normalized] || "not_requested";
 }
 
-/* ─── Fetch from ServiceNow ─── */
+/* ─── Fetch from External ITSM ─── */
 
 export interface SyncOptions {
   days?: number;
@@ -120,9 +120,9 @@ export async function fetchChangeRequests(options?: SyncOptions): Promise<Record
       const text = await res.text();
       // Check if we got HTML back (login page redirect)
       if (text.includes("<!DOCTYPE") || text.includes("<html")) {
-        throw new Error(`ServiceNow returned HTML instead of JSON. The instance may require SSO authentication or the REST API may not be enabled.`);
+        throw new Error(`ITSM returned HTML instead of JSON. The instance may require SSO authentication or the REST API may not be enabled.`);
       }
-      throw new Error(`ServiceNow API ${res.status}: ${text.slice(0, 200)}`);
+      throw new Error(`ITSM API ${res.status}: ${text.slice(0, 200)}`);
     }
 
     // Check content type to ensure we got JSON
@@ -130,9 +130,9 @@ export async function fetchChangeRequests(options?: SyncOptions): Promise<Record
     if (!contentType.includes("application/json")) {
       const text = await res.text();
       if (text.includes("<!DOCTYPE") || text.includes("<html")) {
-        throw new Error(`ServiceNow returned HTML instead of JSON. The instance may require SSO authentication or the REST API may not be enabled.`);
+        throw new Error(`ITSM returned HTML instead of JSON. The instance may require SSO authentication or the REST API may not be enabled.`);
       }
-      throw new Error(`ServiceNow returned unexpected content type: ${contentType}`);
+      throw new Error(`ITSM returned unexpected content type: ${contentType}`);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -214,8 +214,8 @@ export async function syncChangeRequests(
       const row = toRow(rec);
       const num = row.number;
 
-      // Map ServiceNow's flat row → the new generic ChangeRequest schema.
-      // ServiceNow's `risk` ("low"/"moderate"/"high"/"very high") maps
+      // Map ITSM's flat row → the new generic ChangeRequest schema.
+      // ITSM's `risk` ("low"/"moderate"/"high"/"very high") maps
       // directly; impact/priority are kept as their numeric character.
       const riskLevel = (row.risk || "moderate").toLowerCase().includes("very high")
         ? "very_high"
@@ -228,10 +228,10 @@ export async function syncChangeRequests(
       const generic = {
         number: num,
         externalId: row.sys_id || null,
-        externalSource: "servicenow",
+        externalSource: "itsm",
         workflowKey: "standard",
         orgId: options?.orgId || "demo",
-        title: row.short_description || `Imported from ServiceNow (${num})`,
+        title: row.short_description || `Imported from ITSM (${num})`,
         description: row.description || "",
         type: (row.type || "standard").toLowerCase(),
         category: row.category || "other",
@@ -239,8 +239,8 @@ export async function syncChangeRequests(
         riskLevel,
         impactLevel: (row.impact || "3").toString().match(/[1-3]/)?.[0] || "3",
         urgency: (row.urgency || "3").toString().match(/[1-3]/)?.[0] || "3",
-        state: mapServiceNowState(row.state),
-        approvalState: mapServiceNowApproval(row.approval),
+        state: mapItsmState(row.state),
+        approvalState: mapItsmApproval(row.approval),
         justification: row.justification || "",
         implementationPlan: row.implementation_plan || "",
         backoutPlan: row.backout_plan || "",
@@ -256,8 +256,8 @@ export async function syncChangeRequests(
         configurationItem: row.cmdb_ci || null,
         businessService: row.business_service || null,
         affectedServices: JSON.stringify([]),
-        tags: JSON.stringify(["imported", "servicenow"]),
-        createdBy: syncedBy || row.opened_by || "servicenow",
+        tags: JSON.stringify(["imported", "itsm"]),
+        createdBy: syncedBy || row.opened_by || "itsm",
       };
 
       await prisma.changeRequest.upsert({

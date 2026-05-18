@@ -924,7 +924,7 @@ function generateCombinedReport(analysis: { name: string; description?: string; 
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
           ${generatePieChart(riskDistribution, "Impact Score Distribution", 180)}
-          ${generatePieChart(snRiskData, "ServiceNow Risk Levels", 180)}
+          ${generatePieChart(snRiskData, "ITSM Risk Levels", 180)}
         </div>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">

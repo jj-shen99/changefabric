@@ -61,7 +61,7 @@ const ALL_PAGES: PageDefinition[] = [
   
   // ── Settings Section ──
   { path: "/settings/users", label: "User Management", description: "Admin user management" },
-  { path: "/settings/integrations", label: "Integrations", description: "ServiceNow and Git integrations" },
+  { path: "/settings/integrations", label: "Integrations", description: "ITSM and Git integrations" },
   { path: "/settings/account", label: "Account", description: "User account settings" },
 ];
 

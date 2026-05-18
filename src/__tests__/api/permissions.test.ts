@@ -93,7 +93,7 @@ describe("State Normalization", () => {
   // Test the normalizeState function logic
   const normalizeState = (state: string) => state.toLowerCase().replace(/\s+/g, "_");
 
-  describe("normalizes ServiceNow states", () => {
+  describe("normalizes external ITSM states", () => {
     it("normalizes 'New' to 'new'", () => {
       expect(normalizeState("New")).toBe("new");
     });
@@ -162,16 +162,16 @@ describe("KPI State Categorization", () => {
       expect(pendingStates).toContain("draft");
       expect(pendingStates).toContain("submitted");
       expect(pendingStates).toContain("awaiting_approval");
-      // ServiceNow pending states
+      // External ITSM pending states
       expect(pendingStates).toContain("new");
       expect(pendingStates).toContain("authorize");
     });
 
-    it("correctly categorizes ServiceNow 'New' as pending", () => {
+    it("correctly categorizes external 'New' as pending", () => {
       expect(pendingStates.includes(normalizeState("New"))).toBe(true);
     });
 
-    it("correctly categorizes ServiceNow 'Authorize' as pending", () => {
+    it("correctly categorizes external 'Authorize' as pending", () => {
       expect(pendingStates.includes(normalizeState("Authorize"))).toBe(true);
     });
   });
@@ -182,15 +182,15 @@ describe("KPI State Categorization", () => {
       expect(inFlightStates).toContain("approved");
       expect(inFlightStates).toContain("scheduled");
       expect(inFlightStates).toContain("implemented");
-      // ServiceNow in-flight states
+      // External ITSM in-flight states
       expect(inFlightStates).toContain("implement");
     });
 
-    it("correctly categorizes ServiceNow 'Implement' as in-flight", () => {
+    it("correctly categorizes external 'Implement' as in-flight", () => {
       expect(inFlightStates.includes(normalizeState("Implement"))).toBe(true);
     });
 
-    it("correctly categorizes ServiceNow 'Scheduled' as in-flight", () => {
+    it("correctly categorizes external 'Scheduled' as in-flight", () => {
       expect(inFlightStates.includes(normalizeState("Scheduled"))).toBe(true);
     });
   });
@@ -200,7 +200,7 @@ describe("KPI State Categorization", () => {
       expect(closedStates.includes(normalizeState("closed"))).toBe(true);
     });
 
-    it("correctly categorizes ServiceNow 'Closed' as closed", () => {
+    it("correctly categorizes external 'Closed' as closed", () => {
       expect(closedStates.includes(normalizeState("Closed"))).toBe(true);
     });
   });
@@ -218,7 +218,7 @@ describe("KPI State Categorization", () => {
       expect(terminalStates.includes(normalizeState("rolled_back"))).toBe(true);
     });
 
-    it("correctly categorizes ServiceNow 'Canceled' as terminal", () => {
+    it("correctly categorizes external 'Canceled' as terminal", () => {
       expect(terminalStates.includes(normalizeState("Canceled"))).toBe(true);
     });
   });

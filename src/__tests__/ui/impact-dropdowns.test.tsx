@@ -151,7 +151,7 @@ describe("Impact Page State Dropdown", () => {
       expect(ordered[ordered.length - 1]).toBe("custom_state");
     });
 
-    it("should handle ServiceNow legacy states", () => {
+    it("should handle external ITSM legacy states", () => {
       const withLegacy = ["draft", "new", "implement", "submitted"];
       const ordered = sortStates(withLegacy);
       // Standard states first, then unknown

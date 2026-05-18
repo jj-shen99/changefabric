@@ -1,10 +1,10 @@
 /**
- * Tests for ServiceNow Import Modal behavior
+ * Tests for ITSM Import Modal behavior
  * Validates modal closes after successful import
  */
 import "@testing-library/jest-dom";
 
-describe("ServiceNow Import Modal", () => {
+describe("ITSM Import Modal", () => {
   describe("Modal State Management", () => {
     interface ImportState {
       showModal: boolean;

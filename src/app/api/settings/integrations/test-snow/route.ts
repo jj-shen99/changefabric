@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// POST - Test ServiceNow connection (admin only)
+// POST - Test ITSM connection (admin only)
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session) {
