@@ -38,6 +38,7 @@ interface AvailableRole {
 
 interface Organization {
   id: string;
+  orgId: string;
   name: string;
   description: string | null;
   isActive: boolean;
@@ -599,8 +600,8 @@ export default function UserManagementPage() {
                 >
                   <option value="">Select organization...</option>
                   {organizations.map((org) => (
-                    <option key={org.id} value={org.id}>
-                      {org.name}
+                    <option key={org.id} value={org.orgId}>
+                      {org.name} ({org.orgId})
                     </option>
                   ))}
                 </select>

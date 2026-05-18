@@ -20,6 +20,7 @@ export async function GET() {
     const orgs = await prisma.organization.findMany({
       select: {
         id: true,
+        orgId: true,
         name: true,
         description: true,
         isActive: true,

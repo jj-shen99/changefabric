@@ -4,6 +4,22 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// GET /api/auth/account — get current user session info (for debugging)
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+  
+  return NextResponse.json({
+    email: session.user.email,
+    name: session.user.name,
+    orgId: session.user.orgId,
+    isSuperAdmin: session.user.isSuperAdmin,
+    roles: session.user.roles,
+  });
+}
+
 // PUT /api/auth/account — update email or password for the logged-in user
 export async function PUT(request: Request) {
   try {

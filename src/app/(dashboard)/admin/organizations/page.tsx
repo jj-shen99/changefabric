@@ -8,7 +8,6 @@ import {
   Plus,
   Users,
   FileText,
-  Settings,
   Trash2,
   Edit,
   X,
@@ -21,11 +20,17 @@ interface Organization {
   name: string;
   description: string;
   isActive: boolean;
+  enableCRImport: boolean;
+  snowInstance: string | null;
+  snowSyncEnabled: boolean;
+  snowSyncIntervalHours: number;
+  snowSyncDays: number;
+  snowLastSyncAt: string | null;
+  snowLastSyncBy: string | null;
   createdAt: string;
+  updatedAt: string;
   userCount?: number;
   crCount?: number;
-  serviceCount?: number;
-  groupCount?: number;
 }
 
 export default function OrganizationsPage() {
@@ -205,7 +210,7 @@ export default function OrganizationsPage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                     {org.description || "No description"}
                   </p>
-                  <div className="flex items-center gap-4 mt-3 text-sm text-gray-600 dark:text-gray-300">
+                  <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-600 dark:text-gray-300">
                     <span className="flex items-center gap-1">
                       <Users className="h-4 w-4" />
                       {org.userCount || 0} users
@@ -214,11 +219,28 @@ export default function OrganizationsPage() {
                       <FileText className="h-4 w-4" />
                       {org.crCount || 0} CRs
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Settings className="h-4 w-4" />
-                      {org.serviceCount || 0} services
-                    </span>
+                    {org.enableCRImport && (
+                      <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded">
+                        CR Import Enabled
+                      </span>
+                    )}
+                    {org.snowSyncEnabled && (
+                      <span className="px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 rounded">
+                        Auto-Sync
+                      </span>
+                    )}
                   </div>
+                  {org.snowInstance && (
+                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      <span className="font-medium">ServiceNow:</span> {org.snowInstance}
+                      {org.snowLastSyncAt && (
+                        <span className="ml-2">
+                          Last sync: {new Date(org.snowLastSyncAt).toLocaleString()}
+                          {org.snowLastSyncBy && ` by ${org.snowLastSyncBy}`}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">

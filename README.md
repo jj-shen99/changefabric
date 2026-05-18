@@ -239,6 +239,7 @@ This loads all closed CRs from the DB, computes the Brier score, and prints cali
 
 | Email | Password | Role |
 |---|---|---|
+| `superadmin@example.com` | `superadmin123!` | Super Admin |
 | `admin@example.com` | `admin123!` | Admin |
 | `mike@example.com` | `manager123!` | Manager |
 | `lisa@example.com` | `manager123!` | Manager |

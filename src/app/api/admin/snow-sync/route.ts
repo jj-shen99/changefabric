@@ -158,12 +158,16 @@ export async function PUT(request: Request) {
     }
 
     // Use upsert to create org if it doesn't exist
+    // Try to get a proper name from the user's session or use a default
+    const orgName = ctx.orgId.includes("-") && ctx.orgId.length > 30 
+      ? "Imported Organization" 
+      : ctx.orgId;
     const updated = await prisma.organization.upsert({
       where: { orgId: ctx.orgId },
       update: updateData,
       create: {
         orgId: ctx.orgId,
-        name: ctx.orgId,
+        name: orgName,
         ...updateData,
       },
       select: {

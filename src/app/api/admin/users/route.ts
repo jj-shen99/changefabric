@@ -32,9 +32,8 @@ export async function GET() {
   }
 
   const currentUserRoles = auth.session.user?.roles as string[] | undefined;
-  const isCurrentUserAdmin = currentUserRoles?.includes("admin");
-
   const isSuperAdmin = auth.session.user?.isSuperAdmin || false;
+  const isCurrentUserAdmin = isSuperAdmin || currentUserRoles?.includes("admin");
   const userOrgId = auth.session.user?.orgId || "demo";
 
   const users = await prisma.user.findMany({
@@ -61,11 +60,11 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
-  // Get all org names for mapping
+  // Get all org names for mapping (use orgId, not id)
   const orgs = await prisma.organization.findMany({
-    select: { id: true, name: true },
+    select: { orgId: true, name: true },
   });
-  const orgMap = new Map(orgs.map(o => [o.id, o.name]));
+  const orgMap = new Map(orgs.map(o => [o.orgId, o.name]));
 
   // Filter out admin users for non-admin viewers
   const filteredUsers = isCurrentUserAdmin 
@@ -124,8 +123,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "A user with this email already exists" }, { status: 400 });
     }
 
-    // Verify org exists
-    const org = await prisma.organization.findUnique({ where: { id: orgId } });
+    // Verify org exists (orgId is the unique identifier, not id)
+    const org = await prisma.organization.findUnique({ where: { orgId } });
     if (!org) {
       return NextResponse.json({ error: "Organization not found" }, { status: 400 });
     }
@@ -135,6 +134,42 @@ export async function POST(request: Request) {
     const tempPassword = `temp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const bcrypt = await import("bcryptjs");
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    // Ensure default groups exist for the org
+    const existingGroups = await prisma.group.count({ where: { orgId } });
+    if (existingGroups === 0) {
+      const defaultGroupNames = [
+        { name: "Change Advisory Board", description: "Reviews and approves change requests", type: "approver" },
+        { name: "IT Operations", description: "Implements and monitors changes", type: "assignment" },
+        { name: "Development Team", description: "Develops and tests changes", type: "assignment" },
+        { name: "Security Team", description: "Reviews security implications", type: "approver" },
+        { name: "Infrastructure Team", description: "Manages infrastructure changes", type: "both" },
+      ];
+      
+      for (const g of defaultGroupNames) {
+        await prisma.group.create({
+          data: { ...g, orgId, createdBy: "system" },
+        });
+      }
+    }
+
+    // Ensure default services exist for the org
+    const existingServices = await prisma.service.count({ where: { orgId } });
+    if (existingServices === 0) {
+      const defaultServiceNames = [
+        { name: "core-app", displayName: "Core Application", description: "Main business application", category: "application" },
+        { name: "database", displayName: "Database Services", description: "Database infrastructure", category: "database" },
+        { name: "network", displayName: "Network Services", description: "Network infrastructure", category: "network" },
+        { name: "security", displayName: "Security Services", description: "Security infrastructure", category: "security" },
+        { name: "cloud", displayName: "Cloud Infrastructure", description: "Cloud platform services", category: "infrastructure" },
+      ];
+      
+      for (const s of defaultServiceNames) {
+        await prisma.service.create({
+          data: { ...s, orgId, createdBy: "system" },
+        });
+      }
+    }
 
     // Create user with optional roles
     const user = await prisma.user.create({

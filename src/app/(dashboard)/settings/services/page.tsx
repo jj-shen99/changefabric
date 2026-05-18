@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Pencil, Trash2, Server, AlertTriangle, CheckCircle2, Search, Download, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Server, AlertTriangle, CheckCircle2, Search, Download, Loader2, Check } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/card";
 import { PageHeader } from "@/components/page-header";
 
@@ -50,6 +50,7 @@ export default function ServicesPage() {
     isActive: true,
   });
   const [importing, setImporting] = useState(false);
+  const [hasDefaults, setHasDefaults] = useState(false);
 
   const fetchServices = async () => {
     try {
@@ -57,6 +58,12 @@ export default function ServicesPage() {
       if (!res.ok) throw new Error("Failed to fetch services");
       const data = await res.json();
       setServices(data);
+      
+      // Check if default services already exist
+      const defaultNames = ["api-gateway", "database", "web-app", "auth-service", "cache"];
+      const existingNames = new Set(data.map((s: Service) => s.name.toLowerCase()));
+      const hasAllDefaults = defaultNames.filter(n => existingNames.has(n)).length >= 3;
+      setHasDefaults(hasAllDefaults);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
@@ -180,11 +187,12 @@ export default function ServicesPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={importDefaults}
-              disabled={importing}
-              className="flex items-center gap-2 rounded-lg border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 disabled:opacity-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-950"
+              disabled={importing || hasDefaults}
+              title={hasDefaults ? "Default services already imported" : "Import default services"}
+              className="flex items-center gap-2 rounded-lg border border-blue-600 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-950"
             >
-              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Import Defaults
+              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : hasDefaults ? <Check className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+              {hasDefaults ? "Defaults Imported" : "Import Defaults"}
             </button>
             <button
               onClick={() => setShowForm(true)}

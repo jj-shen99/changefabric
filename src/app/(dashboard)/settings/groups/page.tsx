@@ -37,6 +37,7 @@ export default function GroupsPage() {
 
   // Import state
   const [importing, setImporting] = useState(false);
+  const [hasDefaults, setHasDefaults] = useState(false);
   
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,7 +61,14 @@ export default function GroupsPage() {
       const groupsRes = await fetch("/api/admin/groups");
       if (!groupsRes.ok) throw new Error("Failed to load groups");
       const groupsData = await groupsRes.json();
-      setGroups(groupsData.groups || []);
+      const loadedGroups = groupsData.groups || [];
+      setGroups(loadedGroups);
+      
+      // Check if default groups already exist (CAB, DevOps, etc.)
+      const defaultNames = ["admin", "cab", "database", "devops", "engineering", "infrastructure"];
+      const existingNames = new Set(loadedGroups.map((g: Group) => g.name.toLowerCase()));
+      const hasAllDefaults = defaultNames.filter(n => existingNames.has(n)).length >= 4;
+      setHasDefaults(hasAllDefaults);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
@@ -224,11 +232,12 @@ export default function GroupsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={importDefaults}
-              disabled={importing}
-              className="inline-flex items-center gap-2 rounded-lg border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 dark:border-indigo-400 dark:text-indigo-400 dark:hover:bg-indigo-950"
+              disabled={importing || hasDefaults}
+              title={hasDefaults ? "Default groups already imported" : "Import default groups"}
+              className="inline-flex items-center gap-2 rounded-lg border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-indigo-400 dark:text-indigo-400 dark:hover:bg-indigo-950"
             >
-              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Import Defaults
+              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : hasDefaults ? <Check className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+              {hasDefaults ? "Defaults Imported" : "Import Defaults"}
             </button>
             <button
               onClick={() => setShowForm(!showForm)}
