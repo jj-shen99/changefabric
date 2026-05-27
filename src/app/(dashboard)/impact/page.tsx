@@ -149,8 +149,7 @@ function ImpactPageContent() {
   const searchParams = useSearchParams();
   const crParam = searchParams.get("cr");
   
-  const [days] = useState(7);
-  const { changeRequests, loading, error } = useData(days);
+  const { changeRequests, loading, error } = useData();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedCR, _setSelectedCR] = useState<string | null>(null);
   const [weights, setWeights] = useState<Weights>({ ...DEFAULT_WEIGHTS });

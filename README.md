@@ -6,7 +6,7 @@ A full-stack **enterprise change management and release impact analysis platform
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8?logo=tailwindcss)
 ![Prisma](https://img.shields.io/badge/Prisma-6.x-2D3748?logo=prisma)
-![Tests](https://img.shields.io/badge/Tests-500+-green)
+![Tests](https://img.shields.io/badge/Tests-1900+-green)
 
 ## Overview
 
@@ -164,13 +164,15 @@ npm test -- --watch
 ```
 
 ### Test Coverage
-- **500+ tests** covering:
+- **1900+ tests** covering:
   - API routes and endpoints
   - Core business logic and workflows
   - UI components and interactions
   - Prisma schema validation
   - Settings and configuration
   - Integration logic
+  - Security regression tests
+  - Data pipeline and filtering
 
 ## API Endpoints
 
@@ -217,6 +219,15 @@ npm test -- --watch
 ## License
 
 This project is proprietary software. All rights reserved.
+
+## Security
+
+- **Authentication** — bcrypt password hashing, JWT sessions, secure cookies in production
+- **Credentials** — AES-256-GCM encryption for stored ITSM/Git credentials
+- **Logging** — Email addresses masked in auth logs, no password validation results logged
+- **API Responses** — `hashedPassword` excluded from all user API responses via Prisma `select`
+- **Environment** — `.env` gitignored, `.env.example` contains only placeholder values
+- **Production Checks** — Warns if `ENCRYPTION_KEY` is not set in production
 
 ## Support
 
