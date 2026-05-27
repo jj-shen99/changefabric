@@ -18,8 +18,11 @@ const PREFIX = "enc:";
 
 /** Derive a 32-byte key from the ENCRYPTION_KEY env var */
 function getKey(): Buffer {
-  const raw = process.env.ENCRYPTION_KEY || "default-dev-key-change-in-production";
-  return createHash("sha256").update(raw).digest();
+  const raw = process.env.ENCRYPTION_KEY;
+  if (!raw && process.env.NODE_ENV === "production") {
+    console.error("[SECURITY] ENCRYPTION_KEY is not set in production! Set a secure 64-char hex key.");
+  }
+  return createHash("sha256").update(raw || "default-dev-key-change-in-production").digest();
 }
 
 /** Encrypt a plaintext string → "enc:<base64>" */

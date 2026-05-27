@@ -18,7 +18,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email and password are required");
         }
 
-        console.log("[AUTH] Login attempt for:", credentials.email);
+        console.log("[AUTH] Login attempt for:", credentials.email.replace(/(.{2}).*(@.*)/, "$1***$2"));
 
         // Fetch user with their roles
         const user = await prisma.user.findUnique({
@@ -33,18 +33,18 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) {
-          console.error("[AUTH] User not found:", credentials.email);
+          console.error("[AUTH] User not found:", credentials.email.replace(/(.{2}).*(@.*)/, "$1***$2"));
           throw new Error("Invalid email or password");
         }
 
-        console.log("[AUTH] User found:", user.email, "roles:", user.userRoles.map(ur => ur.role.name));
+        console.log("[AUTH] User found, roles:", user.userRoles.map(ur => ur.role.name));
 
         const isValid = await bcrypt.compare(
           credentials.password,
           user.hashedPassword
         );
 
-        console.log("[AUTH] Password valid:", isValid);
+        // Do not log password validation result
 
         if (!isValid) {
           throw new Error("Invalid email or password");
