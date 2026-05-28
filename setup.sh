@@ -192,8 +192,21 @@ success "Prisma client ready"
 # ─── 4. Database Setup ──────────────────────────────────────────────
 header "4/7 Database Setup"
 
+# Remove stale SQLite database if it exists but has wrong schema
+# This prevents "already in sync" when tables are actually missing
+DB_URL=$(grep "^DATABASE_URL=" .env 2>/dev/null | cut -d= -f2- | tr -d '"' || true)
+if [[ "$DB_URL" == file:* ]]; then
+  DB_FILE="${DB_URL#file:}"
+  # Resolve relative path from project root
+  [[ "$DB_FILE" == ./* ]] && DB_FILE="${DB_FILE#./}"
+  if [ -f "$DB_FILE" ]; then
+    info "Removing existing SQLite database for clean setup..."
+    rm -f "$DB_FILE" "$DB_FILE-journal"
+  fi
+fi
+
 info "Pushing schema to database..."
-npx prisma db push 2>&1 || fail "prisma db push failed — check DATABASE_URL in .env"
+npx prisma db push --accept-data-loss 2>&1 || fail "prisma db push failed — check DATABASE_URL in .env"
 success "Database schema applied"
 
 # Seed
@@ -201,15 +214,12 @@ if [ "$SKIP_SEED" = false ]; then
   info "Seeding database with demo data..."
   SEED_OK=false
 
-  # Try 1: npx tsx (devDependency)
-  if npx tsx prisma/seed.ts 2>&1; then
+  # Try npm run db:seed (uses package.json → npx tsx prisma/seed.ts)
+  if npm run db:seed 2>&1; then
     SEED_OK=true
-  # Try 2: npm run db:seed (uses package.json script)
-  elif npm run db:seed 2>&1; then
-    SEED_OK=true
-  # Try 3: install tsx globally and retry
+  # Fallback: install tsx globally and retry
   else
-    warn "tsx not found locally — installing globally..."
+    warn "tsx not available — installing globally..."
     npm install -g tsx 2>&1 | tail -1
     if npx tsx prisma/seed.ts 2>&1; then
       SEED_OK=true
@@ -219,7 +229,7 @@ if [ "$SKIP_SEED" = false ]; then
   if [ "$SEED_OK" = true ]; then
     success "Database seeded"
   else
-    warn "Seed failed — run manually after fixing: npx tsx prisma/seed.ts"
+    warn "Seed failed — run manually: npm run db:seed"
   fi
 else
   info "Skipping database seed (--skip-seed)"
