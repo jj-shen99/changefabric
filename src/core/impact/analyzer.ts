@@ -81,9 +81,7 @@ export function analyzeImpact(cr: ChangeRequest): ImpactReport {
   const rollbackComplexity: ImpactReport["rollbackComplexity"] =
     !hasBackoutPlan
       ? "high"
-      : cr.riskLevel === "very_high"
-        ? "critical"
-        : cr.riskLevel === "high"
+      : cr.riskLevel === "high"
           ? "high"
           : cr.riskLevel === "moderate"
             ? "medium"
