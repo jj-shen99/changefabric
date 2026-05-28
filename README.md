@@ -69,26 +69,24 @@ Complete lifecycle management with the following states:
 - npm 9+
 - SQLite (development, zero setup) or PostgreSQL (production)
 
-### Quick Start (Recommended)
+### Quick Start (Production)
 
 ```bash
-# Clone the repository
-git clone <repo-url>
-cd change_management
-
-# One-command setup — installs deps, configures .env, sets up DB, seeds demo data
-./setup.sh
+git clone <repo-url> && cd change_management
+cp .env.example .env      # edit with production values
+./setup.sh                # install → build → db push → seed → start via PM2
 ```
 
-The setup script auto-detects your environment and handles everything. Run `./setup.sh --help` for options.
+The script defaults to **production deployment**: installs deps, builds the app, pushes the DB schema, seeds demo data, and starts via PM2 with health checks.
 
 ### Quick Start Options
 
 ```bash
-./setup.sh                  # Development setup (SQLite, demo data)
-./setup.sh --production     # Production setup (requires .env with PostgreSQL)
+./setup.sh                  # Production deploy (default)
+./setup.sh --dev            # Development mode (SQLite, no build)
 ./setup.sh --skip-seed      # Skip seeding demo data
-./setup.sh --skip-tests     # Skip running test suite
+./setup.sh --skip-tests     # Skip running tests
+./setup.sh --skip-build     # Skip build (use existing .next)
 ./setup.sh --port 4000      # Use a custom port
 ```
 
@@ -97,9 +95,11 @@ The setup script auto-detects your environment and handles everything. Run `./se
 ```bash
 npm install                         # Install dependencies
 cp .env.example .env                # Create environment config
+npx prisma generate                 # Generate Prisma client
 npx prisma db push                  # Apply database schema
 npx tsx prisma/seed.ts              # Seed demo data
-npm run dev                         # Start dev server on port 3600
+npm run build                       # Build production bundle
+npm start                           # Start on port 3600
 ```
 
 The application will be available at `http://localhost:3600`
