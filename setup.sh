@@ -199,11 +199,28 @@ success "Database schema applied"
 # Seed
 if [ "$SKIP_SEED" = false ]; then
   info "Seeding database with demo data..."
-  npx tsx prisma/seed.ts 2>&1 || {
-    warn "Seed failed — you may need to install tsx: npm install -g tsx"
-    npx npx ts-node prisma/seed.ts 2>&1 || warn "Seed failed — run manually: npx tsx prisma/seed.ts"
-  }
-  success "Database seeded"
+  SEED_OK=false
+
+  # Try 1: npx tsx (devDependency)
+  if npx tsx prisma/seed.ts 2>&1; then
+    SEED_OK=true
+  # Try 2: npm run db:seed (uses package.json script)
+  elif npm run db:seed 2>&1; then
+    SEED_OK=true
+  # Try 3: install tsx globally and retry
+  else
+    warn "tsx not found locally — installing globally..."
+    npm install -g tsx 2>&1 | tail -1
+    if npx tsx prisma/seed.ts 2>&1; then
+      SEED_OK=true
+    fi
+  fi
+
+  if [ "$SEED_OK" = true ]; then
+    success "Database seeded"
+  else
+    warn "Seed failed — run manually after fixing: npx tsx prisma/seed.ts"
+  fi
 else
   info "Skipping database seed (--skip-seed)"
 fi
