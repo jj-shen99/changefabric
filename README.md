@@ -66,55 +66,65 @@ Complete lifecycle management with the following states:
 
 ### Prerequisites
 - Node.js 18+
-- PostgreSQL database
-- npm or yarn
+- npm 9+
+- SQLite (development, zero setup) or PostgreSQL (production)
 
-### Installation
+### Quick Start (Recommended)
 
 ```bash
 # Clone the repository
-git clone https://github.com/jj-shen99/change_management.git
+git clone <repo-url>
 cd change_management
 
-# Install dependencies
-npm install
+# One-command setup — installs deps, configures .env, sets up DB, seeds demo data
+./setup.sh
+```
 
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your database URL and secrets
+The setup script auto-detects your environment and handles everything. Run `./setup.sh --help` for options.
 
-# Generate Prisma client
-npx prisma generate
+### Quick Start Options
 
-# Run database migrations
-npx prisma migrate dev
+```bash
+./setup.sh                  # Development setup (SQLite, demo data)
+./setup.sh --production     # Production setup (requires .env with PostgreSQL)
+./setup.sh --skip-seed      # Skip seeding demo data
+./setup.sh --skip-tests     # Skip running test suite
+./setup.sh --port 4000      # Use a custom port
+```
 
-# Seed the database (optional)
-npx prisma db seed
+### Manual Installation
 
-# Start development server
-npm run dev
+```bash
+npm install                         # Install dependencies
+cp .env.example .env                # Create environment config
+npx prisma db push                  # Apply database schema
+npx tsx prisma/seed.ts              # Seed demo data
+npm run dev                         # Start dev server on port 3600
 ```
 
 The application will be available at `http://localhost:3600`
 
+Default login: `admin@example.com` / `admin123!`
+
 ### Environment Variables
 
-```env
-# Database
-DATABASE_URL="postgresql://user:password@localhost:5432/change_management"
+See `.env.example` for the full list. Key variables:
 
-# NextAuth
-NEXTAUTH_SECRET="your-secret-key"
+```env
+# Database (SQLite for dev, PostgreSQL for production)
+DATABASE_PROVIDER="sqlite"
+DATABASE_URL="file:./prisma/dev.db"
+
+# Authentication
+NEXTAUTH_SECRET="<generated-by-setup-script>"
 NEXTAUTH_URL="http://localhost:3600"
 
-# ITSM Integration (optional)
-SNOW_INSTANCE="https://your-instance.service-now.com"
-SNOW_USER="integration_user"
-SNOW_PASSWORD="encrypted_password"
+# Credential Encryption (required for production)
+# ENCRYPTION_KEY=<64-char-hex-string>
 
-# Encryption
-CREDENTIAL_KEY="32-byte-hex-key-for-aes-256-gcm"
+# ITSM Integration (optional)
+# GIT_USER=your-git-username
+# GIT_PASSWORD=your-git-token
 ```
 
 ## Project Structure
@@ -143,7 +153,8 @@ CREDENTIAL_KEY="32-byte-hex-key-for-aes-256-gcm"
 │   │   ├── prisma.ts      # Prisma client
 │   │   └── auth.ts        # Auth configuration
 │   └── __tests__/         # Test suites
-├── scripts/               # Utility scripts
+├── scripts/               # Utility & deploy scripts
+├── setup.sh               # Post-clone setup & deploy script
 └── public/                # Static assets
 ```
 
