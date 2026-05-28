@@ -218,12 +218,10 @@ if [ "$SKIP_SEED" = false ]; then
   if npm run db:seed 2>&1; then
     SEED_OK=true
   # Fallback: install tsx globally and retry
+  elif npm install -g tsx 2>&1 | tail -1 && npx tsx prisma/seed.ts 2>&1; then
+    SEED_OK=true
   else
-    warn "tsx not available — installing globally..."
-    npm install -g tsx 2>&1 | tail -1
-    if npx tsx prisma/seed.ts 2>&1; then
-      SEED_OK=true
-    fi
+    true  # prevent set -e from aborting
   fi
 
   if [ "$SEED_OK" = true ]; then
@@ -242,17 +240,12 @@ if [ "$SKIP_TESTS" = true ]; then
   info "Skipping tests (--skip-tests)"
 else
   info "Executing test suite..."
-  if [ "$MODE" = "production" ]; then
-    npm test -- --passWithNoTests 2>&1 | tail -5
-    TEST_EXIT=${PIPESTATUS[0]:-0}
-    if [ "$TEST_EXIT" -ne 0 ]; then
-      warn "Some tests failed (exit code $TEST_EXIT) — review output above"
-    else
-      success "All tests passed"
-    fi
+  TEST_EXIT=0
+  npm test -- --passWithNoTests 2>&1 | tail -5 || TEST_EXIT=$?
+  if [ "$TEST_EXIT" -ne 0 ]; then
+    warn "Some tests failed (exit code $TEST_EXIT) — deployment continues"
   else
-    npm test -- --passWithNoTests 2>&1 | tail -5 || true
-    success "Tests completed"
+    success "All tests passed"
   fi
 fi
 
