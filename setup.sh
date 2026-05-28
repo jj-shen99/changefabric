@@ -152,6 +152,18 @@ else
   success ".env already exists"
 fi
 
+# Fix legacy DATABASE_URL: "file:./prisma/dev.db" → "file:./dev.db"
+# Prisma CLI resolves "file:./" relative to the prisma/ directory,
+# so "file:./prisma/dev.db" incorrectly resolves to prisma/prisma/dev.db
+if grep -q 'DATABASE_URL="file:./prisma/' .env 2>/dev/null; then
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' 's|DATABASE_URL="file:./prisma/|DATABASE_URL="file:./|' .env
+  else
+    sed -i 's|DATABASE_URL="file:./prisma/|DATABASE_URL="file:./|' .env
+  fi
+  info "Fixed DATABASE_URL: file:./prisma/dev.db → file:./dev.db"
+fi
+
 # Validate required env vars
 source <(grep -v '^#' .env | grep '=' | sed 's/^/export /' 2>/dev/null) 2>/dev/null || true
 
@@ -281,8 +293,8 @@ if [ "$MODE" = "production" ]; then
     pm2 save 2>/dev/null || true
     success "Application started via PM2 on port $PORT"
 
-    # Health check
-    sleep 3
+    # Health check — give Next.js time to start
+    sleep 8
     HEALTH_URL="http://localhost:${PORT}/api/health"
     HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$HEALTH_URL" 2>/dev/null || echo "000")
     if [ "$HTTP_STATUS" = "200" ]; then
