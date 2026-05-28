@@ -86,7 +86,7 @@ export async function GET(request: Request) {
       outageRisk: Math.round(c.computedRiskScore * (0.8 + (c.affectedServices.length * 0.1))),
       performanceRisk: Math.round(c.computedRiskScore * (c.type === "emergency" ? 1.2 : 0.9)),
       functionalityRisk: Math.round(c.computedImpactScore * (c.category === "software" ? 1.1 : 0.95)),
-      securityRisk: Math.round(c.computedRiskScore * (c.riskLevel === "very_high" || c.riskLevel === "high" ? 1.15 : 0.85)),
+      securityRisk: Math.round(c.computedRiskScore * (c.riskLevel === "high" ? 1.15 : 0.85)),
       dataIntegrityRisk: Math.round(c.computedImpactScore * (c.category === "database" ? 1.2 : 0.9)),
       overallRisk: Math.round(c.computedRiskScore),
       affectedServices: c.affectedServices,
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
           ? `${c.plannedStart} – ${c.plannedEnd}`
           : "N/A",
       rollbackComplexity:
-        c.riskLevel === "very_high" || c.riskLevel === "high" ? "high" : c.riskLevel === "moderate" ? "medium" : "low",
+        c.riskLevel === "high" ? "high" : c.riskLevel === "moderate" ? "medium" : "low",
       blastRadius:
         c.affectedServices.length >= 3
           ? "high"
