@@ -194,11 +194,11 @@ header "4/7 Database Setup"
 
 # Remove stale SQLite database if it exists but has wrong schema
 # This prevents "already in sync" when tables are actually missing
+# Prisma CLI resolves "file:./" relative to the prisma/ directory
 DB_URL=$(grep "^DATABASE_URL=" .env 2>/dev/null | cut -d= -f2- | tr -d '"' || true)
-if [[ "$DB_URL" == file:* ]]; then
-  DB_FILE="${DB_URL#file:}"
-  # Resolve relative path from project root
-  [[ "$DB_FILE" == ./* ]] && DB_FILE="${DB_FILE#./}"
+if [[ "$DB_URL" == file:./* ]]; then
+  DB_REL="${DB_URL#file:./}"
+  DB_FILE="prisma/${DB_REL}"
   if [ -f "$DB_FILE" ]; then
     info "Removing existing SQLite database for clean setup..."
     rm -f "$DB_FILE" "$DB_FILE-journal"

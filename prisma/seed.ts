@@ -23,9 +23,10 @@ import {
   type ChangeRequest as CoreCR,
 } from "../src/core";
 
-// Resolve DATABASE_URL to absolute path for seed script
-// DATABASE_URL should be "file:./prisma/dev.db" (relative to project root)
-// Legacy format "file:./dev.db" is also supported (assumes prisma/ folder)
+// Resolve DATABASE_URL to absolute path for seed script.
+// Prisma CLI resolves "file:" URLs relative to the schema directory (prisma/).
+// DATABASE_URL should be "file:./dev.db" which the CLI resolves to prisma/dev.db.
+// This function does the same resolution so the seed script connects to the same DB.
 function resolveDatabaseUrl(): string {
   let url = process.env.DATABASE_URL || "";
   
@@ -42,14 +43,14 @@ function resolveDatabaseUrl(): string {
     url = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
   }
   
-  // Resolve relative SQLite paths to absolute paths
+  // Resolve relative SQLite paths to absolute paths.
+  // Prisma CLI resolves "file:./" relative to the prisma/ directory (where schema.prisma lives).
+  // We must do the same so the seed connects to the exact same database file.
   if (url.startsWith("file:./")) {
-    let relativePath = url.slice(7); // Remove "file:./"
-    // Legacy support: if path doesn't include "prisma/", assume it's relative to prisma/ folder
-    if (!relativePath.startsWith("prisma/") && !relativePath.includes("/prisma/")) {
-      relativePath = `prisma/${relativePath}`;
-    }
-    const absolutePath = path.resolve(process.cwd(), relativePath);
+    const relativePath = url.slice(7); // Remove "file:./"
+    // Resolve relative to prisma/ directory, matching Prisma CLI behavior
+    const schemaDir = path.resolve(process.cwd(), "prisma");
+    const absolutePath = path.resolve(schemaDir, relativePath);
     url = `file:${absolutePath}`;
   }
   

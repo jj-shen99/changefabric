@@ -7,16 +7,14 @@ if (process.env.DATABASE_URL?.startsWith("enc:")) {
   process.env.DATABASE_URL = decrypt(process.env.DATABASE_URL);
 }
 
-// Resolve relative SQLite paths to absolute paths
-// DATABASE_URL should be "file:./prisma/dev.db" (relative to project root)
-// Legacy format "file:./dev.db" is also supported (assumes prisma/ folder)
+// Resolve relative SQLite paths to absolute paths.
+// Prisma CLI resolves "file:./" relative to the prisma/ directory (where schema.prisma lives).
+// We do the same here so the runtime client connects to the same database file.
+// DATABASE_URL should be "file:./dev.db" which resolves to prisma/dev.db.
 if (process.env.DATABASE_URL?.startsWith("file:./")) {
-  let relativePath = process.env.DATABASE_URL.slice(7); // Remove "file:./"
-  // Legacy support: if path doesn't include "prisma/", assume it's relative to prisma/ folder
-  if (!relativePath.startsWith("prisma/") && !relativePath.includes("/prisma/")) {
-    relativePath = `prisma/${relativePath}`;
-  }
-  const absolutePath = path.resolve(process.cwd(), relativePath);
+  const relativePath = process.env.DATABASE_URL.slice(7); // Remove "file:./"
+  const schemaDir = path.resolve(process.cwd(), "prisma");
+  const absolutePath = path.resolve(schemaDir, relativePath);
   process.env.DATABASE_URL = `file:${absolutePath}`;
 }
 
