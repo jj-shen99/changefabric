@@ -51,10 +51,12 @@ function parseRepoUrl(url: string): { baseUrl: string; owner: string; repo: stri
 /** Search GHE for a repo by name when direct access returns 404 */
 async function searchRepo(
   baseUrl: string,
-  repoName: string
+  repoName: string,
+  requestUser?: string,
+  requestPass?: string
 ): Promise<{ owner: string; repo: string } | null> {
-  const user = getSecret("GIT_USER");
-  const pass = getSecret("GIT_PASSWORD");
+  const user = requestUser || getSecret("GIT_USER");
+  const pass = requestPass || getSecret("GIT_PASSWORD");
   const authHeader = user ? "Basic " + Buffer.from(`${user}:${pass}`).toString("base64") : "";
   try {
     const headers: Record<string, string> = { Accept: "application/json" };
@@ -75,7 +77,9 @@ async function fetchCommits(
   baseUrl: string,
   owner: string,
   repo: string,
-  since: string
+  since: string,
+  requestUser?: string,
+  requestPass?: string
 ): Promise<GitCommit[]> {
   // Try GitHub Enterprise API first, then Gitea API
   const endpoints = [
@@ -83,8 +87,8 @@ async function fetchCommits(
     `${baseUrl}/api/v1/repos/${owner}/${repo}/commits?since=${since}&limit=50&stat=true`,
   ];
 
-  const user = getSecret("GIT_USER");
-  const pass = getSecret("GIT_PASSWORD");
+  const user = requestUser || getSecret("GIT_USER");
+  const pass = requestPass || getSecret("GIT_PASSWORD");
   const authHeader = user ? "Basic " + Buffer.from(`${user}:${pass}`).toString("base64") : "";
 
   for (const url of endpoints) {
@@ -144,10 +148,12 @@ async function fetchCommitDetail(
   baseUrl: string,
   owner: string,
   repo: string,
-  sha: string
+  sha: string,
+  requestUser?: string,
+  requestPass?: string
 ): Promise<{ filesChanged: number; additions: number; deletions: number; files: { filename: string; additions: number; deletions: number; status: string }[] }> {
-  const user = getSecret("GIT_USER");
-  const pass = getSecret("GIT_PASSWORD");
+  const user = requestUser || getSecret("GIT_USER");
+  const pass = requestPass || getSecret("GIT_PASSWORD");
   const authHeader = user ? "Basic " + Buffer.from(`${user}:${pass}`).toString("base64") : "";
 
   // GitHub Enterprise first, then Gitea
@@ -548,23 +554,25 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const repoUrl = searchParams.get("repo") || DEFAULT_REPO_URL;
   const days = parseInt(searchParams.get("days") || String(DEFAULT_DAYS), 10);
+  const reqUser = searchParams.get("user") || undefined;
+  const reqPass = searchParams.get("pass") || undefined;
 
   try {
     const { baseUrl, owner, repo } = parseRepoUrl(repoUrl);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
     // 1. Fetch commits list
-    let commits = await fetchCommits(baseUrl, owner, repo, since);
+    let commits = await fetchCommits(baseUrl, owner, repo, since, reqUser, reqPass);
 
     // 1b. If no commits found, try searching for the repo by name (owner may be wrong)
     let resolvedOwner = owner;
     let resolvedRepo = repo;
     if (commits.length === 0) {
-      const found = await searchRepo(baseUrl, repo);
+      const found = await searchRepo(baseUrl, repo, reqUser, reqPass);
       if (found && (found.owner !== owner || found.repo !== repo)) {
         resolvedOwner = found.owner;
         resolvedRepo = found.repo;
-        commits = await fetchCommits(baseUrl, resolvedOwner, resolvedRepo, since);
+        commits = await fetchCommits(baseUrl, resolvedOwner, resolvedRepo, since, reqUser, reqPass);
       }
     }
 
@@ -579,7 +587,7 @@ export async function GET(request: Request) {
     const enriched: GitCommit[] = [];
     for (const c of commits.slice(0, 50)) {
       if (c.files.length === 0 && c.sha) {
-        const detail = await fetchCommitDetail(baseUrl, resolvedOwner, resolvedRepo, c.sha);
+        const detail = await fetchCommitDetail(baseUrl, resolvedOwner, resolvedRepo, c.sha, reqUser, reqPass);
         enriched.push({ ...c, ...detail });
       } else {
         enriched.push(c);
