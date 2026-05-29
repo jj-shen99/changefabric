@@ -89,7 +89,7 @@ export default function CodeAnalysisPage() {
       const res = await fetch("/api/settings/integrations/test-git", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user: gitUser, password: gitPassword }),
+        body: JSON.stringify({ user: gitUser, password: gitPassword, repoUrl: gitRepo }),
       });
       const data = await res.json();
       setConnectionStatus({ success: data.success, message: data.message });
