@@ -554,8 +554,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const repoUrl = searchParams.get("repo") || DEFAULT_REPO_URL;
   const days = parseInt(searchParams.get("days") || String(DEFAULT_DAYS), 10);
-  const reqUser = searchParams.get("user") || undefined;
-  const reqPass = searchParams.get("pass") || undefined;
+  // Read credentials from headers (never from query params to avoid log/history leaks)
+  const reqUser = request.headers.get("x-git-user") || undefined;
+  const reqPass = request.headers.get("x-git-password") || undefined;
 
   try {
     const { baseUrl, owner, repo } = parseRepoUrl(repoUrl);

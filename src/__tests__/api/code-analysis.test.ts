@@ -152,39 +152,59 @@ describe("Code Analysis - Git Analysis API", () => {
     });
   });
 
-  // --- Credential Passing (regression for the main bug) ---
-  describe("Credential passing", () => {
-    it("frontend sends user/pass as query params", () => {
-      // Simulate the frontend URL construction
+  // --- Credential Passing via Headers (security fix) ---
+  describe("Credential passing via headers", () => {
+    it("frontend sends credentials via headers, not URL params", () => {
       const gitRepo = "https://github.com/owner/repo";
       const gitDays = 14;
       const gitUser = "myuser";
       const gitPassword = "mypass";
 
-      let url = `/api/data/git-analysis?repo=${encodeURIComponent(gitRepo)}&days=${gitDays}`;
+      // URL should never contain credentials
+      const url = `/api/data/git-analysis?repo=${encodeURIComponent(gitRepo)}&days=${gitDays}`;
+      const headers: Record<string, string> = {};
       if (gitUser && gitPassword) {
-        url += `&user=${encodeURIComponent(gitUser)}&pass=${encodeURIComponent(gitPassword)}`;
+        headers["x-git-user"] = gitUser;
+        headers["x-git-password"] = gitPassword;
       }
 
       const parsed = new URL(url, "http://localhost");
-      expect(parsed.searchParams.get("user")).toBe("myuser");
-      expect(parsed.searchParams.get("pass")).toBe("mypass");
+      // Credentials must NOT be in query params
+      expect(parsed.searchParams.get("user")).toBeNull();
+      expect(parsed.searchParams.get("pass")).toBeNull();
+      // Credentials must be in headers
+      expect(headers["x-git-user"]).toBe("myuser");
+      expect(headers["x-git-password"]).toBe("mypass");
       expect(parsed.searchParams.get("repo")).toBe(gitRepo);
       expect(parsed.searchParams.get("days")).toBe("14");
     });
 
-    it("URL without credentials has no user/pass params", () => {
+    it("URL never contains user/pass params", () => {
       const url = `/api/data/git-analysis?repo=${encodeURIComponent("https://github.com/o/r")}&days=7`;
       const parsed = new URL(url, "http://localhost");
       expect(parsed.searchParams.get("user")).toBeNull();
       expect(parsed.searchParams.get("pass")).toBeNull();
+      expect(url).not.toContain("user=");
+      expect(url).not.toContain("pass=");
     });
 
-    it("credentials with special characters are URL-encoded", () => {
+    it("headers handle special characters without URL encoding", () => {
       const pass = "p@ss&word=123";
-      const url = `/api/data/git-analysis?repo=x&pass=${encodeURIComponent(pass)}`;
-      const parsed = new URL(url, "http://localhost");
-      expect(parsed.searchParams.get("pass")).toBe(pass);
+      const headers: Record<string, string> = { "x-git-password": pass };
+      // Headers preserve special characters as-is (no URL encoding needed)
+      expect(headers["x-git-password"]).toBe("p@ss&word=123");
+    });
+
+    it("no headers set when credentials are empty", () => {
+      const gitUser = "";
+      const gitPassword = "";
+      const headers: Record<string, string> = {};
+      if (gitUser && gitPassword) {
+        headers["x-git-user"] = gitUser;
+        headers["x-git-password"] = gitPassword;
+      }
+      expect(headers["x-git-user"]).toBeUndefined();
+      expect(headers["x-git-password"]).toBeUndefined();
     });
   });
 

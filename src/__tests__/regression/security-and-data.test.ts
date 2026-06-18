@@ -277,6 +277,74 @@ describe(".env.example Security", () => {
   });
 });
 
+// ─── Git Credential Security (headers, not query params) ────────────
+
+describe("Git Credential Security", () => {
+  const routeSource = readFileSync(
+    join(ROOT, "src/app/api/data/git-analysis/route.ts"),
+    "utf-8"
+  );
+  const pageSource = readFileSync(
+    join(ROOT, "src/app/(dashboard)/code-analysis/page.tsx"),
+    "utf-8"
+  );
+
+  it("API reads credentials from headers, not query params", () => {
+    expect(routeSource).toContain('request.headers.get("x-git-user")');
+    expect(routeSource).toContain('request.headers.get("x-git-password")');
+  });
+
+  it("API does not read user/pass from searchParams", () => {
+    expect(routeSource).not.toContain('searchParams.get("user")');
+    expect(routeSource).not.toContain('searchParams.get("pass")');
+  });
+
+  it("frontend sends credentials via headers", () => {
+    expect(pageSource).toContain('"x-git-user"');
+    expect(pageSource).toContain('"x-git-password"');
+  });
+
+  it("frontend URL construction never includes user/pass params", () => {
+    // The URL template should not append user= or pass= query params
+    const urlLines = pageSource.split("\n").filter(l => l.includes("git-analysis"));
+    for (const line of urlLines) {
+      expect(line).not.toContain("&user=");
+      expect(line).not.toContain("&pass=");
+    }
+  });
+});
+
+// ─── Security Headers ───────────────────────────────────────────────
+
+describe("Security Headers Configuration", () => {
+  const nextConfig = readFileSync(join(ROOT, "next.config.js"), "utf-8");
+
+  it("configures X-Frame-Options DENY", () => {
+    expect(nextConfig).toContain("X-Frame-Options");
+    expect(nextConfig).toContain("DENY");
+  });
+
+  it("configures X-Content-Type-Options nosniff", () => {
+    expect(nextConfig).toContain("X-Content-Type-Options");
+    expect(nextConfig).toContain("nosniff");
+  });
+
+  it("configures Referrer-Policy", () => {
+    expect(nextConfig).toContain("Referrer-Policy");
+    expect(nextConfig).toContain("strict-origin-when-cross-origin");
+  });
+
+  it("configures X-XSS-Protection", () => {
+    expect(nextConfig).toContain("X-XSS-Protection");
+  });
+
+  it("configures Permissions-Policy", () => {
+    expect(nextConfig).toContain("Permissions-Policy");
+    expect(nextConfig).toContain("camera=()");
+    expect(nextConfig).toContain("microphone=()");
+  });
+});
+
 // ─── .gitignore Verification ────────────────────────────────────────
 
 describe(".gitignore Verification", () => {

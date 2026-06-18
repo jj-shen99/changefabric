@@ -118,12 +118,14 @@ export default function CodeAnalysisPage() {
     setGitLoading(true);
     setGitError(null);
     try {
-      // Build URL with optional credentials
-      let url = `/api/data/git-analysis?repo=${encodeURIComponent(gitRepo)}&days=${gitDays}`;
+      // Build URL (credentials sent via headers, never in URL)
+      const url = `/api/data/git-analysis?repo=${encodeURIComponent(gitRepo)}&days=${gitDays}`;
+      const headers: Record<string, string> = {};
       if (gitUser && gitPassword) {
-        url += `&user=${encodeURIComponent(gitUser)}&pass=${encodeURIComponent(gitPassword)}`;
+        headers["x-git-user"] = gitUser;
+        headers["x-git-password"] = gitPassword;
       }
-      const res = await fetch(url);
+      const res = await fetch(url, { headers });
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
         throw new Error(body.error || `HTTP ${res.status}`);
